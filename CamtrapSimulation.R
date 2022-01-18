@@ -25,7 +25,7 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # speedSD: standard deviation of log speed
 # speedCor: autocorrelation in speeed
 # kCor: whether to correlate kappa with speed
-# xlim, ylim: x and y axis limits within which to pick the starting point
+# xlim, ylim: x- and y-axis limits within which to pick the starting point
 # wrap: whether to wrap the path
 #
 #OUTPUT

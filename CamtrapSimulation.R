@@ -23,9 +23,9 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher=more concentrated)
 # logspeed: mean log speed
 # speedSD: standard deviation of log speed
-# speedCor: autocorrelation in speeed
+# speedCor: autocorrelation in speed
 # kCor: whether to correlate kappa with speed
-# xlim, ylim: x- and y-axis limits within which to pick the starting point
+# xlim, ylim: x and y axis limits within which to pick the starting point
 # wrap: whether to wrap the path
 #
 #OUTPUT
@@ -56,7 +56,12 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
 
 # wrap
 #Takes a path object created with pathgen and wraps the co-ordinates within given limits
-#
+# this means: constrains where the animal goes: it could wander off away from you or it could stay in the same-ish spot
+# wrapping is for convenience: so you can define a region you're working within
+# but if an animal leaves it can go back in from the other side - it's tauroidal in shape
+# just a convenient way to keep the animal within a confined arena
+# benefit here: can set your detection zone to cover a decent amount of space
+# this makes things more computationally small & feasible
 #INPUT
 # pth: a two column array of x,y positions defining the path
 # xlim, ylim: the x,y limits within which to wrap the path
@@ -149,14 +154,19 @@ plot_dzone <- function(dzone, ...){
   }
 }
 
+
+# simulation happens between pathgen (simulates a path) and sequence data (simulating detection process)
+
 ## sequence_data
 #1. Takes dataframes defining a path and a detection zone (as defined above)
 #2. Filters the path points falling within the detection zone
 #3. Assigns each contiguous sequence of points a unique sequence identifier
 #4. calculates the distances between points with sequences
-#
+# finds which points on the path are in the detection zone
+# and assigns sequence identifiers to each snippet (so there are multiple within one path)
+# returns parts of a path that are in the detection zone
 #INPUT
-# pth: a path object
+# path: a path object
 # a detection zone array
 #OUTPUT#
 # A data frame with columns:
@@ -197,4 +207,25 @@ calc_speed <- function(dat){
   speed <- dist/(points-1)
   data.frame(sequenceID=unique(dat$sequenceID), distance=dist, points=points, speed=speed)
 }
+
+
+
+
+
+# run the functions
+# then look inside them
+# see if you're happy with how they're working
+# then could see ways to modify them - e.g. the choices he gave for the movement path aren't enough
+# same goes for the detection process - could find ways to make it more realistic
+# also have a look at the data (mirrors what we wanna simulate)
+# understand the format so that can make sure the simulation is good - based on realistic patterns in the data
+
+
+# AIMS
+# we wanna simulate where we know the actual speeds
+# then be able to detect the biases
+# currently: these simulations don't monitor all the potential biases
+# e.g. missing high speeds
+# it's all about quantifying bias
+# comparing estimation outcomes with the truth
 

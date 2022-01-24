@@ -1,8 +1,19 @@
 ######### DATA EXPLORATION ############
 
-# TO DO: 
-# - fix tortuosity loop
+# TO DO
+# - tortuosity q1
+# - speed distribution q1
+# - speed distribution q2
+# - distance-speed relationship q1
+# - distance-speed relationshpi q2
 
+# TO DISCUSS
+# - tortuosity stuff: 
+#   -- method of working out tortuosity?
+#   -- observed trends with speed?
+#   -- that one super tortuous fox
+# - looking at distribution of speeds to think about biases
+#   -- thoughts on how best to determine whether there are biases in these speeds (i.e. compare what we have here to how fast foxes/hedgehogs usually move)
 
 
 # Set-up ------------------------------------------------------------------
@@ -10,6 +21,8 @@
 
 
 require(ggplot2)
+require(ggpubr)
+require(dplyr)
 
 ## load in and format data
 
@@ -50,16 +63,20 @@ p2
 p3 <- ggplot(movdata, aes(x = location, y = speed))+
   geom_point()
 p3
-
+# certain locations look to be associated with certain speeds
 
 
 
 # Tortuosity --------------------------------------------------------------
 
+## 1. how could we use this to improve our simulations?
 
 
 
-## how does tortuosity relate to speed?
+
+
+
+## 2. investing a potential bias: how does tortuosity relate to speed?
 
 # work out tortuosity for each path: define it as gross distance divided by net distance travelled (seems to be how it's usually done in the literature)
 
@@ -96,64 +113,217 @@ t
 
 # loop:
 
-# subset per sequence number
-t_all <- list(for (i in unique(posdata$sequence)) {
-  k <- posdata[posdata$sequence==i,]
+
+tortuosity <- list()
+for (i in unique(posdata$sequence)) {
+  # subset per sequence number:
+  k <- posdata[posdata$sequence==i,] 
+  
+  # if there is one row then skip to the next one (there was only one position in this sequence):
   if (nrow(k)==1){
     next
   }
+  
+  # get net dist:
   n <- movdata[movdata$sequence==i,]$dist
-  r1 <- k[1,]$radius
-  theta1 <- k[1,]$angle
-  r2 <- k[2,]$radius
-  theta2 <- k[2,]$angle
-  g <- sqrt(r1^2 + r2^2 - 2*r1*r2*cos(theta1 - theta2))
+  
+  # work out gross dist
+  gross_dists <- c()
+  for (j in 1:(nrow(k)-1)){
+    d <- sqrt((k[j,]$radius)^2 + (k[(j+1),]$radius)^2 - 2*(k[j,]$radius)*(k[(j+1),]$radius)*cos(k[j,]$angle - k[(j+1),]$angle))
+    gross_dists <- c(gross_dists, d)
+  }
+  
+  # sum gross distances
+  g <- sum(gross_dists)
+  
+  # work out tortuosity
   t <- g / n
-})
+  
+  # fill tortuosity list
+  tortuosity[[paste0("sequence", i)]] <- t
+}
+tortuosity
 
-ta <- for (i in 3){
-  posdata[posdata$sequence==i,]
+# problem: gross distance = net distance for every one
+# ask Marcus about how they work out distance?
+
+# what I think net distance is is actually probably gross distance
+
+# so need to work out net distance:
+
+
+tortuosity2 <- c()
+for (i in unique(posdata$sequence)) {
+  # subset per sequence number:
+  k <- posdata[posdata$sequence==i,] 
+  
+  # if there is one row then skip to the next one (there was only one position in this sequence):
+  if (nrow(k)==1){
+    next
+  }
+  
+  # get gross dist:
+  g <- movdata[movdata$sequence==i,]$dist
+  
+  # work out net dist = distance between first and last
+  x <- nrow(k)
+  n <- sqrt((k[1,]$radius)^2 + (k[x,]$radius)^2 - 2*(k[1,]$radius)*(k[(x),]$radius)*cos(k[1,]$angle - k[(x),]$angle))
+    
+  # work out tortuosity
+  t <- g / n
+  
+  # fill tortuosity list
+  tortuosity2 <- c(tortuosity2,t)
+}
+tortuosity2
+
+
+# the higher the value of t, the more tortuous
+t_df <- as.data.frame(cbind(movdata$speed, tortuosity2))
+colnames(t_df) <- c("speed", "tortuosity")
+
+t_plot <- ggplot(t_df, aes(x = tortuosity, y = speed))+
+  geom_point()
+t_plot
+
+# there's a weird one with super high tortuosity: find which one it is:
+
+# it's the 83rd one
+
+# this should correspond to the 83rd row in movdata:
+View(movdata[83,])
+# --> fox at location 19, sequence 1331
+
+# have a look at the position data for this fox:
+View(posdata[posdata$sequence==1331,])
+
+# it looks like it goes back on itself - this is probably what's causing such high tortuosity
+
+# would be nice to plot its actual movement path
+# could just use the x & y pixel positions in the image?
+
+tortuous_fox <- ggplot(posdata[posdata$sequence==1331,], aes(x = x, y = y))+
+  geom_point()+
+  geom_text(aes(label = markerid), hjust = 0.5, vjust = -0.5)
+tortuous_fox
+
+
+
+# either way: looks like that fox has a pretty tortuous path
+
+
+# test for relationship between speed and tortuosity
+
+
+# data are not normal
+
+ggdensity(t_df$speed,
+          xlab = 'speed')
+
+ggqqplot(t_df$speed)
+
+## - deviates quite a lot from the normal distribution
+
+shapiro.test(t_df$speed)
+# - pretty significantly not normally distributed
+
+
+# could use Spearman's correlation coefficient: doesn't assume normality
+# assumptions: data must be at least ordinal and the scores on one variable must be monotonically related to the other variable
+
+cor.test(t_df$tortuosity, t_df$speed, method = c("spearman"))
+#--> significant correlation between them
+
+# plot:
+
+ggscatter(t_df, x = "tortuosity", y = "speed", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Tortuosity", ylab = "Speed")
+
+
+
+## RE-DO ALL THIS WITHOUT THE OUTLIER FOX
+
+t_df2 <- t_df[-83,]
+
+# could use Spearman's correlation coefficient: doesn't assume normality
+# assumptions: data must be at least ordinal and the scores on one variable must be monotonically related to the other variable
+
+cor.test(t_df2$tortuosity, t_df2$speed, method = c("spearman"))
+#--> still significant
+
+# plot:
+
+ggscatter(t_df2, x = "tortuosity", y = "speed", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "Tortuosity", ylab = "Speed")
+
+
+
+###--> but: because tortuosities are super clustered at low values, hard to tell whether there is really a correlation
+# (i.e. non-similarity of tortuosity values is skewing the relationship)
+
+
+
+# Speed distribution ------------------------------------------------------
+
+
+## 1. what is the distribution of speeds in these data? How does this compare to usual speeds of movements for these animals? Does this suggest there are any biases in what's captured by CTs?
+
+# look at distribution of speeds to start thinking about one of the biases we want to investigate (that speed is potentially proportional to trap rate)
+
+ggdensity(t_df$speed,
+          xlab = 'speed')
+# tails off at high speeds - might well be missed by CTs then?
+
+# would be good to get a better idea of how well these speeds reflect usual speeds of foxes & hedgehogs in these habitats 
+#--> BUT: do we have enough data available for this?
+
+#--> do we have GPS data that we could compare this to? - i.e. compare distribution of speeds measured by CTs vs GPS data
+
+
+## 2. can we estimate an upper limit on speeds which can be detected by CTs? Then compare this to usual max speeds of these animals to determine whether high speeds could indeed be being missed by CTs
+
+# thinking about the bias of very high speeds being likely to be missed by cameras:
+# have a look at speeds associated with movements for which have only 2 or 3 positions
+
+# this could maybe give us an idea of the upper limit of speeds which can be captured
+
+# subset into speeds with 2 or 3 positions
+
+high_speeds_df <- data.frame(stringsAsFactors = F)
+
+for (i in unique(posdata$sequence)) {
+  # subset per sequence number:
+  k <- posdata[posdata$sequence==i,] 
+  
+  # if there are fewer than 2 or more than 3 rows, skip to the next one
+  if (nrow(k) < 2){
+    next
+  }
+  if (nrow(k) > 3){
+    next
+  }
+  
+  # fill the empty dataframe with whatever makes it past the 2 if statements:
+  
+  high_speeds_df <- rbind(high_speeds_df, k)
+  
 }
 
-x <- for (i in 3){
-  2 + i
-}
 
+# look at the speeds corresponding to these positions:
 
-k <- posdata[posdata$sequence==33,]
-n <- movdata[movdata$sequence==33,]$dist
-if (nrow(k)==1) {
-  print("hi")
-}
-else {
-  print("there")
-}
-r1 <- k[1,]$radius
-theta1 <- k[1,]$angle
-r2 <- k[2,]$radius
-theta2 <- k[2,]$angle
-g <- sqrt(r1^2 + r2^2 - 2*r1*r2*cos(theta1 - theta2))
-g / n
+high_speed_seqs <- unique(high_speeds_df$sequence)
 
-
-
-
-
-# if there is one row then skip to the next one (there was only one position in this sequence)
-# if nrow==1 in k:
-# next
-
-# get net dist:
-# n <- k$dist 
-
-# work out gross dist:
-
-# r1 <- m[1,]$radius
-# theta1 <- m[1,]$angle
-# r2 <- m[2,]$radius
-# theta2 <- m[2,]$angle
-
-# g <- sqrt(r1^2 + r2^2 - 2*r1*r2*cos(theta1 - theta2))
+# get the speeds for these sequences from movdata:
+high_speeds <- high_speeds_df %>% 
+  filter(sequence == high_speed_seqs)
+  # need to select rows for which sequence is in high_speed_seqs then extract the speed value in that row
+  # use x %in% y maybe??
 
 
 
@@ -162,3 +332,18 @@ g / n
 
 
 
+
+
+# Distance-speed relationship ---------------------------------------------
+
+# potential bias: effective detection distance is related weakly negatively to speed (i.e. if moving faster less likely to get detected at greater distance)
+# found by Rowcliffe et al. 2011 when using the random encounter model to estimate abundance from CT data
+
+
+## 1. is effective detection distance related to speed in these data?
+
+
+
+
+
+## 2. how could we incorporate this into the simulation to investigate this potential bias?

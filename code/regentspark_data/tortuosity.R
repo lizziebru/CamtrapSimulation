@@ -249,9 +249,12 @@ ggscatter(t_df4, x = "logtortuosity", y = "logspeed",
 
 
 
-# Tortuosity & speed relationship - using turn angles ---------------------
+
+### Tortuosity & speed relationship - using turn angles
 
 ## investing a potential bias: how does tortuosity relate to speed and how does this compare across different species?
+
+# work out turn angles ----------------------------------------------------
 
 # need minimum of 3 points: 1, 2, 3
 
@@ -350,8 +353,16 @@ main_df <- data.frame(sequence = seqs1,
                       species = as.character(movdata[movdata$sequence %in% seq_no, ]$species)
                       )
 
+# remove rows containing NaNs:
+main_df <- na.omit(main_df)
 
-##  looking at relationship between speed & tortuosity using turnangles as a measure of tortuosity:
+
+
+
+
+
+# investigating relationship between speed & tortuosity - using all the data -------------------
+
 
 # initial plot with separate colours for species:
 
@@ -360,17 +371,17 @@ ggplot(main_df, aes(x = tortuosity, y = speed, colour = species))+
 
 # with spearman regression lines:
 
-ggscatter(main_df[main_df$species=="Fox",], x = "tortuosity", y = "speed", 
+f_s1 <- ggscatter(main_df[main_df$species=="Fox",], x = "tortuosity", y = "speed", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "spearman",
           xlab = "Tortuosity (average turn angles)", ylab = "Speed",
-          title = "Foxes")
+          title = "Foxes (spearman)")
 
-ggscatter(main_df[main_df$species=="Hedgehog",], x = "tortuosity", y = "speed", 
+h_s1 <- ggscatter(main_df[main_df$species=="Hedgehog",], x = "tortuosity", y = "speed", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "spearman",
           xlab = "Tortuosity (average turn angles)", ylab = "Speed",
-          title = "Hedgehogs")
+          title = "Hedgehogs (spearman)")
 
 # quite a few outliers still
 
@@ -381,7 +392,540 @@ ggscatter(main_df[main_df$species=="Hedgehog",], x = "tortuosity", y = "speed",
 # need to investigate this relationship in more detail..
 
 
+# try again using Pearson's?
+
+f_p <- ggscatter(main_df[main_df$species=="Fox",], x = "tortuosity", y = "speed", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Tortuosity (average turn angles)", ylab = "Speed",
+          title = "Foxes (pearson)")
+
+h_p <- ggscatter(main_df[main_df$species=="Hedgehog",], x = "tortuosity", y = "speed", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Tortuosity (average turn angles)", ylab = "Speed",
+          title = "Hedgehogs (pearson)")
+
+ggarrange(f_s1, h_s1, f_p, h_p, nrow = 2, ncol = 2)
+
+# --> doesn't look that different
+# but seems like spearman's is probably better bc seems less affected by the outliers than pearson's is
+
+
+
+
+## try again taking logs:
+
+# add logged columns to df:
+
+main_df <- data.frame(main_df,
+                      log_tortuosity = log(main_df$tortuosity),
+                      log_speed = log(main_df$speed))
+
+
+
+# logging just tortuosity:
+
+f_s2 <- ggscatter(main_df[main_df$species=="Fox",], x = "log_tortuosity", y = "speed", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "log Tortuosity (average turn angles)", ylab = "Speed",
+          title = "Foxes (spearman)")
+
+h_s2 <- ggscatter(main_df[main_df$species=="Hedgehog",], x = "log_tortuosity", y = "speed", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          xlab = "log Tortuosity (average turn angles)", ylab = "Speed",
+          title = "Hedgehogs (spearman)")
+
+
+# logging just speed:
+
+f_s3 <- ggscatter(main_df[main_df$species=="Fox",], x = "tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Foxes (spearman)")
+
+h_s3 <- ggscatter(main_df[main_df$species=="Hedgehog",], x = "tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Hedgehogs (spearman)")
+
+
+# logging both:
+
+f_s4 <- ggscatter(main_df[main_df$species=="Fox",], x = "log_tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "log Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Foxes (spearman)")
+
+h_s4 <- ggscatter(main_df[main_df$species=="Hedgehog",], x = "log_tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "log Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Hedgehogs (spearman)")
+
+
+ggarrange(f_s1, h_s1, f_s2, h_s2, f_s3, h_s3, f_s4, h_s4,
+          nrow = 4,
+          ncol = 2)
+
+#--> logging tortuosity doesn't seem to do much and logging speed makes things worse
+
+
+# need to better discern this complex-looking relationship between 2 continuous variables
+
+
 # try fitting some models:
+
+
+## Linear models: regression:
+
+# 1. explore data to determine whether LM is a good choice
+
+# looking at correlations & what the data look like - LM looks pretty good
+
+
+# 2. fit Linear Regression Model to data
+
+# initial logging didn't seem to do much - but probs stil worth investigating whether a logistic model could be any good
+
+# fit the linear (regression) model:
+
+f1 <- lm(speed ~ tortuosity, data = fox_df)
+
+summary(f1)
+
+ggplot(fox_df, aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", geom = "smooth")+
+  ggtitle("Foxes - linear model")
+
+# diagnostic plots:
+par(mfrow = c(2,2), mar = c(5, 5, 1.5, 1.5))
+plot(f1)
+# normal Q-Q plot not great - quite a lot of deviation at the ends - residuals are not v normally distributed
+# scale location plot also not great - the variance of the residuals does change as a function of the predictor
+# a couple of points also have rly high leverage
+
+h1 <- lm(speed ~ tortuosity, data = hedgehog_df)
+
+summary(h1)
+
+ggplot(hedgehog_df, aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", geom = "smooth")+
+  ggtitle("Hedgehogs - linear model")
+
+# diagnostic plots:
+par(mfrow = c(2,2), mar = c(5, 5, 1.5, 1.5))
+plot(h1)
+# issues with residuals vs fitted: the distribution of residuals has pretty uneven variance
+# --> is this something to deal with?
+# scale location plot also not great - the variance of the residuals does change as a function of the predictor
+# a couple of points also have rly high leverage
+
+
+# --> problem: all the data are pretty clustered at low tortuosity values
+
+# the diagnostic plots basically show that the slope coefficient estimates are pretty strongly affected by certain data points
+
+# suggests that could be a good idea to get rid of some outliers...
+
+
+# other models:
+
+# LINEAR MODELS: 
+
+# cubic
+
+f2 <- lm(fox_df$speed ~ poly(fox_df$tortuosity, 3, raw = TRUE), silent = TRUE)
+summary(f2)
+
+h2 <- lm(hedgehog_df$speed ~ poly(hedgehog_df$tortuosity, 3, raw = TRUE), silent = TRUE)
+summary(h2)
+
+
+# quadratic
+
+f3 <- lm(fox_df$speed ~ poly(fox_df$tortuosity, 2, raw = TRUE), silent = TRUE)
+summary(f3)
+
+h3 <- lm(hedgehog_df$speed ~ poly(hedgehog_df$tortuosity, 2, raw = TRUE), silent = TRUE)
+summary(h3)
+
+
+# NON-LINEAR MODELS
+
+# logistic
+
+logistic_model <- function(t, r_max, K, N_0){ # The classic logistic equation
+  return(N_0 * K * exp(r_max * t)/(K + N_0 * (exp(r_max * t) - 1)))
+}
+
+N_0_start_f <- min(fox_df$speed) # lowest speed
+K_start_f <- max(fox_df$speed) # highest speed
+r_max_start_f <- 0.7143 # use estimate from OLS fitting (model f1)
+
+f4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), fox_df,
+               list(r_max=r_max_start_f, N_0 = N_0_start_f, K = K_start_f))
+
+
+N_0_start_h <- min(hedgehog_df$speed) # lowest speed
+K_start_h <- max(hedgehog_df$speed) # highest speed
+r_max_start_h <- 5.7726 # use estimate from OLS fitting (model h1)
+
+h4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), hedgehog_df,
+               list(r_max=r_max_start_h, N_0 = N_0_start_h, K = K_start_h))
+
+
+# plotting all the models for each species:
+
+# foxes:
+
+timepoints_f <- seq(0, max(main_df[main_df$species=="Fox",]$tortuosity, na.rm=T), 0.1)
+f_logvals <- data.frame(timepoints = timepoints_f,
+                        log_vals = log(logistic_model(r_max=coef(f4)[1], N_0 = coef(f4)[2], K = coef(f4)[3], t = timepoints_f)))
+
+f_models <- ggplot(main_df[main_df$species=="Fox", ], aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 2, raw = TRUE), se = FALSE, aes(colour = "#CC79A7")) + #add aes colours to tell them apart
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 3, raw = TRUE), se = FALSE, aes(colour = "#D55E00")) +
+  geom_smooth(method = "loess", data = f_logvals, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
+  scale_color_manual(name = NULL, values = c("#CC79A7", "#D55E00", "#0072B2"), labels = c("Quadratic", "Cubic", "Logistic"))+
+  guides(col = guide_legend("Model"))+
+  ggtitle("Regent's park - foxes")+
+  theme_bw()+
+  xlim(min(main_df[main_df$species=="Fox",]$tortuosity, na.rm = T), 3)
+
+
+# hedgehogs:
+
+timepoints_h <- seq(0, max(main_df[main_df$species=="Hedgehog",]$tortuosity, na.rm=T), 0.1)
+h_logvals <- data.frame(timepoints = timepoints_h,
+                        log_vals = log(logistic_model(r_max=coef(h4)[1], N_0 = coef(h4)[2], K = coef(h4)[3], t = timepoints_h)))
+
+h_models <- ggplot(main_df[main_df$species=="Hedgehog", ], aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 2, raw = TRUE), se = FALSE, aes(colour = "#CC79A7")) + #add aes colours to tell them apart
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 3, raw = TRUE), se = FALSE, aes(colour = "#D55E00")) +
+  geom_smooth(method = "loess", data = h_logvals, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
+  scale_color_manual(name = NULL, values = c("#CC79A7", "#D55E00", "#0072B2"), labels = c("Quadratic", "Cubic", "Logistic"))+
+  guides(col = guide_legend("Model"))+
+  ggtitle("Regent's park - hedgehogs")+
+  theme_bw()+
+  xlim(min(main_df[main_df$species=="Hedgehog",]$tortuosity, na.rm = T), 1.9)
+
+ggarrange(f_models, h_models, nrow = 2)
+
+# it all looks pretty skewed by outliers...
+
+# logistic looks tentatively the best though
+
+
+
+
+
+
+
+
+# investigating relationship between speed & tortuosity - with out --------
+
+
+# make new df without 2 fox outliers and 3 hedgehog ones:
+
+# identify which ones they are:
+max(main_df[main_df$species=="Fox",]$tortuosity, na.rm = T)
+
+# separate out the fox tortuosities and identify the 2 largest values:
+
+fox_t <- main_df[main_df$species=="Fox",]$tortuosity
+remove_f <- tail(unique(fox_t[order(fox_t)]), 2)
+
+hedg_t <- main_df[main_df$species=="Hedgehog",]$tortuosity
+remove_h <- tail(unique(hedg_t[order(hedg_t)]), 3)
+
+remove <- c(remove_f, remove_h)
+
+main_df2 <- main_df[!(main_df$tortuosity==remove[1] | main_df$tortuosity==remove[2] | main_df$tortuosity==remove[3] | main_df$tortuosity==remove[4] | main_df$tortuosity==remove[5]),]
+
+
+# now re-doing everything:
+
+# initial plot with separate colours for species:
+
+ggplot(main_df2, aes(x = tortuosity, y = speed, colour = species))+
+  geom_point()
+
+# with spearman regression lines:
+
+f_s1_2 <- ggscatter(main_df2[main_df2$species=="Fox",], x = "tortuosity", y = "speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "Tortuosity (average turn angles)", ylab = "Speed",
+                  title = "Foxes (spearman)")
+
+h_s1_2 <- ggscatter(main_df2[main_df2$species=="Hedgehog",], x = "tortuosity", y = "speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "Tortuosity (average turn angles)", ylab = "Speed",
+                  title = "Hedgehogs (spearman)")
+
+
+# try again using Pearson's?
+
+f_p_2 <- ggscatter(main_df2[main_df2$species=="Fox",], x = "tortuosity", y = "speed", 
+                 add = "reg.line", conf.int = TRUE, 
+                 cor.coef = TRUE, cor.method = "pearson",
+                 xlab = "Tortuosity (average turn angles)", ylab = "Speed",
+                 title = "Foxes (pearson)")
+
+h_p_2 <- ggscatter(main_df2[main_df2$species=="Hedgehog",], x = "tortuosity", y = "speed", 
+                 add = "reg.line", conf.int = TRUE, 
+                 cor.coef = TRUE, cor.method = "pearson",
+                 xlab = "Tortuosity (average turn angles)", ylab = "Speed",
+                 title = "Hedgehogs (pearson)")
+
+ggarrange(f_s1_2, h_s1_2, f_p_2, h_p_2, nrow = 2, ncol = 2)
+
+# very similar: probably use spearman's though bc data are not normal
+
+
+
+
+## taking logs:
+
+# logging just tortuosity:
+
+f_s2_2 <- ggscatter(main_df2[main_df2$species=="Fox",], x = "log_tortuosity", y = "speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "log Tortuosity (average turn angles)", ylab = "Speed",
+                  title = "Foxes (spearman)")
+
+h_s2_2 <- ggscatter(main_df2[main_df2$species=="Hedgehog",], x = "log_tortuosity", y = "speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "log Tortuosity (average turn angles)", ylab = "Speed",
+                  title = "Hedgehogs (spearman)")
+
+
+# logging just speed:
+
+f_s3_2 <- ggscatter(main_df2[main_df2$species=="Fox",], x = "tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Foxes (spearman)")
+
+h_s3_2 <- ggscatter(main_df2[main_df2$species=="Hedgehog",], x = "tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Hedgehogs (spearman)")
+
+
+# logging both:
+
+f_s4_2 <- ggscatter(main_df2[main_df2$species=="Fox",], x = "log_tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "log Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Foxes (spearman)")
+
+h_s4_2 <- ggscatter(main_df2[main_df2$species=="Hedgehog",], x = "log_tortuosity", y = "log_speed", 
+                  add = "reg.line", conf.int = TRUE, 
+                  cor.coef = TRUE, cor.method = "spearman",
+                  xlab = "log Tortuosity (average turn angles)", ylab = "log Speed",
+                  title = "Hedgehogs (spearman)")
+
+
+ggarrange(f_s1_2, h_s1_2, f_s2_2, h_s2_2, f_s3_2, h_s3_2, f_s4_2, h_s4_2,
+          nrow = 4,
+          ncol = 2)
+
+#--> logging tortuosity doesn't seem to do much but logging speed does do something - looks like an asymptotal relatioship..
+
+#--> go from here!! - could be worth trying to find a model which works well for this sort of asymptotal relationship..
+
+
+# need to better discern this complex-looking relationship between 2 continuous variables
+
+
+# try fitting some models:
+
+
+## Linear models: regression:
+
+# 1. explore data to determine whether LM is a good choice
+
+# looking at correlations & what the data look like - LM looks pretty good
+
+
+# 2. fit Linear Regression Model to data
+
+# initial logging didn't seem to do much - but probs stil worth investigating whether a logistic model could be any good
+
+# fit the linear (regression) model:
+
+f1 <- lm(speed ~ tortuosity, data = fox_df)
+
+summary(f1)
+
+ggplot(fox_df, aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", geom = "smooth")+
+  ggtitle("Foxes - linear model")
+
+# diagnostic plots:
+par(mfrow = c(2,2), mar = c(5, 5, 1.5, 1.5))
+plot(f1)
+# normal Q-Q plot not great - quite a lot of deviation at the ends - residuals are not v normally distributed
+# scale location plot also not great - the variance of the residuals does change as a function of the predictor
+# a couple of points also have rly high leverage
+
+h1 <- lm(speed ~ tortuosity, data = hedgehog_df)
+
+summary(h1)
+
+ggplot(hedgehog_df, aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", geom = "smooth")+
+  ggtitle("Hedgehogs - linear model")
+
+# diagnostic plots:
+par(mfrow = c(2,2), mar = c(5, 5, 1.5, 1.5))
+plot(h1)
+# issues with residuals vs fitted: the distribution of residuals has pretty uneven variance
+# --> is this something to deal with?
+# scale location plot also not great - the variance of the residuals does change as a function of the predictor
+# a couple of points also have rly high leverage
+
+
+# --> problem: all the data are pretty clustered at low tortuosity values
+
+# the diagnostic plots basically show that the slope coefficient estimates are pretty strongly affected by certain data points
+
+# suggests that could be a good idea to get rid of some outliers...
+
+
+# other models:
+
+# LINEAR MODELS: 
+
+# cubic
+
+f2 <- lm(fox_df$speed ~ poly(fox_df$tortuosity, 3, raw = TRUE), silent = TRUE)
+summary(f2)
+
+h2 <- lm(hedgehog_df$speed ~ poly(hedgehog_df$tortuosity, 3, raw = TRUE), silent = TRUE)
+summary(h2)
+
+
+# quadratic
+
+f3 <- lm(fox_df$speed ~ poly(fox_df$tortuosity, 2, raw = TRUE), silent = TRUE)
+summary(f3)
+
+h3 <- lm(hedgehog_df$speed ~ poly(hedgehog_df$tortuosity, 2, raw = TRUE), silent = TRUE)
+summary(h3)
+
+
+# NON-LINEAR MODELS
+
+# logistic
+
+logistic_model <- function(t, r_max, K, N_0){ # The classic logistic equation
+  return(N_0 * K * exp(r_max * t)/(K + N_0 * (exp(r_max * t) - 1)))
+}
+
+N_0_start_f <- min(fox_df$speed) # lowest speed
+K_start_f <- max(fox_df$speed) # highest speed
+r_max_start_f <- 0.7143 # use estimate from OLS fitting (model f1)
+
+f4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), fox_df,
+            list(r_max=r_max_start_f, N_0 = N_0_start_f, K = K_start_f))
+
+
+N_0_start_h <- min(hedgehog_df$speed) # lowest speed
+K_start_h <- max(hedgehog_df$speed) # highest speed
+r_max_start_h <- 5.7726 # use estimate from OLS fitting (model h1)
+
+h4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), hedgehog_df,
+            list(r_max=r_max_start_h, N_0 = N_0_start_h, K = K_start_h))
+
+
+# plotting all the models for each species:
+
+# foxes:
+
+timepoints_f <- seq(0, max(main_df[main_df$species=="Fox",]$tortuosity, na.rm=T), 0.1)
+f_logvals <- data.frame(timepoints = timepoints_f,
+                        log_vals = log(logistic_model(r_max=coef(f4)[1], N_0 = coef(f4)[2], K = coef(f4)[3], t = timepoints_f)))
+
+f_models <- ggplot(main_df[main_df$species=="Fox", ], aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 2, raw = TRUE), se = FALSE, aes(colour = "#CC79A7")) + #add aes colours to tell them apart
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 3, raw = TRUE), se = FALSE, aes(colour = "#D55E00")) +
+  geom_smooth(method = "loess", data = f_logvals, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
+  scale_color_manual(name = NULL, values = c("#CC79A7", "#D55E00", "#0072B2"), labels = c("Quadratic", "Cubic", "Logistic"))+
+  guides(col = guide_legend("Model"))+
+  ggtitle("Regent's park - foxes")+
+  theme_bw()+
+  xlim(min(main_df[main_df$species=="Fox",]$tortuosity, na.rm = T), 3)
+
+
+# hedgehogs:
+
+timepoints_h <- seq(0, max(main_df[main_df$species=="Hedgehog",]$tortuosity, na.rm=T), 0.1)
+h_logvals <- data.frame(timepoints = timepoints_h,
+                        log_vals = log(logistic_model(r_max=coef(h4)[1], N_0 = coef(h4)[2], K = coef(h4)[3], t = timepoints_h)))
+
+h_models <- ggplot(main_df[main_df$species=="Hedgehog", ], aes(x = tortuosity, y = speed))+
+  geom_point()+
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 2, raw = TRUE), se = FALSE, aes(colour = "#CC79A7")) + #add aes colours to tell them apart
+  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 3, raw = TRUE), se = FALSE, aes(colour = "#D55E00")) +
+  geom_smooth(method = "loess", data = h_logvals, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
+  scale_color_manual(name = NULL, values = c("#CC79A7", "#D55E00", "#0072B2"), labels = c("Quadratic", "Cubic", "Logistic"))+
+  guides(col = guide_legend("Model"))+
+  ggtitle("Regent's park - hedgehogs")+
+  theme_bw()+
+  xlim(min(main_df[main_df$species=="Hedgehog",]$tortuosity, na.rm = T), 1.9)
+
+ggarrange(f_models, h_models, nrow = 2)
+
+# it all looks pretty skewed by outliers...
+
+# logistic looks tentatively the best though
+
+
+
+
+
+
+
+
+# think about other models that could use
+
+
+# 3. determine whether the model fits adequately the data
+
+
+
+
+
+
+
+
+
+
+
+
+
+# extra bits of code not currently using ----------------------------------
 
 # separate out into species:
 
@@ -391,7 +935,6 @@ posdata_hedgehog <- posdata[posdata$species=="Hedgehog",]
 
 
 # re-do tortuosity stuff for each species:
-
 
 turnangles_f <- c()
 seq_no_f <- c()

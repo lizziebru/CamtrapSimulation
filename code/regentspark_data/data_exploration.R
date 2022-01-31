@@ -1,18 +1,5 @@
 ######### DATA EXPLORATION ############
 
-# TO DO
-# - tortuosity q1
-# - distance-speed relationship q2
-
-# TO DISCUSS
-# - tortuosity stuff: 
-#   -- method of working out tortuosity?
-#   -- observed trends with speed?
-#   -- that one super tortuous fox
-# - looking at distribution of speeds to think about biases
-#   -- thoughts on how best to determine whether there are biases in these speeds (i.e. compare what we have here to how fast foxes/hedgehogs usually move)
-
-
 # Set-up ------------------------------------------------------------------
 
 require(ggplot2)
@@ -28,6 +15,7 @@ movdata <- read.csv('data/movdat.csv')
 
 movdata$sequence <- as.numeric(movdata$sequence)
 posdata$sequence <- as.numeric(posdata$sequence)
+
 
 
 # Speed-variable relationships --------------------------------------------
@@ -65,24 +53,30 @@ ggplot(movdata, aes(x = location, y = speed))+
 
 
 
-# Speed distribution ------------------------------------------------------
 
 
-## 1. what is the distribution of speeds in these data? How does this compare to usual speeds of movements for these animals? Does this suggest there are any biases in what's captured by CTs?
+# is speed proportional to trap rate? ------------------------------------------------------
+
+# investigate speed distribution:
+# what is the distribution of speeds in these data? How does this compare to usual speeds of movements for these animals? Does this suggest there are any biases in what's captured by CTs?
 
 # look at distribution of speeds to start thinking about one of the biases we want to investigate (that speed is potentially proportional to trap rate)
 
-ggdensity(t_df$speed,
+ggdensity(movdata$speed,
           xlab = 'speed')
 # tails off at high speeds - might well be missed by CTs then?
 
 # would be good to get a better idea of how well these speeds reflect usual speeds of foxes & hedgehogs in these habitats 
 #--> BUT: do we have enough data available for this?
-
 #--> do we have GPS data that we could compare this to? - i.e. compare distribution of speeds measured by CTs vs GPS data
+# --> answer is no we don't: leave this for now
 
 
-## 2. can we estimate an upper limit on speeds which can be detected by CTs? Then compare this to usual max speeds of these animals to determine whether high speeds could indeed be being missed by CTs
+
+
+# are high speeds more likely to be missed? -------------------------------
+
+## can we estimate an upper limit on speeds which can be detected by CTs? Then compare this to usual max speeds of these animals to determine whether high speeds could indeed be being missed by CTs
 
 # thinking about the bias of very high speeds being likely to be missed by cameras:
 # have a look at speeds associated with movements for which have only 2 or 3 positions
@@ -127,6 +121,7 @@ high_speeds_h <- high_speeds[high_speeds$species=='Hedgehog',]$speed
 # comparing this to max speeds they might be attaining:
 
 # do we have any good GPS data/do you have any ideas of how best to compare these speeds to more realistic data?
+#-- no
 
 # hedgehogs: generally reach max speeds of 4mph == around 1.79m/s
 
@@ -134,18 +129,20 @@ high_speeds_h <- high_speeds[high_speeds$species=='Hedgehog',]$speed
 #--> but then they wouldn't really be going that fast past the CTs necessarily
 
 
+# other way to potentially investigate this: 
+# - could potentially detect where things have been missed by using the 1 and 0 frame numbers
+# -- could try and see what distribution you would have and compare that to the distribution you do have
+
+  
 
 
-
-
-
-# Distance-speed relationship ---------------------------------------------
+# is detection distance negatively related to speed? ---------------------------------------------
 
 # potential bias: effective detection distance is related weakly negatively to speed (i.e. if moving faster less likely to get detected at greater distance)
 # found by Rowcliffe et al. 2011 when using the random encounter model to estimate abundance from CT data
 
 
-## 1. is effective detection distance related to speed in these data?
+# is effective detection distance related to speed in these data?
 
 # i.e. are indivs which move faster detected at shorter distances than indivs that move more slowly?
 
@@ -195,7 +192,21 @@ ggscatter(movdata, x = "radius", y = "speed",
 # correlation is positive though: higher speeds seem to be correlated with larger distances
 # this makes sense intuitively
 
-# harder question is regarding whether really high speeds are missed - discuss how best to tackle this?
+
+# problem: not super happy with this way of investigating this question
+# asking whether high speeds are correlated with shorter detection distances isn't actually the same as asking whether when you're at high speed you're less likely to get detected further away...
+
+# need to think about potentially better ways of investigating this question...
 
 
-## 2. how could we incorporate this into the simulation to investigate this potential bias?
+
+
+# also need to start investigating it using the simulation
+
+
+
+
+
+
+
+

@@ -18,15 +18,8 @@ posdata$sequence <- as.numeric(posdata$sequence)
 
 
 
-# Using tortuosity to improve simulations? --------------------------------
 
-## how could we use info on tortuosity from these data to improve our simulations?
-
-
-
-
-
-# Tortuosity & speed relationship - using gross/net distance ------------------------------------
+# using gross/net distance ------------------------------------
 
 ## investing a potential bias: how does tortuosity relate to speed and how does this compare across different species?
 
@@ -254,6 +247,7 @@ ggscatter(t_df4, x = "logtortuosity", y = "logspeed",
 
 ## investing a potential bias: how does tortuosity relate to speed and how does this compare across different species?
 
+
 # work out turn angles ----------------------------------------------------
 
 # need minimum of 3 points: 1, 2, 3
@@ -355,6 +349,8 @@ main_df <- data.frame(sequence = seqs1,
 
 # remove rows containing NaNs:
 main_df <- na.omit(main_df)
+
+
 
 
 
@@ -632,7 +628,8 @@ ggarrange(f_models, h_models, nrow = 2)
 
 
 
-# investigating relationship between speed & tortuosity - with out --------
+
+# investigating relationship between speed & tortuosity - without outliers --------
 
 
 # make new df without 2 fox outliers and 3 hedgehog ones:
@@ -749,67 +746,12 @@ ggarrange(f_s1_2, h_s1_2, f_s2_2, h_s2_2, f_s3_2, h_s3_2, f_s4_2, h_s4_2,
 
 #--> logging tortuosity doesn't seem to do much but logging speed does do something - looks like an asymptotal relatioship..
 
-#--> go from here!! - could be worth trying to find a model which works well for this sort of asymptotal relationship..
 
 
-# need to better discern this complex-looking relationship between 2 continuous variables
 
+### try fitting some models:
 
-# try fitting some models:
-
-
-## Linear models: regression:
-
-# 1. explore data to determine whether LM is a good choice
-
-# looking at correlations & what the data look like - LM looks pretty good
-
-
-# 2. fit Linear Regression Model to data
-
-# initial logging didn't seem to do much - but probs stil worth investigating whether a logistic model could be any good
-
-# fit the linear (regression) model:
-
-f1 <- lm(speed ~ tortuosity, data = fox_df)
-
-summary(f1)
-
-ggplot(fox_df, aes(x = tortuosity, y = speed))+
-  geom_point()+
-  geom_smooth(method = "lm", geom = "smooth")+
-  ggtitle("Foxes - linear model")
-
-# diagnostic plots:
-par(mfrow = c(2,2), mar = c(5, 5, 1.5, 1.5))
-plot(f1)
-# normal Q-Q plot not great - quite a lot of deviation at the ends - residuals are not v normally distributed
-# scale location plot also not great - the variance of the residuals does change as a function of the predictor
-# a couple of points also have rly high leverage
-
-h1 <- lm(speed ~ tortuosity, data = hedgehog_df)
-
-summary(h1)
-
-ggplot(hedgehog_df, aes(x = tortuosity, y = speed))+
-  geom_point()+
-  geom_smooth(method = "lm", geom = "smooth")+
-  ggtitle("Hedgehogs - linear model")
-
-# diagnostic plots:
-par(mfrow = c(2,2), mar = c(5, 5, 1.5, 1.5))
-plot(h1)
-# issues with residuals vs fitted: the distribution of residuals has pretty uneven variance
-# --> is this something to deal with?
-# scale location plot also not great - the variance of the residuals does change as a function of the predictor
-# a couple of points also have rly high leverage
-
-
-# --> problem: all the data are pretty clustered at low tortuosity values
-
-# the diagnostic plots basically show that the slope coefficient estimates are pretty strongly affected by certain data points
-
-# suggests that could be a good idea to get rid of some outliers...
+# linear regression model looked pretty crap before so don't do it again here
 
 
 # other models:
@@ -818,20 +760,20 @@ plot(h1)
 
 # cubic
 
-f2 <- lm(fox_df$speed ~ poly(fox_df$tortuosity, 3, raw = TRUE), silent = TRUE)
-summary(f2)
+f2_2 <- lm(main_df2[main_df2$species=="Fox",]$speed ~ poly(main_df2[main_df2$species=="Fox",]$tortuosity, 3, raw = TRUE), silent = TRUE)
+summary(f2_2)
 
-h2 <- lm(hedgehog_df$speed ~ poly(hedgehog_df$tortuosity, 3, raw = TRUE), silent = TRUE)
-summary(h2)
+h2_2 <- lm(main_df2[main_df2$species=="Hedgehog",]$speed ~ poly(main_df2[main_df2$species=="Hedgehog",]$tortuosity, 3, raw = TRUE), silent = TRUE)
+summary(h2_2)
 
 
 # quadratic
 
-f3 <- lm(fox_df$speed ~ poly(fox_df$tortuosity, 2, raw = TRUE), silent = TRUE)
-summary(f3)
+f3_2 <- lm(main_df2[main_df2$species=="Fox",]$speed ~ poly(main_df2[main_df2$species=="Fox",]$tortuosity, 2, raw = TRUE), silent = TRUE)
+summary(f3_2)
 
-h3 <- lm(hedgehog_df$speed ~ poly(hedgehog_df$tortuosity, 2, raw = TRUE), silent = TRUE)
-summary(h3)
+h3_2 <- lm(main_df2[main_df2$species=="Hedgehog",]$speed ~ poly(main_df2[main_df2$species=="Hedgehog",]$tortuosity, 2, raw = TRUE), silent = TRUE)
+summary(h3_2)
 
 
 # NON-LINEAR MODELS
@@ -842,64 +784,67 @@ logistic_model <- function(t, r_max, K, N_0){ # The classic logistic equation
   return(N_0 * K * exp(r_max * t)/(K + N_0 * (exp(r_max * t) - 1)))
 }
 
-N_0_start_f <- min(fox_df$speed) # lowest speed
-K_start_f <- max(fox_df$speed) # highest speed
-r_max_start_f <- 0.7143 # use estimate from OLS fitting (model f1)
+N_0_start_f_2 <- min(main_df2[main_df2$species=="Fox",]$speed) # lowest speed
+K_start_f_2 <- max(main_df2[main_df2$species=="Fox",]$speed) # highest speed
+r_max_start_f_2 <- 2.4577  # use estimate from OLS fitting:
+f1_2 <- lm(speed ~ tortuosity, data = main_df2[main_df2$species=="Fox",])
 
-f4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), fox_df,
-            list(r_max=r_max_start_f, N_0 = N_0_start_f, K = K_start_f))
+f4_2 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), main_df2[main_df2$species=="Fox",],
+            list(r_max=r_max_start_f_2, N_0 = N_0_start_f_2, K = K_start_f_2))
 
 
-N_0_start_h <- min(hedgehog_df$speed) # lowest speed
-K_start_h <- max(hedgehog_df$speed) # highest speed
-r_max_start_h <- 5.7726 # use estimate from OLS fitting (model h1)
+N_0_start_h_2 <- min(main_df2[main_df2$species=="Hedgehog",]$speed) # lowest speed
+K_start_h_2 <- max(main_df2[main_df2$species=="Hedgehog",]$speed) # highest speed
+r_max_start_h_2 <- 14.139 # use estimate from OLS fitting (model h1_2):
+h1_2 <- lm(speed ~ tortuosity, data = main_df2[main_df2$species=="Hedgehog",])
 
-h4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), hedgehog_df,
-            list(r_max=r_max_start_h, N_0 = N_0_start_h, K = K_start_h))
+h4 <- nlsLM(speed ~ logistic_model(t = tortuosity, r_max, K, N_0), main_df2[main_df2$species=="Hedgehog",],
+            list(r_max=r_max_start_h_2, N_0 = N_0_start_h_2, K = K_start_h_2))
+# starting values aren't good enough for a model to converge - need to find better ones
 
 
 # plotting all the models for each species:
 
 # foxes:
 
-timepoints_f <- seq(0, max(main_df[main_df$species=="Fox",]$tortuosity, na.rm=T), 0.1)
-f_logvals <- data.frame(timepoints = timepoints_f,
-                        log_vals = log(logistic_model(r_max=coef(f4)[1], N_0 = coef(f4)[2], K = coef(f4)[3], t = timepoints_f)))
+timepoints_f_2 <- seq(0, max(main_df2[main_df2$species=="Fox",]$tortuosity, na.rm=T), 0.1)
+f_logvals_2 <- data.frame(timepoints = timepoints_f,
+                        log_vals = log(logistic_model(r_max=coef(f4_2)[1], N_0 = coef(f4_2)[2], K = coef(f4_2)[3], t = timepoints_f)))
 
-f_models <- ggplot(main_df[main_df$species=="Fox", ], aes(x = tortuosity, y = speed))+
+f_models_2 <- ggplot(main_df2[main_df2$species=="Fox", ], aes(x = tortuosity, y = speed))+
   geom_point()+
   geom_smooth(method = "lm", formula = y ~ poly(x, degree = 2, raw = TRUE), se = FALSE, aes(colour = "#CC79A7")) + #add aes colours to tell them apart
   geom_smooth(method = "lm", formula = y ~ poly(x, degree = 3, raw = TRUE), se = FALSE, aes(colour = "#D55E00")) +
-  geom_smooth(method = "loess", data = f_logvals, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
+  geom_smooth(method = "loess", data = f_logvals_2, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
   scale_color_manual(name = NULL, values = c("#CC79A7", "#D55E00", "#0072B2"), labels = c("Quadratic", "Cubic", "Logistic"))+
   guides(col = guide_legend("Model"))+
   ggtitle("Regent's park - foxes")+
   theme_bw()+
-  xlim(min(main_df[main_df$species=="Fox",]$tortuosity, na.rm = T), 3)
+  xlim(min(main_df2[main_df2$species=="Fox",]$tortuosity, na.rm = T), 3)
+f_models
+
+# logistic looks pretty promising!
+
+
+
+
+
+
+# TO DO
+
+# for foxes:
+# - scrap quadratic
+# - keep cubic & logistic
+# - find another model that might better describe the asymptote
 
 
 # hedgehogs:
+# --> haven't done this yet cause haven't been able to fit the logistic model 
+# - if this stuff is useful then invest more time in it and try to fit logistic & other models
 
-timepoints_h <- seq(0, max(main_df[main_df$species=="Hedgehog",]$tortuosity, na.rm=T), 0.1)
-h_logvals <- data.frame(timepoints = timepoints_h,
-                        log_vals = log(logistic_model(r_max=coef(h4)[1], N_0 = coef(h4)[2], K = coef(h4)[3], t = timepoints_h)))
 
-h_models <- ggplot(main_df[main_df$species=="Hedgehog", ], aes(x = tortuosity, y = speed))+
-  geom_point()+
-  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 2, raw = TRUE), se = FALSE, aes(colour = "#CC79A7")) + #add aes colours to tell them apart
-  geom_smooth(method = "lm", formula = y ~ poly(x, degree = 3, raw = TRUE), se = FALSE, aes(colour = "#D55E00")) +
-  geom_smooth(method = "loess", data = h_logvals, formula = y ~ x, aes(timepoints, log_vals, colour = "#0072B2")) +
-  scale_color_manual(name = NULL, values = c("#CC79A7", "#D55E00", "#0072B2"), labels = c("Quadratic", "Cubic", "Logistic"))+
-  guides(col = guide_legend("Model"))+
-  ggtitle("Regent's park - hedgehogs")+
-  theme_bw()+
-  xlim(min(main_df[main_df$species=="Hedgehog",]$tortuosity, na.rm = T), 1.9)
 
-ggarrange(f_models, h_models, nrow = 2)
-
-# it all looks pretty skewed by outliers...
-
-# logistic looks tentatively the best though
+# also maybe try more transformations?
 
 
 
@@ -907,14 +852,51 @@ ggarrange(f_models, h_models, nrow = 2)
 
 
 
+# considering the no. of images per sequence ----------------------------------
 
-# think about other models that could use
+### look at the distribution of no. of images per sequence
+
+# add column about this to main_df2:
+
+# for every sequence no. in main_df2: count the number of rows with that sequence value in posdata:
+
+images <- c()
+for (i in unique(main_df2$sequence)) {
+  
+  # subset posdata per sequence number:
+  k <- posdata[posdata$sequence==i,] 
+  
+  # count the number of rows and fill images with it
+  r <- nrow(k)
+  
+  images <- c(images, r)
+  
+}
+
+main_df2 <- cbind(main_df2, images)
+
+ggdensity(main_df2$images,
+          xlab = "Number of images per sequence")
+
+# separate out by species:
+
+f_imag <- ggdensity(main_df2[main_df2$species=="Fox",]$images,
+                    xlab = "Number of images per sequence",
+                    title = "Foxes")
+
+h_imag <- ggdensity(main_df2[main_df2$species=="Hedgehog",]$images,
+                    xlab = "Number of images per sequence",
+                    title = "Hedgehog")
+
+ggarrange(f_imag, h_imag, nrow = 2)
+# there are more foxes moving faster (i.e. that have small no. of images per sequence) than hedgehogs
+# both peak at around 10 images per sequence
 
 
-# 3. determine whether the model fits adequately the data
 
 
-
+# Could think about no. of points - do analysis which includes the no. of points in the sequence to address those with low speeds & low tortuosity
+# --> not sure about what Chris means by this exactly - discuss
 
 
 

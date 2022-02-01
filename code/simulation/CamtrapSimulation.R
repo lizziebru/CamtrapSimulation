@@ -2,72 +2,107 @@
 library(circular)
 
 ## rautonorm
-##Generates a set of autocorrelated random normal variates
-#
-#INPUT
+
+## generates a set of autocorrelated random normal variates
+
+# INPUTS:
 # n: number of variates to generate
 # mean, sd: mean and standard deviation of the normal distribution
 # r: the autocorrelation coefficient (between 0 and 1)
+
 rautonorm <- function(n,mean=0,sd=1,r){
-  ranfunc <- function(i,z,r) sqrt(1-r^2) * sum(z[2:(i+1)]*r^(i-(1:i))) + z[1]*r^i
+  
+  ranfunc <- function(i,z,r) sqrt(1-r^2) * sum(z[2:(i+1)]*r^(i-(1:i))) + z[1]*r^i # --> Q: guessing this is for the autocorrelation?
+  
   z <- rnorm(n)
+  
   mean + sd*c(z[1], sapply(1:(n-1), ranfunc, z, r))
-}
+  
+  }
+
+
 
 ## pathgen
-##Generates a path of x,y positions using a correlated random walk
-#
-#INPUT
+
+## generates a path of x, y positions using a correlated random walk
+
+# INPUTS:
 # n: number of steps
 # pTurn: probability of turning at each step
-# kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher=more concentrated)
+# kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) --> Q: what do you mean by concentrated here?
 # logspeed: mean log speed
 # speedSD: standard deviation of log speed
 # speedCor: autocorrelation in speed
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
 # wrap: whether to wrap the path
-#
-#OUTPUT
-#A list with elements:
+
+# OUTPUT:
+# A list with elements:
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
+
 pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrap=FALSE){
-  spds <- exp(rautonorm(n, logspeed, speedSD, speedCor))
-  tTurn <- rbinom(n,1,pTurn)
-  if(kCor==TRUE){
+  
+  spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates --> Q: but why exponential?
+  
+  tTurn <- rbinom(n,1,pTurn) # generates set of n (= no of steps) numbers which can be 1 or 0 where higher probability of turning at each step = more likely to have 1
+  
+  if(kCor==TRUE){ # if we want to correlate kappa with speed:
+    
     kappas <- kTurn * spds / mean(spds)
+    
     deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
-  } else
-    deviates <- as.numeric(rvonmises(n, circular(0), kTurn))
+  } 
+  
+  else 
+  
+      deviates <- as.numeric(rvonmises(n, circular(0), kTurn))
+  
   deviates[tTurn==0] <- 0
+  
   angles <- runif(1)*2*pi + cumsum(deviates)
+  
   x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2])
+  
   y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
+  
   absdevs <- deviates
+  
   i <- absdevs>pi
+  
   absdevs[i] <- 2*pi-absdevs[i]
+  
   absdevs <- abs(absdevs)
+  
   res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
+  
   if(wrap) res <- wrap(res, xlim, ylim)
+  
   res
+  
 }
 
-# wrap
-#Takes a path object created with pathgen and wraps the co-ordinates within given limits
+
+
+## wrap
+
+# Takes a path object created with pathgen and wraps the co-ordinates within given limits
 # this means: constrains where the animal goes: it could wander off away from you or it could stay in the same-ish spot
 # wrapping is for convenience: so you can define a region you're working within
 # but if an animal leaves it can go back in from the other side - it's tauroidal in shape
 # just a convenient way to keep the animal within a confined arena
 # benefit here: can set your detection zone to cover a decent amount of space
 # this makes things more computationally small & feasible
-#INPUT
+
+# INPUTS:
 # pth: a two column array of x,y positions defining the path
 # xlim, ylim: the x,y limits within which to wrap the path
-#
-#OUTPUT
+
+# OUTPUT:
 # A path object with x,y co-ordinates wrapped and breaks column added indicating wrap breaks
+
 wrap <- function(path, xlim, ylim=xlim){
   pth <- path$path
   n <- nrow(pth)

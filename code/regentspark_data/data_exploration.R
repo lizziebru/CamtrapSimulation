@@ -55,6 +55,7 @@ ggplot(movdata, aes(x = location, y = speed))+
 
 
 
+
 # is speed proportional to trap rate? ------------------------------------------------------
 
 # investigate speed distribution:
@@ -70,6 +71,7 @@ ggdensity(movdata$speed,
 #--> BUT: do we have enough data available for this?
 #--> do we have GPS data that we could compare this to? - i.e. compare distribution of speeds measured by CTs vs GPS data
 # --> answer is no we don't: leave this for now
+
 
 
 
@@ -136,6 +138,7 @@ high_speeds_h <- high_speeds[high_speeds$species=='Hedgehog',]$speed
   
 
 
+
 # is detection distance negatively related to speed? ---------------------------------------------
 
 # potential bias: effective detection distance is related weakly negatively to speed (i.e. if moving faster less likely to get detected at greater distance)
@@ -199,14 +202,4 @@ ggscatter(movdata, x = "radius", y = "speed",
 # need to think about potentially better ways of investigating this question...
 
 
-
-
-# also need to start investigating it using the simulation
-
-
-
-
-
-
-
-
+#--> BUT: he acc didn't find a clear signal of this so dw about it - just focus on calculating speed for now

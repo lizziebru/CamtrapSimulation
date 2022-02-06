@@ -248,11 +248,12 @@ ggscatter(t_df4, x = "logtortuosity", y = "logspeed",
 ## investing a potential bias: how does tortuosity relate to speed and how does this compare across different species?
 
 
+
 # work out turn angles ----------------------------------------------------
 
 # need minimum of 3 points: 1, 2, 3
 
-# cos(angle) = (b^2 + c^2 - a^2) / 2*b*c
+# cos(angle) = (b^2 + c^2 - a^2) / (2*b*c)
 # where: 
 # b = dist between point 1 and 2
 # c = dist between point 2 and 3
@@ -284,7 +285,7 @@ for (i in unique(posdata$sequence)) {
     b <- sqrt((k[j,]$radius)^2 + (k[(j+1),]$radius)^2 - 2*(k[j,]$radius)*(k[(j+1),]$radius)*cos(k[j,]$angle - k[(j+1),]$angle))
     c <- sqrt((k[(j+1),]$radius)^2 + (k[(j+2),]$radius)^2 - 2*(k[(j+1),]$radius)*(k[(j+2),]$radius)*cos(k[(j+1),]$angle - k[(j+2),]$angle))
     
-    angle <- acos((b^2 + c^2 - a^2) / 2*b*c)
+    angle <- pi - acos((b^2 + c^2 - a^2) / (2*b*c)) # so that highly tortuous paths have a high number (straight-line paths turn angle = 0, complete turn = pi (180deg))
     
     angles <- c(angles, angle)
   }
@@ -298,6 +299,11 @@ for (i in unique(posdata$sequence)) {
 }
 seq_no
 turnangles
+
+
+
+
+
 # --> problem: a few NaNs --> probably bc of problems with inverse cos - maybe look into this more though?
 
 # make main df with sequence no, tortuosity, speed, and species
@@ -354,6 +360,65 @@ main_df <- na.omit(main_df)
 
 
 
+
+# working out turn angles - with improvements from Marcus -----------------
+
+# better vectorised way to do it:
+
+# define function to work out the length of a side using the cosine rule
+coseqn <- function(a, b, theta){
+  
+  sqrt(a^2+b^2-2*a*b*cos(theta))
+  
+}
+
+# define function to work out the angle using the cosine rule
+turn <- function(r1, r2, r3, th1, th2, th3){
+  
+  a <- coseqn(r1, r2,  th2-th1)
+  
+  b <- coseqn(r2, r3,  th3-th2)
+  
+  c <- coseqn(r1, r3,  th3-th1)
+  
+  pi - acos((a^2 + b^2 - c^2) / (2*a*b))
+  
+}
+
+n <- nrow(posdata)
+
+# work out turn angles for each position data point
+angles <- turn(posdata$radius[1:(n-2)], posdata$radius[2:(n-1)], posdata$radius[3:n],
+               
+               posdata$angle[1:(n-2)],  posdata$angle[2:(n-1)],  posdata$angle[3:n])
+
+angles <- c(NA, angles, NA)
+
+i <- head(cumsum(table(posdata$sequence)), -1) # to get all the sequences with >1 position in it
+
+angles[c(i, i+1)] <- NA # any angles measured between positions from separate sequences - set to NA
+
+posdata$angles <- angles
+
+
+# now need to make main_df with those new turn angles and see what the relationship looks like:
+
+average <- function(i){
+  
+  # subset per sequence number:
+  k <- posdata[posdata$sequence==i,] 
+  
+  # work out mean turn angle:
+  mean(k$angles, na.rm = T)
+  
+}
+
+movdata$turnangle <- sapply(movdata$sequence, average)
+
+ggplot(movdata, aes(x = turnangle, y = speed, colour = species))+
+  geom_point()
+
+# looks a bit less weird than before?
 
 
 
@@ -629,6 +694,7 @@ ggarrange(f_models, h_models, nrow = 2)
 
 
 
+
 # investigating relationship between speed & tortuosity - without outliers --------
 
 
@@ -852,6 +918,7 @@ f_models
 
 
 
+
 # considering the no. of images per sequence ----------------------------------
 
 ### look at the distribution of no. of images per sequence
@@ -897,6 +964,7 @@ ggarrange(f_imag, h_imag, nrow = 2)
 
 # Could think about no. of points - do analysis which includes the no. of points in the sequence to address those with low speeds & low tortuosity
 # --> not sure about what Chris means by this exactly - discuss
+
 
 
 

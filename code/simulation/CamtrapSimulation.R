@@ -51,9 +51,9 @@ rautonorm <- function(n,mean=0,sd=1,r){
 
 pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrap=FALSE){
   
-  spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates --> Q: but why exponential?
+  spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
-  # so you're generating a normal dstribution of variates on the log scale (using logspeed!!)
+  # so you're generating a normal distribution of variates on the log scale (using logspeed)
   # so take exp to get them back to linear scale
   
   tTurn <- rbinom(n,1,pTurn) # generates set of n (= no of steps) numbers which can be 1 or 0 where higher probability of turning at each step = more likely to have 1
@@ -292,18 +292,27 @@ is_in_dz <- function(point, dzone){
   # now for the ones which are true:
   # multiply them by their probability based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
 
-  dist_prob <- function(){
-    
+  dist_prob <- function(x){
+    dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
   }
   
-  dist_apply <- function(logical) {
-    if (logical = TRUE){
+  dist_apply <- function(df) {
+    if (df$res = TRUE){
       # work out the probability of being detected based on the estimated probability density:
+      prob <- dist_prob(df$dist)
+       
+      # was thinking could then re-assign it as TRUE or FALSE with probability of being TRUE = prob
       
+      # but actually that probably doesn't work
       
+      # maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
+      
+      # to discuss...
       
     }
   }
+  
+  
   
   # return matrix with TRUE or FALSE for each point
   return(matrix(res, nrow=nrow(point)))

@@ -19,6 +19,113 @@ posdata$sequence <- as.numeric(posdata$sequence)
 
 
 
+# working out turn angles - with improvements from Marcus -----------------
+
+# better vectorised way to do it:
+
+# define function to work out the length of a side using the cosine rule
+coseqn <- function(a, b, theta){
+  
+  sqrt(a^2+b^2-2*a*b*cos(theta))
+  
+}
+
+# define function to work out the angle using the cosine rule
+turn <- function(r1, r2, r3, th1, th2, th3){
+  
+  a <- coseqn(r1, r2,  th2-th1)
+  
+  b <- coseqn(r2, r3,  th3-th2)
+  
+  c <- coseqn(r1, r3,  th3-th1)
+  
+  pi - acos((a^2 + b^2 - c^2) / (2*a*b))
+  
+}
+
+n <- nrow(posdata)
+
+# work out turn angles for each position data point
+angles <- turn(posdata$radius[1:(n-2)], posdata$radius[2:(n-1)], posdata$radius[3:n],
+               
+               posdata$angle[1:(n-2)],  posdata$angle[2:(n-1)],  posdata$angle[3:n])
+
+angles <- c(NA, angles, NA)
+
+i <- head(cumsum(table(posdata$sequence)), -1) # to get all the sequences with >1 position in it
+
+angles[c(i, i+1)] <- NA # any angles measured between positions from separate sequences - set to NA
+
+posdata$angles <- angles
+
+
+# now need to make main_df with those new turn angles and see what the relationship looks like:
+
+average <- function(i){
+  
+  # subset per sequence number:
+  k <- posdata[posdata$sequence==i,] 
+  
+  # work out mean turn angle:
+  mean(k$angles, na.rm = T)
+  
+}
+
+movdata$turnangle <- sapply(movdata$sequence, average)
+
+
+
+# looking at speed-tortuosity relationship --------------------------------
+
+ggplot(movdata, aes(x = turnangle, y = speed, colour = species))+
+  geom_point()+
+  xlab('tortuosity')
+
+# looks a bit less weird than before?
+
+# try logging speed
+ggplot(movdata, aes(x = turnangle, y = log(speed), colour = species))+
+  geom_point()+
+  xlab('tortuosity')
+
+
+# first without logging, but separating species is helpful bc expect them to be different:
+
+a <- ggplot(movdata, aes(x = speed, colour = species))+
+  geom_density()
+
+b <- ggplot(movdata, aes(x = turnangle, colour = species))+
+  geom_density()
+
+ggarrange(a, b, nrow = 2)
+
+
+# then log to help better discern the relationship (means it's less squished in places and can see the data less clumped together):
+
+c <- ggplot(movdata, aes(x = log(speed), colour = species))+
+  geom_density()
+
+d <- ggplot(movdata, aes(x = log(turnangle), colour = species))+
+  geom_density()
+
+ggarrange(c, d, nrow = 2)
+
+
+# also visualise the speed - turnangle relationship
+
+# first without logging:
+ggplot(movdata[movdata$species=="Fox",], aes(x = turnangle, y = speed))+
+  geom_point()
+
+# then also log things to help visualise:
+ggplot(movdata[movdata$species=="Fox",], aes(x = log(turnangle), y = log(speed)))+
+  geom_point()
+
+
+# q: are these distributions just what results from CT biases 
+
+
+
 # using gross/net distance ------------------------------------
 
 ## investing a potential bias: how does tortuosity relate to speed and how does this compare across different species?
@@ -351,7 +458,7 @@ main_df <- data.frame(sequence = seqs1,
                       tortuosity = turnangles2,
                       speed = movdata[movdata$sequence %in% seq_no, ]$speed,
                       species = as.character(movdata[movdata$sequence %in% seq_no, ]$species)
-                      )
+)
 
 # remove rows containing NaNs:
 main_df <- na.omit(main_df)
@@ -359,66 +466,6 @@ main_df <- na.omit(main_df)
 
 
 
-
-
-# working out turn angles - with improvements from Marcus -----------------
-
-# better vectorised way to do it:
-
-# define function to work out the length of a side using the cosine rule
-coseqn <- function(a, b, theta){
-  
-  sqrt(a^2+b^2-2*a*b*cos(theta))
-  
-}
-
-# define function to work out the angle using the cosine rule
-turn <- function(r1, r2, r3, th1, th2, th3){
-  
-  a <- coseqn(r1, r2,  th2-th1)
-  
-  b <- coseqn(r2, r3,  th3-th2)
-  
-  c <- coseqn(r1, r3,  th3-th1)
-  
-  pi - acos((a^2 + b^2 - c^2) / (2*a*b))
-  
-}
-
-n <- nrow(posdata)
-
-# work out turn angles for each position data point
-angles <- turn(posdata$radius[1:(n-2)], posdata$radius[2:(n-1)], posdata$radius[3:n],
-               
-               posdata$angle[1:(n-2)],  posdata$angle[2:(n-1)],  posdata$angle[3:n])
-
-angles <- c(NA, angles, NA)
-
-i <- head(cumsum(table(posdata$sequence)), -1) # to get all the sequences with >1 position in it
-
-angles[c(i, i+1)] <- NA # any angles measured between positions from separate sequences - set to NA
-
-posdata$angles <- angles
-
-
-# now need to make main_df with those new turn angles and see what the relationship looks like:
-
-average <- function(i){
-  
-  # subset per sequence number:
-  k <- posdata[posdata$sequence==i,] 
-  
-  # work out mean turn angle:
-  mean(k$angles, na.rm = T)
-  
-}
-
-movdata$turnangle <- sapply(movdata$sequence, average)
-
-ggplot(movdata, aes(x = turnangle, y = speed, colour = species))+
-  geom_point()
-
-# looks a bit less weird than before?
 
 
 
@@ -685,6 +732,9 @@ ggarrange(f_models, h_models, nrow = 2)
 # it all looks pretty skewed by outliers...
 
 # logistic looks tentatively the best though
+
+
+
 
 
 

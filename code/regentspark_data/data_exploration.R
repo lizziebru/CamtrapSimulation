@@ -18,9 +18,8 @@ posdata$sequence <- as.numeric(posdata$sequence)
 
 
 
+
 # Speed-variable relationships --------------------------------------------
-
-
 
 ## relationship between speed and the number of images in the sequence
 
@@ -45,6 +44,7 @@ ggplot(movdata, aes(x = location, y = speed))+
   geom_point()
 
 # certain locations look to be associated with certain speeds
+
 
 
 

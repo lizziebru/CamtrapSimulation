@@ -1,4 +1,9 @@
+*.pdf
+*.aux
+*.bbl
+*.log
+*.blg
+*.Rhistory
+
+.idea/
 .Rproj.user
-.Rhistory
-.RData
-.Ruserdata

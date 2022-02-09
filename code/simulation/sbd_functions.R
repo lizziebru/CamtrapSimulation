@@ -5,7 +5,14 @@ library(MASS)
 
 setClass("sbm", representation("list"))
 
-#Harmonic mean and standard error
+# how max likelihood works: 
+# look for parameter values (mean & sd) that maximise the likelihood of the data give the model 
+# (i.e. find the parameters to be put in the model to make it fit the best)
+
+
+# Harmonic mean and standard error
+# non-parametric
+# (not fitting a distribution - just taking an average)
 hmean <- function(x){
   mn <- 1/mean(1/x)
   se <- mn^2 * sqrt(var(1/x)/length(x))
@@ -13,7 +20,7 @@ hmean <- function(x){
 }
 
 #Size biased log normal probability density
-dsblnorm = function(x, lmean, lsig, log=FALSE, xlog=FALSE){
+dsblnorm <- function(x, lmean, lsig, log=FALSE, xlog=FALSE){
   lmean <- as.vector(lmean)
   if(xlog==TRUE) xx <- x^2 else xx <- x
   res <- dlnorm(x, lmean-exp(lsig)^2/2, exp(lsig)) * xx / exp(lmean)
@@ -22,7 +29,7 @@ dsblnorm = function(x, lmean, lsig, log=FALSE, xlog=FALSE){
 }  
 
 #Size biased gamma probability density
-dsbgamma = function(x, lmean, lrate, log=FALSE, xlog=FALSE){
+dsbgamma <- function(x, lmean, lrate, log=FALSE, xlog=FALSE){
   lmean <- as.vector(lmean)
   if(xlog==TRUE) xx <- x^2 else xx <- x
   res <- dgamma(x, exp(lmean)*exp(lrate), exp(lrate)) * xx / exp(lmean)
@@ -38,6 +45,7 @@ dsbweibull = function(x, lmean, lshape, log=FALSE, xlog=FALSE){
   res[res==0] <- 5e-324
   if(log==TRUE) log(res) else (res)
 }  
+
 
 #Size biased model
 #INPUT
@@ -79,6 +87,7 @@ sbm <- function(formula, data, pdf=c("lnorm", "gamma", "weibull"),
   res
 }
 
+
 #Predict average speed
 #INPUT
 # mod: a size biased model created using sbm
@@ -115,6 +124,7 @@ predict.sbm <- function(mod, newdata=NULL, reps=1000){
   outp
 }
 
+
 #Fits all three size biased options
 #INPUT 
 # As for sbm
@@ -137,6 +147,7 @@ sbm3 <- function(formula, data, reps=1000){
 
 #Extract AIC from a size biased model
 AIC.sbm <- function(obj) AIC(obj$model)
+
 
 #Plot a size biased model data and fitted distributions
 #INPUT

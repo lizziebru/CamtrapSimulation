@@ -4,6 +4,17 @@ require(ggplot2)
 require(ggpubr)
 library(gridExtra)
 
+
+# logspeed = average input speed
+# speed SD = variation of the speed about the input
+# speed Cor = autocorrelation in sequential speeds
+# calc_speed = just the raw dist/time for that passage (speed = distance / (points - 1))
+# seqIDs = bouts of the path that are in the detection zone
+# each point is around 1s snapshot
+# units of speed aren't defined - will fix when parameterize it with real data
+# timestep = could be 1 or 0.5 depending on what you think is more realistic
+
+
 # improvements to make to simulation --------------------------------------
 
 
@@ -12,6 +23,11 @@ library(gridExtra)
 
 # - larger animals have greater turn radii and can't turn as rapidly (Wilson et al. 2015)
 # -- BUT: tortuosity is v similar for hedgehogs & foxes --> so my hypothesis may not be super supported - but would need to compare more species 
+# --> come back to body mass/tortuosity stuff later - would be good to match up with deer data etc (probs from Hogwatch)
+
+# - parameterize using tortuosity info
+# -- BUT: only weak relationship between speed & tortuosity so maybe not
+
 
 ## 2. how we decide which chunks get detected by the camera:
 
@@ -20,7 +36,10 @@ library(gridExtra)
 # but not sure how much to change this by..
 # could add in a probability gradient - going from 1 to 0 at a certain gradient
 # to figure out what this gradient could be - could look at the data? - see distance_prob.R script
-# to leave for now and discuss with M
+# -- so far M has assumed a hard boundary for the dz - obvs it's not super realistic & there's a probabilistic process of detection at varying distances - could be nice to include as additional realism
+
+
+
 
 # - higher diff between ambient & animal surface temp = increased detection probability (McIntyre et al. 2020)
 # -- but probably can't do much about
@@ -31,6 +50,28 @@ library(gridExtra)
 # animal body mass??
 # -- could be one to link with tortuosity too 
 # -- e.g. higher body mass = less tortuous and also more likely to get detected by a CT
+
+
+# speed-tortuosity exploration -------------------------------------------------------
+
+# speed-tortuosity relationship:
+
+# from the data we have:
+# - hedgehogs move more slowly & slightly more tortuously
+# - but there's not much of a relationship between speed & tortuosity (although maybe slightly negative)
+
+# in the simulation:
+# could make a box with 4 sections:
+# 1. high speed & high tortuosity
+# 2. high speed & low tortuosity
+# 3. low speed & high tortuosity
+# 4. low speed & low tortuosity
+# and ask: which combos are feasible in the simulation?
+# e.g. high speed & high tortuosity = probs not possible
+# maybe should inform simulations e.g. usually associate high tortuosity & low speeds
+
+# would also be good to also look at speed-tortuosity relationship in the simulation within constraints of the CT - would explain diffs in patterns between real & measured
+# e.g. might see some more low tortuosity/high speed combos in the real world but the CT just struggles capturing them
 
 
 # Example -----------------------------------------------------------------
@@ -175,11 +216,8 @@ m <- marrangeGrob(plots, nrow = 7, ncol = 3)
 
 ggsave(filename = "high_speeds3.png", plot = m, path = "plots", width = 10, height = 18)
 
-# there is definitely a threshold above which the cameras start underestimating speed - but also same for the low speeds
 
-# maybe there's a bias in both directions
 
-# but also this isn't really showing us that CTs miss high speeds - it's more just showing us how high speeds get underestimated and low speeds get overestimated
 
 
 # would be good to look at the proportion of frame numbers equal to 1 - how those change with increasing speeds (expect them to just increase)

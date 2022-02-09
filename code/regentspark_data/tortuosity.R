@@ -1,5 +1,7 @@
 ## TORTUOSITY AND MOVEMENT SPEED
 
+# NB: for future plots: put speed on x-axis and tortuosity on y-axis
+
 # Set-up ------------------------------------------------------------------
 
 require(ggplot2)
@@ -15,6 +17,7 @@ movdata <- read.csv('data/movdat.csv')
 
 movdata$sequence <- as.numeric(movdata$sequence)
 posdata$sequence <- as.numeric(posdata$sequence)
+
 
 
 
@@ -72,6 +75,7 @@ average <- function(i){
 }
 
 movdata$turnangle <- sapply(movdata$sequence, average)
+
 
 
 

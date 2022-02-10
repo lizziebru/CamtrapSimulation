@@ -6,7 +6,7 @@ library(MASS)
 setClass("sbm", representation("list"))
 
 # how max likelihood works: 
-# look for parameter values (mean & sd) that maximise the likelihood of the data give the model 
+# look for parameter values (mean & sd) that maximise the likelihood of the data given the model 
 # (i.e. find the parameters to be put in the model to make it fit the best)
 
 
@@ -18,6 +18,9 @@ hmean <- function(x){
   se <- mn^2 * sqrt(var(1/x)/length(x))
   c(mean=mn, se=se)
 }
+
+
+
 
 #Size biased log normal probability density
 dsblnorm <- function(x, lmean, lsig, log=FALSE, xlog=FALSE){
@@ -47,11 +50,12 @@ dsbweibull = function(x, lmean, lshape, log=FALSE, xlog=FALSE){
 }  
 
 
+
 #Size biased model
 #INPUT
 # formula: a model formula with speed variable on the left and covariates (or 1) on the right
 # data: a dataframe containing the speed variable and any covariates
-# pdf: which (size biased) distribution to fit
+# pdf: which (size-biased) distribution to fit
 sbm <- function(formula, data, pdf=c("lnorm", "gamma", "weibull"),
                 var.range=c(-4,4), trace=FALSE){
   dstrbn=match.arg(pdf)

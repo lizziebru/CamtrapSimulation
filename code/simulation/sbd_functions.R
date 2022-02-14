@@ -153,13 +153,14 @@ sbm3 <- function(formula, data, reps=1000){
 AIC.sbm <- function(obj) AIC(obj$model)
 
 
-#Plot a size biased model data and fitted distributions
+#Plot a size-biased model data and fitted distributions
 #INPUT
 # obj: a size biased model fitted with sbm
 # log: whether to plot the distribution log scale
 # lpar: plotting paramaters defining fitted line characteristics
 # ...: other plotting arguments, if breaks given, passed to hist definition, otherwise passed to plot
-plot.sbm <- function(obj, log=TRUE, lpar=list(col="red"), add=FALSE, ...){
+##--> NB: I've added a title to this now
+plot.sbm <- function(obj, log=TRUE, lpar=list(col="red"), add=FALSE, title, ...){
   if(length(attr(terms(obj$formula), "term.labels")) > 0)
     stop("Cannot plot covariate models")
   
@@ -192,5 +193,6 @@ plot.sbm <- function(obj, log=TRUE, lpar=list(col="red"), add=FALSE, ...){
   if(!add) do.call(plot, dots)
   if(log) sq <- log(sq)
   do.call(lines, c(list(x=sq, y=den), lpar))
+  title(paste(title, "model", sep = " "))
 }
 

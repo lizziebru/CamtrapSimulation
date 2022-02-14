@@ -43,7 +43,7 @@ seq_dat <- function(speeds) {
 speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes (if speeds are in m/s)
 
 # run the simulation on each speed
-seq_dats <- sapply(speeds, seq_dat)
+seq_dats <- sapply(speeds, seq_dat) # this step takes quite a while (under a minute though still - but might be problematic when inputting more and larger speeds)
 # (seq_data are in seq_dats[,1], seq_dats[,2] etc)
 
 # make df with these speeds:
@@ -76,6 +76,11 @@ harmonics <- sapply(unique(seq_dats_df$input_average), calc_hmean)
 # 1. fit all the models
 
 mods_all_fit <- function(input_speed){
+  # subset by input speed:
+  d <- seq_dats_df[seq_dats_df$input_average==input_speed,]
+  
+  
+  d <- seq_dats_df[which(seq_dats_df$input_average == input_speed),]
   
 }
 

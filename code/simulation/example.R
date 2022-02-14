@@ -17,8 +17,6 @@ library(gridExtra)
 
 # improvements to make to simulation --------------------------------------
 
-
-
 ## 1. simulations of movement:
 
 # - larger animals have greater turn radii and can't turn as rapidly (Wilson et al. 2015)

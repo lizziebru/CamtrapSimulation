@@ -100,7 +100,7 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
 # Takes a path object created with pathgen and wraps the co-ordinates within given limits
 # this means: constrains where the animal goes: it could wander off away from you or it could stay in the same-ish spot
 # wrapping is for convenience: so you can define a region you're working within
-# but if an animal leaves it can go back in from the other side - it's tauroidal in shape
+# but if an animal leaves it can go back in from the other side - it's toroidal in shape
 # just a convenient way to keep the animal within a confined arena
 # benefit here: can set your detection zone to cover a decent amount of space
 # this makes things more computationally small & feasible

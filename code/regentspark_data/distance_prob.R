@@ -54,6 +54,9 @@ mean2 <- mean(log(posdata$radius))
 sd2 <- sd(log(posdata$radius))
 y2 <- dnorm(x, mean = mean2, sd = sd2, log = F)
 
+
+ylognorm <- dlnorm(x, mean = mean, sd = sd, log = F)
+
 ggplot()+
   geom_density(aes(x = log(posdata$radius)))+
   geom_smooth(aes(x = x, y = y2))

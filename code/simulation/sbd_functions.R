@@ -22,7 +22,7 @@ hmean <- function(x){
 
 
 
-#Size biased log normal probability density
+# Size biased log normal probability density
 dsblnorm <- function(x, lmean, lsig, log=FALSE, xlog=FALSE){
   lmean <- as.vector(lmean)
   if(xlog==TRUE) xx <- x^2 else xx <- x

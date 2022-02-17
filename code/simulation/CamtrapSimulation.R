@@ -250,74 +250,95 @@ is_in_dz <- function(point, dzone){
 
 # edits to is_in_dz to include distance as a probability density:
 
-# is_in_dz <- function(point, dzone){
-#   
-#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-#   
-#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-#   
-#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-#   
-#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-#   
-#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-#     
-#     ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
-#            # if yes, bear = pi:
-#            pi, 
-#            # if no:
-#            ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
-#                   # if yes, bear = 2 pi
-#                   2*pi,
-#                   # if no, bear = 0:
-#                   0))
-#   
-#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-#   
-#   beardif <- ifelse(beardif>pi,
-#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
-#                     beardif) # if not: just keep as it was
-#   
-#   
-#   # conditions for it to be in the dz:
-#   # beardif is less than half the detection zone angle - but why half the detection angle?
-#   # dist is less than the detection zone radius
-#   res <- ifelse(beardif < dz$th/2 & dist < dz$r,
-#                 TRUE, 
-#                 FALSE) 
-#   
-#   df <- data.frame(res = as.factor(res), 
-#                    dist = dist)
-#   
-#   # now for the ones which are true:
-#   # multiply them by their probability based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
-# 
-#   dist_prob <- function(x){
-#     dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
-#   }
-#   
-#   dist_apply <- function(df) {
-#     if (df$res = TRUE){
-#       # work out the probability of being detected based on the estimated probability density:
-#       prob <- dist_prob(df$dist)
-#        
-#       # was thinking could then re-assign it as TRUE or FALSE with probability of being TRUE = prob
-#       
-#       # but actually that probably doesn't work
-#       
-#       # maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
-#       
-#       # to discuss...
-#       
-#     }
-#   }
-#   
-#   
-#   
-#   # return matrix with TRUE or FALSE for each point
-#   return(matrix(res, nrow=nrow(point)))
-#   
-# }
+
+# to test it:
+path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+                logspeed=-2, speedSD=1, speedCor=0, 
+                xlim=c(0,10), wrap=TRUE)
+point <- path$path[,1:2]
+
+dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+  
+is_in_dz2 <- function(point, dzone){
+
+  ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+
+  pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+
+  dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+
+  dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+
+  bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+
+    ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
+           # if yes, bear = pi:
+           pi,
+           # if no:
+           ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
+                  # if yes, bear = 2 pi
+                  2*pi,
+                  # if no, bear = 0:
+                  0))
+
+  beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+
+  beardif <- ifelse(beardif>pi,
+                    2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+                    beardif) # if not: just keep as it was
+
+
+  # conditions for it to be in the dz:
+  # beardif is less than half the detection zone angle - but why half the detection angle? - guessing this is bc beardif is measured from the centre of the CT dz?
+  # dist is less than the detection zone radius
+  res <- ifelse(beardif < dz$th/2 & dist < dz$r,
+                TRUE,
+                FALSE)
+  
+  # make df of distances of each point and whether they're true or false
+  df <- data.frame(res = as.factor(res),
+                   dist = dist)
+
+  # now for the ones which are true:
+  # reassign them as true based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
+
+  dist_prob <- function(x){ # == the probability density function estimated from fox & hedgehog data combined
+    dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
+  } # --> BUT: probably need to make separate functions for diff spp
+
+  dist_apply <- function(df) {
+    # select only those which are TRUE
+    d <- df[df$res==TRUE,]
+    
+    # for each row: work out the probability of being detected based on the estimated probability density:
+    prob <- dist_prob(d$dist)
+    
+    d2 <- cbind(d, prob)
+    
+    # for each row: roll a dice with probability of getting 1 == prob of being detected - and make new binary column
+    
+    
+    
+    
+    
+
+      # was thinking could then re-assign it as TRUE or FALSE with probability of being TRUE = prob
+
+
+
+      # athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
+
+      
+
+    }
+  }
+
+
+
+  # return matrix with TRUE or FALSE for each point
+  return(matrix(res, nrow=nrow(point)))
+
+}
 
 
 

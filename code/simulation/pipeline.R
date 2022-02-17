@@ -187,7 +187,7 @@ weibull_AICs <- sapply(input_speed_numbers, weibull_AIC_extract)
 
 # using Pablo Palencia's method -- need to check that what he's doing is theoretically & empirically robust
 
-
+# BUT: as far as I can tell he just did the exact same as Marcus did in 2016 paper (use lnorm, gamma, & Weibull and compare AICs)
 
 
 ## output: input average speed and each calculated average speed

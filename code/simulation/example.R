@@ -1,4 +1,4 @@
-devtools::source_url("https://raw.githubusercontent.com/MarcusRowcliffe/CamtrapSimulation/master/CamtrapSimulation.R")
+#devtools::source_url("https://raw.githubusercontent.com/MarcusRowcliffe/CamtrapSimulation/master/CamtrapSimulation.R")
 
 require(ggplot2)
 require(ggpubr)
@@ -160,7 +160,6 @@ ggplot()+
   geom_vline(xintercept = exp(-1), colour = 'blue', size = 1)+
   theme_minimal()+
   geom_text(aes(x=exp(-1), label="true speed", y=0.5), colour="blue", angle=90, vjust = 1.2, text=element_text(size=11))
-
 
 
 # plot how this relationship changes as you up the speed

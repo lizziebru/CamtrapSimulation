@@ -306,39 +306,34 @@ is_in_dz2 <- function(point, dzone){
     dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
   } # --> BUT: probably need to make separate functions for diff spp
 
-  dist_apply <- function(df) {
-    # select only those which are TRUE
-    d <- df[df$res==TRUE,]
-    
-    # for each row: work out the probability of being detected based on the estimated probability density:
-    prob <- dist_prob(d$dist)
-    
-    d2 <- cbind(d, prob)
-    
-    # for each row: roll a dice with probability of getting 1 == prob of being detected - and make new binary column
-    
-    
-    
-    
-    
-
-      # was thinking could then re-assign it as TRUE or FALSE with probability of being TRUE = prob
-
-
-
-      # athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
-
+  # select only those which are TRUE
+  
+  for (i in 1:nrow(df)) {
+    d <- df[i,]
+    if (d$res==TRUE) { # ignore if res is FALSE
       
-
+      # work out the probability of being detected based on the estimated probability density:
+      prob <- dist_prob(d$dist)
+      
+      # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob, 1-prob))
     }
   }
 
-
-
   # return matrix with TRUE or FALSE for each point
-  return(matrix(res, nrow=nrow(point)))
-
+  return(matrix(as.logical(df$res), nrow=nrow(point)))
+  
 }
+
+# athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
+
+
+
+
+
+
+
+
 
 
 
@@ -358,9 +353,9 @@ plot_dzone <- function(dzone, ...){
     
     sq <- with(dzone[i, ], seq(dir-th/2, dir+th/2, len=50))
     
-    poly <- with(dzone[i, ], cbind(x + c(0, r*sin(sq)), y + c(0, r*cos(sq))))
+    poly <- with(dzone[i, ], cbind(x + c(0, r*sin(sq)), y + c(0, r*cos(sq)))) # set of x and y coords representing the points on perimeter of the dz polygon
     
-    polygon(poly, ...)
+    polygon(poly, ...) # draws the dz polygon
   }
 }
 

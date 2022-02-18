@@ -1,5 +1,7 @@
 ## working out a probability density function for how likely an animal is to trigger a camera at a given distance from it
 
+library(ggplot2)
+
 ## to ask:
 # - is this even a good idea?
 # - what was the radius of the CT used for the regent's park data?
@@ -19,12 +21,12 @@ ggplot(data = posdata, aes(x = radius, colour = species))+
 # estimate the parameters of the distribution from the data
 
 # mean:
-mean_f <- mean(posdata[posdata$species=="Fox",]$radius)
-mean_h <- mean(posdata[posdata$species=="Hedgehog",]$radius)
+mean_f <- mean(log(posdata[posdata$species=="Fox",]$radius))
+mean_h <- mean(log(posdata[posdata$species=="Hedgehog",]$radius))
 
 # standard deviation:
-sd_f <- sd(posdata[posdata$species=="Fox",]$radius)
-sd_h <- sd(posdata[posdata$species=="Hedgehog",]$radius)
+sd_f <- sd(log(posdata[posdata$species=="Fox",]$radius))
+sd_h <- sd(log(posdata[posdata$species=="Hedgehog",]$radius))
 
 
 # maybe do the 2 species together for now then separate out later if needed
@@ -55,7 +57,7 @@ sd2 <- sd(log(posdata$radius))
 y2 <- dnorm(x, mean = mean2, sd = sd2, log = F)
 
 
-ylognorm <- dlnorm(x, mean = mean, sd = sd, log = F)
+#ylognorm <- dlnorm(x, mean = mean, sd = sd, log = F)
 
 ggplot()+
   geom_density(aes(x = log(posdata$radius)))+
@@ -70,6 +72,8 @@ ggplot()+
 # so now that have this estimated probability density (normal with mean = mean2 and sd = sd2), need to find a way to apply it to a probability of being detected at various radii
 
 # see simulation script for the rest...
+
+
 
 
 

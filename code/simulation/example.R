@@ -95,27 +95,6 @@ seqdat <- calc_speed(posdat)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # biases ----------------------------------------------------
 
 # 1. speed is potentially proportional to trap rate

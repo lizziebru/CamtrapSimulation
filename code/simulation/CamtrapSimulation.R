@@ -2,18 +2,13 @@
 library(circular)
 
 ## rautonorm
-
-# this deffo gives you random autocorrelated numbers which he's happy to use - doesn't need improvement
-
+# this deffo gives you random autocorrelated numbers which are good to use - doesn't need improvement
 # generates a set of autocorrelated random normal variates - corresponding to different steps
 # wanna simulate steps of an animal with random variation in speed throughout - but this speed variation isn't totally random hence the autocorrelation
-
-
 # INPUTS:
 # n: number of variates to generate
 # mean, sd: mean and standard deviation of the normal distribution
 # r: the autocorrelation coefficient (between 0 and 1)
-
 
 rautonorm <- function(n,mean=0,sd=1,r){
   

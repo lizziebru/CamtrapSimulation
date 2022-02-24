@@ -1,16 +1,17 @@
 ## PIPELINE ##
 
+# from simulating the path to sampling by the CT to estimating average speed
+
 library(gridExtra)
 
-# from simulated path to sampling by the CT to estimating average speed
-
-# define input speeds:
-
-speeds <- seq(-3, 2, by = 0.1)
 
 
-# run simulation on each speed and measure output speeds
+## Run simulation on various input speeds and measure output speeds
 
+# seq_dat
+# runs the simulation: generates a path and dz, then position data, then measures speeds of each sequence
+# INPUT:
+# speeds: vector of average input speeds for the animal movement path - can just be one though
 seq_dat <- function(speeds) { 
   path <- pathgen(5e3, 
                   kTurn=2, 
@@ -19,10 +20,10 @@ seq_dat <- function(speeds) {
                   logspeed=speeds, 
                   speedSD=1, 
                   speedCor=0, 
-                  xlim=c(0,10), 
-                  wrap=TRUE)
+                  xlim=c(2,16), 
+                  wrap=TRUE) ## now need to find a way to make the path cross the dz more - and maybe fix speeds
   
-  dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+  dz <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of raddi & angles in regent's park data
   
   # make plot
   p <- plot_wrap(path, lineargs = list(col="grey"))
@@ -40,32 +41,66 @@ seq_dat <- function(speeds) {
 
 }
 
-# define speeds and apply the function
+# define speeds and apply the function:
 
-# make vector of some speeds to compare:
-speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes (if speeds are in m/s)
+#### run for 1 speed once through ####
 
-# run the simulation on each speed
-seq_dats <- sapply(speeds, seq_dat) # this step takes quite a while (under a minute though still - but might be problematic when inputting more and larger speeds)
-# (seq_data are in seq_dats[,1], seq_dats[,2] etc)
+# define one input average speed:
+#seq_dats <- sapply(-3, seq_dat)
+# when apply it to just one speed: speeds are in seq_dats[4] (although there are NaNs!)
 
-# make df with these speeds:
-inputs <- c()
-outputs <- c()
-for (i in 1:length(speeds)){
-  inputs <- c(inputs, rep(speeds[i], length(seq_dats[,i]$speed)))
-  outputs <- c(outputs, seq_dats[,i]$speed)
+
+
+#### run for multiple different speeds once through each ####
+
+# # can also apply to a vector of multiple speeds:
+# speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes (if speeds are in m/s)
+# seq_dats <- sapply(speeds, seq_dat) # this step takes quite a while (under a minute though still - but might be problematic when inputting more and larger speeds)
+# # (seq_data are in seq_dats[,1], seq_dats[,2] etc)
+
+# # make df with these speeds:
+# inputs <- c()
+# outputs <- c()
+# for (i in 1:length(speeds)){
+#   inputs <- c(inputs, rep(speeds[i], length(seq_dats[,i]$speed)))
+#   outputs <- c(outputs, seq_dats[,i]$speed)
+# }
+# seq_dats_df <- data.frame(input_average = exp(inputs),
+#                           speed = outputs)
+# 
+# # remove rows containing NaNs:
+# seq_dats_df <- na.omit(seq_dats_df)
+
+#### run on 1 speed 100 times through ####
+
+# to repeat the simulation on the same input average speed multiple times:
+# could make a vector of the same speed repeated, then sapply to that vector - unless M can think of a better way to do this??
+speeds <- rep(-3, length = 100)
+seq_dats <- sapply(speeds, seq_dat)
+# took around 30min to run
+
+# make vector of measured speeds:
+
+measured_speeds <- c()
+
+for (i in c(1:length(speeds))){
+  measured_speeds <- c(measured_speeds, seq_dats[,i]$speed)
 }
-seq_dats_df <- data.frame(input_average = exp(inputs),
-                          speed = outputs)
-
-# remove rows containing NaNs:
-seq_dats_df <- na.omit(seq_dats_df)
 
 
-## calculate average speed - using hmean, size-biased models, and Palencia's method
 
-# Q: any other methods of calculating average speed to try out?
+
+
+
+
+
+
+
+
+
+
+## calculate average speed - using hmean and size-biased models
+
 
 ## HARMONIC MEAN:
 
@@ -96,7 +131,7 @@ mods <- sapply(unique(seq_dats_df$input_average), mods_all_fit)
 # mods[1,2] == mods[3] == models for input_speed[2]
 # mods[2,2] == mods[4] == AICs for input_speed[2]
 
-# both the models and AICs for each input_speed are in the columns though:
+# both the models and AICs for each input_speed are in the columns:
 # -- mods[,1] = models & AICs for input_speed[1]
 # -- mods[,2] = models & AICs for input_speed[2]
 
@@ -138,7 +173,7 @@ ggsave(filename = "sbm_plots.png", plot = m1, path = "plots", width = 10, height
 
 predict_lnorm <- function(input_speed_no){
   predict.sbm(mods[[1,input_speed_no]]$lnorm)[1] # selects just the estimate of speed
-  # Q: default is newdata = NULL - could we discuss what this is please? - and generally what the deal is with covariates in all of this
+  # Q: default is newdata = NULL - could we discuss what this is please?
   # Q: would it be a good idea to save other info e.g. standard error?
 }
 
@@ -183,13 +218,6 @@ weibull_AICs <- sapply(input_speed_numbers, weibull_AIC_extract)
 
 
 
-## PABLO PALENCIA'S METHOD:
-
-# using Pablo Palencia's method -- need to check that what he's doing is theoretically & empirically robust
-
-# BUT: as far as I can tell he just did the exact same as Marcus did in 2016 paper (use lnorm, gamma, & Weibull and compare AICs)
-
-
 ## output: input average speed and each calculated average speed
 
 simulation_speeds <- data.frame(input = exp(speeds),
@@ -208,3 +236,40 @@ model_AICs <- data.frame(input = exp(speeds),
                          gammaAIC = gamma_AICs,
                          weibull = as.numeric(mods_predict_weibull),
                          weibullAIC = weibull_AICs)
+
+
+
+# want to compare distributions of speeds though:
+# compare:
+# - distribution of simulated input speeds - so should have around 20 (varies depending on how many times the path crosses the dz) x 1000 values
+# - distribution of measured average speeds - when simulation is repeated 1000 times on 1 input speed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Pablo's behavioural states addition -------------------------------------
+
+# need to check that what he's doing is theoretically & empirically robust
+
+
+

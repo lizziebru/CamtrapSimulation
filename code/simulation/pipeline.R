@@ -1,12 +1,19 @@
 ## PIPELINE ##
 
-# from simulating the path to sampling by the CT to estimating average speed
-
-library(gridExtra)
+# pipeline for running the simulation from simulating the path to sampling by the CT to estimating average speed using multiple different methods
 
 
+## TO DO: ADD IN COMMANDS AT START TO SOURCE CamtrapSimulation.R and sbd_functions.R
 
-## Run simulation on various input speeds and measure output speeds
+
+
+
+require(gridExtra)
+
+
+
+
+#### function for running the simulation on various input speeds and measuring output speeds ####
 
 # seq_dat
 # runs the simulation: generates a path and dz, then position data, then measures speeds of each sequence
@@ -20,8 +27,9 @@ seq_dat <- function(speeds) {
                   logspeed=speeds, 
                   speedSD=1, 
                   speedCor=0, 
-                  xlim=c(2,16), 
-                  wrap=TRUE) ## now need to find a way to make the path cross the dz more - and maybe fix speeds
+                  xlim=c(0,20),
+                  ylim=c(2,16),
+                  wrap=TRUE)
   
   dz <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of raddi & angles in regent's park data
   
@@ -37,11 +45,19 @@ seq_dat <- function(speeds) {
   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
   
   # work out speeds of sequences
-  calc_speed(posdat)
+  v <- calc_speed(posdat)
+  
+  # return df with input and measured speed for each step
+  df_input <- data.frame(input = path$speed)
+  
+  df_measured <- data.frame(measured = v$speed)
+    
+  return(df_measured)
 
+  ## Q: do we want to return input or measured??
+  
 }
 
-# define speeds and apply the function:
 
 #### run for 1 speed once through ####
 
@@ -73,58 +89,77 @@ seq_dat <- function(speeds) {
 
 #### run on 1 speed 100 times through ####
 
+# which speeds to choose:
+# hedgehog speeds: roughly up to 2m/s
+# fox speeds: roughly up to 13.9m/s
+
+
 # to repeat the simulation on the same input average speed multiple times:
 # could make a vector of the same speed repeated, then sapply to that vector - unless M can think of a better way to do this??
-speeds <- rep(-3, length = 100)
+speeds <- rep(-1, length = 100) # == 0.37 m/s
 seq_dats <- sapply(speeds, seq_dat)
-# took around 30min to run
 
-# make vector of measured speeds:
-
-measured_speeds <- c()
-
-for (i in c(1:length(speeds))){
-  measured_speeds <- c(measured_speeds, seq_dats[,i]$speed)
-}
+# measured speeds are in seq_dats[1] through to seq_dats[100]
 
 
+##### calculate average speed - using hmean and SBMs #####
 
+# apply each method (hmean, SBMlog, SBMgamma, SBMWeibull) to every set of speeds - 100 sets of them currently - so should get a distribution of 100 average values for each of the 4 methods
 
-
-
-
-
-
-
-
-
-
-## calculate average speed - using hmean and size-biased models
+# measured speeds are in seq_dats[1] etc
 
 
 ## HARMONIC MEAN:
 
-# want to apply hmean to every set of speeds corresponding to each unique input_average value
 
+## calc_hmean
+# work out harmonic mean of a set of measured speeds (i.e. each simulation rep)
+# returns a harmonic mean and standard error for each set of speeds
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
 harmonic <- c()
-calc_hmean <- function(input_speed){
-  harmonic <- c(harmonic, hmean(seq_dats_df[seq_dats_df$input_average==input_speed,]$speed))
+calc_hmean <- function(rep_no){
+  
+  # format speeds per input rep number
+  s1 <- seq_dats[rep_no]
+  s2 <- s1$measured
+  s3 <- s2[!is.nan(s2)]
+  
+  # work out hmean for the set of speeds for this input rep number
+  harmonic <- c(harmonic, hmean(s3))
+  
   return(harmonic)
 }
-harmonics <- sapply(unique(seq_dats_df$input_average), calc_hmean)
+
+harmonics <- sapply(c(1:length(speeds)), calc_hmean)
+
+
 
 
 ## SIZE-BIASED MODELS:
 
 # 1. fit all the models
 
-mods_all_fit <- function(input_speed){
-  # subset by input speed:
-  d <- seq_dats_df[seq_dats_df$input_average==input_speed,]
-  sbm3(speed~1, d)
+## mods_all_fit
+# fits all 3 SBMs (lognormal, gamma, Weibull) to each set of measured speeds (i.e. each simulation rep)
+# return three models for each set of measured speeds
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+mods_all_fit <- function(rep_no){
+  
+  # format speeds per input rep number
+  s1 <- seq_dats[rep_no]
+  s2 <- s1$measured
+  s3 <- s2[!is.nan(s2)]
+  
+  # make df:
+  df <- data.frame(speed = s3)
+  
+  # fit all three models:
+  sbm3(speed~1, df)
 }
 
-mods <- sapply(unique(seq_dats_df$input_average), mods_all_fit)
+mods <- sapply(c(1:length(speeds)), mods_all_fit)
 # what the outputs look like:
 # mods[1,1] == mods[1] == models for input_speed[1]
 # mods[2,1] == mods[2] == AICs for input_speed[1]
@@ -140,26 +175,27 @@ mods <- sapply(unique(seq_dats_df$input_average), mods_all_fit)
 
 # want to do this for each mods[1], mods[3] etc - multipanel plot with all 3 models for each
 
-plot_all <- function(input_speed_no){
+## plot_all
+# plots all three models in one multi-panel plot for each set of measured speeds (i.e. for each rep of the simulation)
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+plot_all <- function(rep_no){
   layout(matrix(1:3, ncol=3))
   par(oma=c(4, 0, 4, 0), mar=c(4, 4, 4, 4))
-  plot.sbm(mods[[1,input_speed_no]]$lnorm, title = "lnorm") # default in plot.sbm is to plot the distribution on a log scale - Q: could we discuss this to better get my head around it please
-  plot.sbm(mods[[1,input_speed_no]]$gamma, title = "gamma")
-  plot.sbm(mods[[1,input_speed_no]]$weibull, title = "Weibull")
-  title(main=paste("Input speed = ", exp(speeds[input_speed_no]), sep = ""), outer=TRUE, cex.main=2)
+  plot.sbm(mods[[1,rep_no]]$lnorm, title = "lnorm") # default in plot.sbm is to plot the distribution on a log scale - Q: could we discuss this to better get my head around it please
+  plot.sbm(mods[[1,rep_no]]$gamma, title = "gamma")
+  plot.sbm(mods[[1,rep_no]]$weibull, title = "Weibull")
+  title(main=paste("Input speed = ", exp(speeds[rep_no]), sep = ""), outer=TRUE, cex.main=2)
 }
 
-input_speed_numbers <- seq(1, length(speeds), by = 1)
-
-plots_each_input_speed <- lapply(input_speed_numbers, plot_all) 
+plots <- lapply(c(1:length(speeds)), plot_all) 
 # --> the higher the speed, the more bins and the nicer the fit looks
-
 
 # just having issues with putting them all together in a panel and saving that...
 
 # arrange all the plots in one panel
-plots_each_input_speed_panel <- marrangeGrob(plots_each_input_speed, ncol = 1, nrow = 21, top = quote(paste("page", g, "of", npages)))
-ggsave(filename = "sbm_plots.png", plot = m1, path = "plots", width = 10, height = 20)
+# plots_each_input_speed_panel <- marrangeGrob(plots_each_input_speed, ncol = 1, nrow = 21, top = quote(paste("page", g, "of", npages)))
+# ggsave(filename = "sbm_plots.png", plot = m1, path = "plots", width = 10, height = 20)
 # --> to fix
 
 # jpeg(filename = "/plots/sbm_plots.png")
@@ -171,50 +207,74 @@ ggsave(filename = "sbm_plots.png", plot = m1, path = "plots", width = 10, height
 
 # 3. predict average speed using the models
 
-predict_lnorm <- function(input_speed_no){
-  predict.sbm(mods[[1,input_speed_no]]$lnorm)[1] # selects just the estimate of speed
+## predict_lnorm
+# predict average speed using a fitted lognormal model for each set of measured speeds (i.e. each simulation rep)
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+predict_lnorm <- function(rep_no){
+  predict.sbm(mods[[1,rep_no]]$lnorm)[1] # selects just the estimate of speed
   # Q: default is newdata = NULL - could we discuss what this is please?
   # Q: would it be a good idea to save other info e.g. standard error?
 }
 
-predict_gamma <- function(input_speed_no){
-  predict.sbm(mods[[1,input_speed_no]]$gamma)[1]
+## predict_gamma
+# predict average speed using a fitted gamma model for each set of measured speeds (i.e. each simulation rep)
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+predict_gamma <- function(rep_no){
+  predict.sbm(mods[[1,rep_no]]$gamma)[1]
 }
 
-predict_weibull <- function(input_speed_no){
-  predict.sbm(mods[[1,input_speed_no]]$weibull)[1]
+## predict_weibull
+# predict average speed using a fitted Weibull model for each set of measured speeds (i.e. each simulation rep)
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+predict_weibull <- function(rep_no){
+  predict.sbm(mods[[1,rep_no]]$weibull)[1]
 }
 
-mods_predict_lnorm <- sapply(input_speed_numbers, predict_lnorm)
-mods_predict_gamma <- sapply(input_speed_numbers, predict_gamma)
-mods_predict_weibull <- sapply(input_speed_numbers, predict_weibull)
+mods_predict_lnorm <- sapply(c(1:length(speeds)), predict_lnorm)
+mods_predict_gamma <- sapply(c(1:length(speeds)), predict_gamma)
+mods_predict_weibull <- sapply(c(1:length(speeds)), predict_weibull)
 
 
 # 4. extract and store the AICs for each model
 
 # mods is in such a bizarre format that the best way I could come up with was this function: (couldn't get the AIC.sbm function working)
 
-lnorm_AIC_extract <- function(input_speed_no){
-  a1 <- mods[2,input_speed_no]
+## lnorm_AIC_extract
+# return the AIC for the fitted lognormal model for each set of measured speeds
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+lnorm_AIC_extract <- function(rep_no){
+  a1 <- mods[2,rep_no]
   a2 <- a1$AICtab[1]
   a2["lnorm",]
 }
 
-gamma_AIC_extract <- function(input_speed_no){
-  a1 <- mods[2,input_speed_no]
+## gamma_AIC_extract
+# return the AIC for the fitted gamma model for each set of measured speeds
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+gamma_AIC_extract <- function(rep_no){
+  a1 <- mods[2,rep_no]
   a2 <- a1$AICtab[1]
   a2["gamma",]
 }
 
-weibull_AIC_extract <- function(input_speed_no){
-  a1 <- mods[2,input_speed_no]
+## weibull_AIC_extract
+# return the AIC for the fitted Weibull model for each set of measured speeds
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+weibull_AIC_extract <- function(rep_no){
+  a1 <- mods[2,rep_no]
   a2 <- a1$AICtab[1]
   a2["weibull",]
 }
 
-lnorm_AICs <- sapply(input_speed_numbers, lnorm_AIC_extract)
-gamma_AICs <- sapply(input_speed_numbers, gamma_AIC_extract)
-weibull_AICs <- sapply(input_speed_numbers, weibull_AIC_extract)
+lnorm_AICs <- sapply(c(1:length(speeds)), lnorm_AIC_extract)
+gamma_AICs <- sapply(c(1:length(speeds)), gamma_AIC_extract)
+weibull_AICs <- sapply(c(1:length(speeds)), weibull_AIC_extract)
 
 
 
@@ -226,9 +286,8 @@ simulation_speeds <- data.frame(input = exp(speeds),
                                 gamma = as.numeric(mods_predict_gamma),
                                 weibull = as.numeric(mods_predict_weibull))
 
-# Q: do we maybe want more info in this dataframe too? e.g. maybe some of the input parameters which we can vary
 
-# make separate df with AICs for the models - thought for now it made things neater
+# make separate df with AICs for the models - for now it feels like it makes things neater
 model_AICs <- data.frame(input = exp(speeds),
                          lnorm = as.numeric(mods_predict_lnorm),
                          lnormAIC = lnorm_AICs,
@@ -239,20 +298,45 @@ model_AICs <- data.frame(input = exp(speeds),
 
 
 
-# want to compare distributions of speeds though:
+#### compare distributions of input & output speeds ####
+
 # compare:
 # - distribution of simulated input speeds - so should have around 20 (varies depending on how many times the path crosses the dz) x 1000 values
 # - distribution of measured average speeds - when simulation is repeated 1000 times on 1 input speed
 
 
+# simulated input speeds:
+# concatenate all 100 sets of measured speeds:
+
+measured_speeds <- c()
+# format speeds per input rep number
+
+for (i in 1:length(speeds)){
+  s1 <- seq_dats[i]
+  s2 <- s1$measured
+  s3 <- s2[!is.nan(s2)]
+  
+  measured_speeds <- c(measured_speeds, s3)
+}
 
 
+# make box and whisker plot comparing measured_speeds, hmean averages, and each SBM average:
+
+# make df:
+
+boxplot_df <- data.frame(input = measured_speeds,
+                         hmean = harmonics[1,],
+                         SBM_lnorm = as.numeric(mods_predict_lnorm),
+                         SBM_gamma = as.numeric(mods_predict_gamma),
+                         SBM_weibull = as.numeric(mods_predict_weibull))
 
 
+# but because of different lengths need to fill the tails of some columns with NAs: -- go from here - look at base R solution!
 
+all_lists <- list(location, organization, person, date, Jobs)
+len <- max(lengths(all_lists))
 
-
-
+# --> use help page on stack overflow to fill tails of columns with NAs to cope with diff lengths of columns
 
 
 

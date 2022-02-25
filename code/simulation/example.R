@@ -1,8 +1,8 @@
-#devtools::source_url("https://raw.githubusercontent.com/MarcusRowcliffe/CamtrapSimulation/master/CamtrapSimulation.R")
+source("~/Documents/Project/CamtrapSimulation/code/simulation/CamtrapSimulation.R", echo=TRUE)
 
 require(ggplot2)
 require(ggpubr)
-library(gridExtra)
+require(gridExtra)
 
 
 # logspeed = average input speed
@@ -11,7 +11,6 @@ library(gridExtra)
 # calc_speed = just the raw dist/time for that passage (speed = distance / (points - 1))
 # seqIDs = bouts of the path that are in the detection zone
 # each point is around 1s snapshot
-# units of speed aren't defined - will fix when parameterize it with real data
 # timestep = could be 1 or 0.5 depending on what you think is more realistic
 
 

@@ -2,15 +2,13 @@
 
 # pipeline for running the simulation from simulating the path to sampling by the CT to estimating average speed using multiple different methods
 
-
-## TO DO: ADD IN COMMANDS AT START TO SOURCE CamtrapSimulation.R and sbd_functions.R
-
-
+source("~/Documents/Project/CamtrapSimulation/code/simulation/CamtrapSimulation.R", echo=TRUE)
+source("~/Documents/Project/CamtrapSimulation/code/simulation/sbd_functions.R", echo=TRUE)
 
 
+require(ggplot2)
 require(gridExtra)
-
-
+require(ggpubr)
 
 
 #### function for running the simulation on various input speeds and measuring output speeds ####
@@ -54,7 +52,7 @@ seq_dat <- function(speeds) {
     
   return(df_measured)
 
-  ## Q: do we want to return input or measured??
+  ## Q: do we want to use input or measured to compare to our averaged output speeds?
   
 }
 
@@ -96,7 +94,7 @@ seq_dat <- function(speeds) {
 
 # to repeat the simulation on the same input average speed multiple times:
 # could make a vector of the same speed repeated, then sapply to that vector - unless M can think of a better way to do this??
-speeds <- rep(-1, length = 100) # == 0.37 m/s
+speeds <- rep(simulate_speed, length = n) # == 0.37 m/s
 seq_dats <- sapply(speeds, seq_dat)
 
 # measured speeds are in seq_dats[1] through to seq_dats[100]
@@ -188,10 +186,19 @@ plot_all <- function(rep_no){
   title(main=paste("Input speed = ", exp(speeds[rep_no]), sep = ""), outer=TRUE, cex.main=2)
 }
 
-plots <- lapply(c(1:length(speeds)), plot_all) 
+sbm_plots <- lapply(c(1:length(speeds)), plot_all) 
 # --> the higher the speed, the more bins and the nicer the fit looks
 
-# just having issues with putting them all together in a panel and saving that...
+# just having issues with putting them all together in a panel and saving that... - TO ASK FRANCIS ABOUT
+
+
+# arrange all the plots in one panel
+# m <- marrangeGrob(grobs = sbm_plots, nrow = 100, ncol = 1, newpage = TRUE)
+# m <- arrangeGrob(grobs = sbm_plots, nrow = 100, ncol = 1, newpage = TRUE)
+# m <- grid.arrange(grobs = sbm_plots, nrow = 100, ncol=1, newpage = TRUE)
+
+
+# ggsave(filename = "fitted_SBMs.png", plot = m, path = "plots", width = 10, height = 18)
 
 # arrange all the plots in one panel
 # plots_each_input_speed_panel <- marrangeGrob(plots_each_input_speed, ncol = 1, nrow = 21, top = quote(paste("page", g, "of", npages)))
@@ -280,7 +287,7 @@ weibull_AICs <- sapply(c(1:length(speeds)), weibull_AIC_extract)
 
 ## output: input average speed and each calculated average speed
 
-simulation_speeds <- data.frame(input = exp(speeds),
+speeds_df <- data.frame(input = exp(speeds),
                                 hmean = harmonics[1,],
                                 lnorm = as.numeric(mods_predict_lnorm),
                                 gamma = as.numeric(mods_predict_gamma),
@@ -323,32 +330,98 @@ for (i in 1:length(speeds)){
 # make box and whisker plot comparing measured_speeds, hmean averages, and each SBM average:
 
 # make df:
+# bc of different lengths: need to fill the tails of some columns with NAs
+list_all <- list(measured_speeds, harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), SBM_weibull = as.numeric(mods_predict_weibull))
+len <- max(lengths(list_all))
+cols <- lapply(list_all, function(l) c(l, rep(NA, len - length(l))))
+boxplot_df <- as.data.frame(Reduce(cbind, cols, init = NULL))
+colnames(boxplot_df) <- c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull")
 
-boxplot_df <- data.frame(input = measured_speeds,
-                         hmean = harmonics[1,],
-                         SBM_lnorm = as.numeric(mods_predict_lnorm),
-                         SBM_gamma = as.numeric(mods_predict_gamma),
-                         SBM_weibull = as.numeric(mods_predict_weibull))
-
-
-# but because of different lengths need to fill the tails of some columns with NAs: -- go from here - look at base R solution!
-
-all_lists <- list(location, organization, person, date, Jobs)
-len <- max(lengths(all_lists))
-
-# --> use help page on stack overflow to fill tails of columns with NAs to cope with diff lengths of columns
-
-
-
-
-
-
+# make it in a different format - better for plotting
+box_df <- data.frame(measure = c(rep("measured", length(measured_speeds)), 
+                                 rep("hmean", length(harmonics[1,])), 
+                                 rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), 
+                                 rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), 
+                                 rep("SBM_weibull", length(as.numeric(mods_predict_weibull)))),
+                     speed = c(measured_speeds, 
+                               harmonics[1,], 
+                               as.numeric(mods_predict_lnorm), 
+                               as.numeric(mods_predict_gamma), 
+                               as.numeric(mods_predict_weibull)))
 
 
+# set specific order to make plot clearer
+box_df$measure <- factor(box_df$measure , levels=c("SBM_weibull", "SBM_gamma", "SBM_lnorm","hmean", "measured"))
+
+# plot:
+box <- ggplot(box_df, aes(x = measure, y = speed, fill = measure))+ 
+  geom_boxplot(notch = TRUE)+
+  coord_flip()+
+  theme_minimal()+
+  theme(legend.position="none")+
+  labs(y = "speed (m/s)")
+  
+
+## -- looks like high speeds get missed by all the methods?
+
+
+# remove some of the high measured values to better compare the distributions:
+box_df2 <- box_df[box_df$speed < 4*exp(simulate_speed), ]
+
+box_minus_high_measured_speeds <- ggplot(box_df2, aes(x = measure, y = speed, fill = measure))+ 
+  geom_boxplot(notch = TRUE)+
+  coord_flip()+
+  theme_minimal()+
+  theme(legend.position="none")+
+  labs(y = "speed (m/s)")
+
+
+
+# plot comparing amongst medians and means
+# averages_df <- data.frame(measure = c("measured", "hmean", "SBM_lnorm","SBM_gamma", "SBM_weibull"),
+#                           median = c(median(measured_speeds), 
+#                                     median(harmonics[1,]), 
+#                                     median(as.numeric(mods_predict_lnorm)), 
+#                                     median(as.numeric(mods_predict_gamma)), 
+#                                     median(as.numeric(mods_predict_weibull))),
+#                           mean = c(mean(measured_speeds), 
+#                                    mean(harmonics[1,]), 
+#                                    mean(as.numeric(mods_predict_lnorm)), 
+#                                    mean(as.numeric(mods_predict_gamma)), 
+#                                    mean(as.numeric(mods_predict_weibull)))) 
+
+averages_df <- data.frame(speed = c(median(measured_speeds),
+                                    mean(measured_speeds),
+                                    median(harmonics[1,]),
+                                    mean(harmonics[1,]),
+                                    median(as.numeric(mods_predict_lnorm)),
+                                    mean(as.numeric(mods_predict_lnorm)),
+                                    median(as.numeric(mods_predict_gamma)),
+                                    mean(as.numeric(mods_predict_gamma)),
+                                    median(as.numeric(mods_predict_weibull)),
+                                    mean(as.numeric(mods_predict_weibull))),
+                          measure = c(rep("measured", length(2)), rep("hmean", length(2)), rep("SBM_lnorm", length(2)), rep("SBM_gamma", length(2)), rep("SBM_weibull", length(2))),
+                          average = c(rep(c("median", "mean"), length(5))))
+
+averages_df$measure <- factor(averages_df$measure , levels=c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull"))
+
+averages_plot <- ggplot(averages_df, aes(x = measure, y = speed))+
+  geom_point()+
+  facet_grid(rows = vars(average))
+
+
+# -- to think about: should we be comparing medians or means or something else?
 
 
 
 
+#### save the three main plots ####
+
+png(file = paste("plots/simulated_speed_exp(", simulate_speed, ").png", sep = ""),
+    width = 600, height = 1000)
+plots_arranged <- ggarrange(box, box_minus_high_measured_speeds, averages_plot, labels = c("A", "B", "C"), nrow = 3)
+annotate_figure(plots_arranged, top = paste("Simulated speed = ", exp(simulate_speed), " m/s", " (exp(", simulate_speed, "))", sep = ""))
+dev.off()
 
 
 # Pablo's behavioural states addition -------------------------------------

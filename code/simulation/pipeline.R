@@ -14,9 +14,9 @@ require(ggpubr)
 #### function for running the simulation on various input speeds and measuring output speeds ####
 
 # seq_dat
-# runs the simulation: generates a path and dz, then position data, then measures speeds of each sequence
+# runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence
 # INPUT:
-# speeds: vector of average input speeds for the animal movement path - can just be one though
+# speeds: vector of the speed parameter repeated n times (n = no. of simulation runs)
 seq_dat <- function(speeds) { 
   path <- pathgen(5e3, 
                   kTurn=2, 
@@ -32,83 +32,43 @@ seq_dat <- function(speeds) {
   dz <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of raddi & angles in regent's park data
   
   # make plot
-  p <- plot_wrap(path, lineargs = list(col="grey"))
-  plot_dzone(dz, border=2)
-  # Q: was considering storing these plots somewhere if it might be helpful?
+  #p <- plot_wrap(path, lineargs = list(col="grey"))
+  #plot_dzone(dz, border=2)
   
   # generate position data
   posdat <- sequence_data(path, dz)
   
   # add points to plot
-  points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+  #points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
   
   # work out speeds of sequences
   v <- calc_speed(posdat)
   
-  # return df with input and measured speed for each step
-  df_input <- data.frame(input = path$speed)
+  # return realised and observed speeds
   
-  df_measured <- data.frame(measured = v$speed)
+  df <- data.frame(realised = rep(mean(path$speed), length(v$speed)), # -- will just be using the first value of this column - they don't correspond to the observed speeds in the neighboring column but felt like the easiest way to return both pieces of info
+                   measured = v$speed)
     
-  return(df_measured)
-
-  ## Q: do we want to use input or measured to compare to our averaged output speeds?
+  return(df)
   
 }
 
 
-#### run for 1 speed once through ####
 
-# define one input average speed:
-#seq_dats <- sapply(-3, seq_dat)
-# when apply it to just one speed: speeds are in seq_dats[4] (although there are NaNs!)
+#### run on 1 speed n times through ####
 
-
-
-#### run for multiple different speeds once through each ####
-
-# # can also apply to a vector of multiple speeds:
-# speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes (if speeds are in m/s)
-# seq_dats <- sapply(speeds, seq_dat) # this step takes quite a while (under a minute though still - but might be problematic when inputting more and larger speeds)
-# # (seq_data are in seq_dats[,1], seq_dats[,2] etc)
-
-# # make df with these speeds:
-# inputs <- c()
-# outputs <- c()
-# for (i in 1:length(speeds)){
-#   inputs <- c(inputs, rep(speeds[i], length(seq_dats[,i]$speed)))
-#   outputs <- c(outputs, seq_dats[,i]$speed)
-# }
-# seq_dats_df <- data.frame(input_average = exp(inputs),
-#                           speed = outputs)
-# 
-# # remove rows containing NaNs:
-# seq_dats_df <- na.omit(seq_dats_df)
-
-#### run on 1 speed 100 times through ####
-
-# which speeds to choose:
-# hedgehog speeds: roughly up to 2m/s
-# fox speeds: roughly up to 13.9m/s
-
-
-# to repeat the simulation on the same input average speed multiple times:
-# could make a vector of the same speed repeated, then sapply to that vector - unless M can think of a better way to do this??
 speeds <- rep(simulate_speed, length = n) # == 0.37 m/s
 seq_dats <- sapply(speeds, seq_dat)
 
-# measured speeds are in seq_dats[1] through to seq_dats[100]
+# realised and observed speeds are in seq_dats[,1] through to seq_dats[,100]
 
 
 ##### calculate average speed - using hmean and SBMs #####
 
 # apply each method (hmean, SBMlog, SBMgamma, SBMWeibull) to every set of speeds - 100 sets of them currently - so should get a distribution of 100 average values for each of the 4 methods
 
-# measured speeds are in seq_dats[1] etc
-
 
 ## HARMONIC MEAN:
-
 
 ## calc_hmean
 # work out harmonic mean of a set of measured speeds (i.e. each simulation rep)
@@ -119,7 +79,7 @@ harmonic <- c()
 calc_hmean <- function(rep_no){
   
   # format speeds per input rep number
-  s1 <- seq_dats[rep_no]
+  s1 <- seq_dats[,rep_no]
   s2 <- s1$measured
   s3 <- s2[!is.nan(s2)]
   
@@ -146,7 +106,7 @@ harmonics <- sapply(c(1:length(speeds)), calc_hmean)
 mods_all_fit <- function(rep_no){
   
   # format speeds per input rep number
-  s1 <- seq_dats[rep_no]
+  s1 <- seq_dats[,rep_no]
   s2 <- s1$measured
   s3 <- s2[!is.nan(s2)]
   
@@ -171,46 +131,8 @@ mods <- sapply(c(1:length(speeds)), mods_all_fit)
 
 # 2. plot the models
 
-# want to do this for each mods[1], mods[3] etc - multipanel plot with all 3 models for each
-
-## plot_all
-# plots all three models in one multi-panel plot for each set of measured speeds (i.e. for each rep of the simulation)
-# INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
-plot_all <- function(rep_no){
-  layout(matrix(1:3, ncol=3))
-  par(oma=c(4, 0, 4, 0), mar=c(4, 4, 4, 4))
-  plot.sbm(mods[[1,rep_no]]$lnorm, title = "lnorm") # default in plot.sbm is to plot the distribution on a log scale - Q: could we discuss this to better get my head around it please
-  plot.sbm(mods[[1,rep_no]]$gamma, title = "gamma")
-  plot.sbm(mods[[1,rep_no]]$weibull, title = "Weibull")
-  title(main=paste("Input speed = ", exp(speeds[rep_no]), sep = ""), outer=TRUE, cex.main=2)
-}
-
-sbm_plots <- lapply(c(1:length(speeds)), plot_all) 
-# --> the higher the speed, the more bins and the nicer the fit looks
-
-# just having issues with putting them all together in a panel and saving that... - TO ASK FRANCIS ABOUT
-
-
-# arrange all the plots in one panel
-# m <- marrangeGrob(grobs = sbm_plots, nrow = 100, ncol = 1, newpage = TRUE)
-# m <- arrangeGrob(grobs = sbm_plots, nrow = 100, ncol = 1, newpage = TRUE)
-# m <- grid.arrange(grobs = sbm_plots, nrow = 100, ncol=1, newpage = TRUE)
-
-
-# ggsave(filename = "fitted_SBMs.png", plot = m, path = "plots", width = 10, height = 18)
-
-# arrange all the plots in one panel
-# plots_each_input_speed_panel <- marrangeGrob(plots_each_input_speed, ncol = 1, nrow = 21, top = quote(paste("page", g, "of", npages)))
-# ggsave(filename = "sbm_plots.png", plot = m1, path = "plots", width = 10, height = 20)
-# --> to fix
-
-# jpeg(filename = "/plots/sbm_plots.png")
-# plots_each_input_speed_panel <- arrangeGrob(plots_each_input_speed, nrow = 21, ncol = 1)
-# #plots_each_input_speed_panel <- grid.arrange(plots_each_input_speed, nrow = 21, ncol = 1)
-# dev.off()
-
-
+# -- not needed currently
+# -- see extra code at bottom for this
 
 # 3. predict average speed using the models
 
@@ -221,7 +143,6 @@ sbm_plots <- lapply(c(1:length(speeds)), plot_all)
 predict_lnorm <- function(rep_no){
   predict.sbm(mods[[1,rep_no]]$lnorm)[1] # selects just the estimate of speed
   # Q: default is newdata = NULL - could we discuss what this is please?
-  # Q: would it be a good idea to save other info e.g. standard error?
 }
 
 ## predict_gamma
@@ -308,8 +229,52 @@ model_AICs <- data.frame(input = exp(speeds),
 #### compare distributions of input & output speeds ####
 
 # compare:
-# - distribution of simulated input speeds - so should have around 20 (varies depending on how many times the path crosses the dz) x 1000 values
+# - realised speed vs estimated speeds (for each method) for each simulation run
 # - distribution of measured average speeds - when simulation is repeated 1000 times on 1 input speed
+
+# error between realised speed and estimated speed:
+hmean_error_calc <- function(rep_no){
+  as.numeric(harmonics[1, rep_no]) - seq_dats[,rep_no]$realised[1] #-- negative == means the estimated speed is smaller than the realised speed
+}
+hmean_error <- sapply(c(1:length(speeds)), hmean_error_calc)
+
+lnorm_error_calc <- function(rep_no){
+  as.numeric(mods_predict_lnorm[rep_no]) - seq_dats[,rep_no]$realised[1]
+}
+lnorm_error <- sapply(c(1:length(speeds)), lnorm_error_calc)
+
+gamma_error_calc <- function(rep_no){
+  as.numeric(mods_predict_gamma[rep_no]) - seq_dats[,rep_no]$realised[1]
+}
+gamma_error <- sapply(c(1:length(speeds)), gamma_error_calc)
+
+weibull_error_calc <- function(rep_no){
+  as.numeric(mods_predict_weibull[rep_no]) - seq_dats[,rep_no]$realised[1]
+}
+weibull_error <- sapply(c(1:length(speeds)), weibull_error_calc)
+
+
+# plot these errors in a helpful way such as to be able to compare between the different methods and see the errors relative to zero:
+
+errors_df <- data.frame(error = c(hmean_error, lnorm_error, gamma_error, weibull_error),
+                        method = c(rep("hmean", length(hmean_error)), rep("lnorm", length(lnorm_error)), rep("gamma", length(gamma_error)), rep("weibull", length(weibull_error))))
+
+errors_plot <- ggplot(errors_df, aes(x = error, fill = method))+
+  geom_density(alpha = 0.3)+
+  theme_minimal()+
+  labs(title = "Distributions of errors between realised and estimated \nspeeds for each method across simulation repeats")
+errors_plot
+
+
+
+# also make boxplot of all 100 of the estimated speeds with vertical line showing speed parameter:
+
+box_df <- data.frame(speed = c(harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), as.numeric(mods_predict_weibull)),
+                     method = c(rep("hmean", length(harmonics[1,])), rep("lnorm", length(as.numeric(mods_predict_lnorm))), rep("gamma", length(as.numeric(mods_predict_gamma))), rep("weibull", length(mods_predict_weibull))))
+
+# -- go from here -- make boxplot and scrap previous plots to extra code
+
+
 
 
 # simulated input speeds:
@@ -410,8 +375,7 @@ averages_plot <- ggplot(averages_df, aes(x = measure, y = speed))+
   facet_grid(rows = vars(average))
 
 
-# -- to think about: should we be comparing medians or means or something else?
-
+#--> stick to comparing medians:
 
 
 
@@ -427,6 +391,70 @@ dev.off()
 # Pablo's behavioural states addition -------------------------------------
 
 # need to check that what he's doing is theoretically & empirically robust
+
+
+
+
+
+
+# extra code not currently needed -----------------------------------------
+
+### run for 1 speed once through
+
+# define one input average speed:
+#seq_dats <- sapply(-3, seq_dat)
+# when apply it to just one speed: speeds are in seq_dats[4] (although there are NaNs!)
+
+
+
+### run for multiple different speeds once through each 
+
+# # can also apply to a vector of multiple speeds:
+# speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes (if speeds are in m/s)
+# seq_dats <- sapply(speeds, seq_dat) # this step takes quite a while (under a minute though still - but might be problematic when inputting more and larger speeds)
+# # (seq_data are in seq_dats[,1], seq_dats[,2] etc)
+
+# # make df with these speeds:
+# inputs <- c()
+# outputs <- c()
+# for (i in 1:length(speeds)){
+#   inputs <- c(inputs, rep(speeds[i], length(seq_dats[,i]$speed)))
+#   outputs <- c(outputs, seq_dats[,i]$speed)
+# }
+# seq_dats_df <- data.frame(input_average = exp(inputs),
+#                           speed = outputs)
+# 
+# # remove rows containing NaNs:
+# seq_dats_df <- na.omit(seq_dats_df)
+
+
+
+
+
+
+
+
+##### plotting the SBM fits
+
+# want to do this for each mods[1], mods[3] etc - multipanel plot with all 3 models for each
+
+## plot_all
+# plots all three models in one multi-panel plot for each set of measured speeds (i.e. for each rep of the simulation)
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of measured speeds
+# plot_all <- function(rep_no){
+#   layout(matrix(1:3, ncol=3))
+#   par(oma=c(4, 0, 4, 0), mar=c(4, 4, 4, 4))
+#   plot.sbm(mods[[1,rep_no]]$lnorm, title = "lnorm") # default in plot.sbm is to plot the distribution on a log scale - Q: could we discuss this to better get my head around it please
+#   plot.sbm(mods[[1,rep_no]]$gamma, title = "gamma")
+#   plot.sbm(mods[[1,rep_no]]$weibull, title = "Weibull")
+#   title(main=paste("Input speed = ", exp(speeds[rep_no]), sep = ""), outer=TRUE, cex.main=2)
+# }
+# 
+# sbm_plots <- lapply(c(1:length(speeds)), plot_all) 
+
+
+# --> the higher the speed, the more bins and the nicer the fit looks
 
 
 

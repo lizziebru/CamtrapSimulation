@@ -9,6 +9,7 @@ source("~/Documents/Project/CamtrapSimulation/code/simulation/sbd_functions.R", 
 require(ggplot2)
 require(gridExtra)
 require(ggpubr)
+require(parallel)
 
 
 #### function for running the simulation on various input speeds and measuring output speeds ####
@@ -17,8 +18,8 @@ require(ggpubr)
 # runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence
 # INPUT:
 # speeds: vector of the speed parameter repeated n times (n = no. of simulation runs)
-seq_dat <- function(speeds) { 
-  path <- pathgen(5e3, 
+seq_dat <- function(speeds, step_no) { 
+  path <- pathgen(n=step_no, ##--- to do: vary this number and see what happens
                   kTurn=2, 
                   kCor=TRUE, 
                   pTurn=1, 
@@ -47,18 +48,40 @@ seq_dat <- function(speeds) {
   # return realised and observed speeds
   
   df <- data.frame(realised = rep(mean(path$speed), length(v$speed)), # -- will just be using the first value of this column - they don't correspond to the observed speeds in the neighboring column but felt like the easiest way to return both pieces of info
-                   measured = v$speed)
+                   observed = v$speed)
     
   return(df)
-  
 }
 
 
 
 #### run on 1 speed n times through ####
 
-speeds <- rep(simulate_speed, length = n) # == 0.37 m/s
-seq_dats <- sapply(speeds, seq_dat)
+speeds <- rep(speed_parameter, length = n)
+#seq_dats <- sapply(speeds, seq_dat)
+# --> need to parallelise this line - takes ages
+
+# use forking with the mclapply family (other option is via sockets instead of forking)
+# issue that could arise here is cause it copies the entire existing version of R and puts it on a new core, your entire workspace exists in each process
+
+# write a function to make mcsapply (mclapply is the parallel version for lapply but would be nice to make an equivalent):
+
+# mc-version of sapply:
+mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
+  FUN <- match.fun(FUN)
+  answer <- parallel::mclapply(X = X, FUN = FUN, ...)
+  if (USE.NAMES && is.character(X) && is.null(names(answer)))
+    names(answer) <- X
+  if (!isFALSE(simplify) && length(answer))
+    simplify2array(answer, higher = (simplify == "array"))
+  else answer
+}
+
+seq_dats <- mcsapply(speeds, seq_dat, mc.cores = 4, step_no = step_no)
+
+
+#seq_dats_l <- mclapply(speeds, seq_dat, mc.cores = 4)
+
 
 # realised and observed speeds are in seq_dats[,1] through to seq_dats[,100]
 
@@ -71,16 +94,16 @@ seq_dats <- sapply(speeds, seq_dat)
 ## HARMONIC MEAN:
 
 ## calc_hmean
-# work out harmonic mean of a set of measured speeds (i.e. each simulation rep)
+# work out harmonic mean of a set of observed speeds (i.e. each simulation rep)
 # returns a harmonic mean and standard error for each set of speeds
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 harmonic <- c()
 calc_hmean <- function(rep_no){
   
   # format speeds per input rep number
   s1 <- seq_dats[,rep_no]
-  s2 <- s1$measured
+  s2 <- s1$observed
   s3 <- s2[!is.nan(s2)]
   
   # work out hmean for the set of speeds for this input rep number
@@ -99,15 +122,15 @@ harmonics <- sapply(c(1:length(speeds)), calc_hmean)
 # 1. fit all the models
 
 ## mods_all_fit
-# fits all 3 SBMs (lognormal, gamma, Weibull) to each set of measured speeds (i.e. each simulation rep)
+# fits all 3 SBMs (lognormal, gamma, Weibull) to each set of observed speeds (i.e. each simulation rep)
 # return three models for each set of measured speeds
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 mods_all_fit <- function(rep_no){
   
   # format speeds per input rep number
   s1 <- seq_dats[,rep_no]
-  s2 <- s1$measured
+  s2 <- s1$observed
   s3 <- s2[!is.nan(s2)]
   
   # make df:
@@ -137,26 +160,26 @@ mods <- sapply(c(1:length(speeds)), mods_all_fit)
 # 3. predict average speed using the models
 
 ## predict_lnorm
-# predict average speed using a fitted lognormal model for each set of measured speeds (i.e. each simulation rep)
+# predict average speed using a fitted lognormal model for each set of observed speeds (i.e. each simulation rep)
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 predict_lnorm <- function(rep_no){
   predict.sbm(mods[[1,rep_no]]$lnorm)[1] # selects just the estimate of speed
   # Q: default is newdata = NULL - could we discuss what this is please?
 }
 
 ## predict_gamma
-# predict average speed using a fitted gamma model for each set of measured speeds (i.e. each simulation rep)
+# predict average speed using a fitted gamma model for each set of observed speeds (i.e. each simulation rep)
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 predict_gamma <- function(rep_no){
   predict.sbm(mods[[1,rep_no]]$gamma)[1]
 }
 
 ## predict_weibull
-# predict average speed using a fitted Weibull model for each set of measured speeds (i.e. each simulation rep)
+# predict average speed using a fitted Weibull model for each set of observed speeds (i.e. each simulation rep)
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 predict_weibull <- function(rep_no){
   predict.sbm(mods[[1,rep_no]]$weibull)[1]
 }
@@ -171,9 +194,9 @@ mods_predict_weibull <- sapply(c(1:length(speeds)), predict_weibull)
 # mods is in such a bizarre format that the best way I could come up with was this function: (couldn't get the AIC.sbm function working)
 
 ## lnorm_AIC_extract
-# return the AIC for the fitted lognormal model for each set of measured speeds
+# return the AIC for the fitted lognormal model for each set of observed speeds
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 lnorm_AIC_extract <- function(rep_no){
   a1 <- mods[2,rep_no]
   a2 <- a1$AICtab[1]
@@ -181,9 +204,9 @@ lnorm_AIC_extract <- function(rep_no){
 }
 
 ## gamma_AIC_extract
-# return the AIC for the fitted gamma model for each set of measured speeds
+# return the AIC for the fitted gamma model for each set of observed speeds
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 gamma_AIC_extract <- function(rep_no){
   a1 <- mods[2,rep_no]
   a2 <- a1$AICtab[1]
@@ -191,9 +214,9 @@ gamma_AIC_extract <- function(rep_no){
 }
 
 ## weibull_AIC_extract
-# return the AIC for the fitted Weibull model for each set of measured speeds
+# return the AIC for the fitted Weibull model for each set of observed speeds
 # INPUT:
-# number of reps of the simulation - so that can loop through every set of measured speeds
+# number of reps of the simulation - so that can loop through every set of observed speeds
 weibull_AIC_extract <- function(rep_no){
   a1 <- mods[2,rep_no]
   a2 <- a1$AICtab[1]
@@ -226,171 +249,296 @@ model_AICs <- data.frame(input = exp(speeds),
 
 
 
-#### compare distributions of input & output speeds ####
+#### PLOTS ####
 
 # compare:
 # - realised speed vs estimated speeds (for each method) for each simulation run
-# - distribution of measured average speeds - when simulation is repeated 1000 times on 1 input speed
+# - distribution of observed average speeds - when simulation is repeated 1000 times on 1 input speed
 
 # error between realised speed and estimated speed:
-hmean_error_calc <- function(rep_no){
+hmean_error_real_calc <- function(rep_no){
   as.numeric(harmonics[1, rep_no]) - seq_dats[,rep_no]$realised[1] #-- negative == means the estimated speed is smaller than the realised speed
 }
-hmean_error <- sapply(c(1:length(speeds)), hmean_error_calc)
+hmean_error_real <- sapply(c(1:length(speeds)), hmean_error_real_calc)
 
-lnorm_error_calc <- function(rep_no){
+lnorm_error_real_calc <- function(rep_no){
   as.numeric(mods_predict_lnorm[rep_no]) - seq_dats[,rep_no]$realised[1]
 }
-lnorm_error <- sapply(c(1:length(speeds)), lnorm_error_calc)
+lnorm_error_real <- sapply(c(1:length(speeds)), lnorm_error_real_calc)
 
-gamma_error_calc <- function(rep_no){
+gamma_error_real_calc <- function(rep_no){
   as.numeric(mods_predict_gamma[rep_no]) - seq_dats[,rep_no]$realised[1]
 }
-gamma_error <- sapply(c(1:length(speeds)), gamma_error_calc)
+gamma_error_real <- sapply(c(1:length(speeds)), gamma_error_real_calc)
 
-weibull_error_calc <- function(rep_no){
+weibull_error_real_calc <- function(rep_no){
   as.numeric(mods_predict_weibull[rep_no]) - seq_dats[,rep_no]$realised[1]
 }
-weibull_error <- sapply(c(1:length(speeds)), weibull_error_calc)
+weibull_error_real <- sapply(c(1:length(speeds)), weibull_error_real_calc)
+
+
+# error between speed parameter and estimated speed:
+hmean_error_sp_calc <- function(rep_no){
+  as.numeric(harmonics[1, rep_no]) - speed_parameter
+}
+hmean_error_sp <- sapply(c(1:length(speeds)), hmean_error_sp_calc)
+
+lnorm_error_sp_calc <- function(rep_no){
+  as.numeric(mods_predict_lnorm[rep_no]) - speed_parameter
+}
+lnorm_error_sp <- sapply(c(1:length(speeds)), lnorm_error_sp_calc)
+
+gamma_error_sp_calc <- function(rep_no){
+  as.numeric(mods_predict_gamma[rep_no]) - speed_parameter
+}
+gamma_error_sp <- sapply(c(1:length(speeds)), gamma_error_sp_calc)
+
+weibull_error_sp_calc <- function(rep_no){
+  as.numeric(mods_predict_weibull[rep_no]) - speed_parameter
+}
+weibull_error_sp <- sapply(c(1:length(speeds)), weibull_error_sp_calc)
+
 
 
 # plot these errors in a helpful way such as to be able to compare between the different methods and see the errors relative to zero:
+# 
+# errors_df <- data.frame(error = c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real),
+#                         method = c(rep("hmean", length(hmean_error_real)), rep("SBM_lnorm", length(lnorm_error_real)), rep("SBM_gamma", length(gamma_error_real)), rep("SBM_weibull", length(weibull_error_real))))
+# 
+# errors_plot <- ggplot(errors_df, aes(x = error, fill = method))+
+#   geom_density(alpha = 0.3)+
+#   theme_minimal()+
+#   labs(title = paste("Error between realised and estimated speeds\n(speed parameter =", signif(exp(speed_parameter), digits = 3), "m/s)"),
+#        x = "error (m/s)")
+# errors_plot
 
-errors_df <- data.frame(error = c(hmean_error, lnorm_error, gamma_error, weibull_error),
-                        method = c(rep("hmean", length(hmean_error)), rep("lnorm", length(lnorm_error)), rep("gamma", length(gamma_error)), rep("weibull", length(weibull_error))))
-
-errors_plot <- ggplot(errors_df, aes(x = error, fill = method))+
-  geom_density(alpha = 0.3)+
-  theme_minimal()+
-  labs(title = "Distributions of errors between realised and estimated \nspeeds for each method across simulation repeats")
-errors_plot
-
-
-
-# also make boxplot of all 100 of the estimated speeds with vertical line showing speed parameter:
-
-box_df <- data.frame(speed = c(harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), as.numeric(mods_predict_weibull)),
-                     method = c(rep("hmean", length(harmonics[1,])), rep("lnorm", length(as.numeric(mods_predict_lnorm))), rep("gamma", length(as.numeric(mods_predict_gamma))), rep("weibull", length(mods_predict_weibull))))
-
-# -- go from here -- make boxplot and scrap previous plots to extra code
-
-
-
-
-# simulated input speeds:
-# concatenate all 100 sets of measured speeds:
-
-measured_speeds <- c()
-# format speeds per input rep number
-
-for (i in 1:length(speeds)){
-  s1 <- seq_dats[i]
-  s2 <- s1$measured
-  s3 <- s2[!is.nan(s2)]
-  
-  measured_speeds <- c(measured_speeds, s3)
+# 
+# # boxplot of all 100 of the estimated speeds with line showing speed parameter:
+# 
+# box_df <- data.frame(speed = c(harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), as.numeric(mods_predict_weibull)),
+#                      method = c(rep("hmean", length(harmonics[1,])), rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), rep("SBM_weibull", length(mods_predict_weibull))))
+# 
+# box <- ggplot(box_df, aes(x = method, y = speed))+ 
+#   geom_boxplot()+
+#   geom_hline(yintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
+#   #geom_text(aes(0.3, (exp(speed_parameter)), label = paste("speed parameter = ", signif(exp(speed_parameter), digits = 3), "m/s"), vjust = -1), size = 3, colour = "blue")+
+#   coord_flip()+
+#   theme_minimal()+
+#   theme(legend.position="none")+
+#   labs(y = "speed (m/s)", title = paste("Estimated speeds relative to speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# #box
+# 
+# 
+# # comparison of medians of estimated speeds with the speed parameter
+# 
+# medians_df <- data.frame(speed = c(median(harmonics[1,]),
+#                                           median(as.numeric(mods_predict_lnorm)),
+#                                           median(as.numeric(mods_predict_gamma)),
+#                                           median(as.numeric(mods_predict_weibull))),
+#                          method = c("hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull"))
+# 
+# medians_df$method <- factor(medians_df$method , levels=c("hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull"))
+# 
+# medians_plot <- ggplot(medians_df, aes(x = method, y = speed))+
+#   geom_point(shape = 18, size = 3)+
+#   theme_minimal()+
+#   ylab("speed (m/s)")+
+#   coord_flip()+
+#   geom_hline(yintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
+#   #geom_text(aes(0.5, (exp(speed_parameter)-0.02), label = paste("speed parameter = ", signif(exp(speed_parameter), digits = 3), "m/s"), vjust = -1), size = 3, colour = "blue")+
+#   labs(title = paste("Medians of estimated speeds relative to speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# #medians_plot
+# 
+# #ggarrange(errors_plot, box, medians_plot, nrow = 3)
+# 
+# 
+# 
+# # plot comparing observed speeds with the speed parameter to investigate the bias of speed potentially proportional to trap rate:
+# 
+# ## errors plot:
+# 
+# # work out errors between observed and realised:
+# 
+obs_realised_error_calc <- function(rep_no){
+  realised <- seq_dats[,rep_no]$realised[1]
+  work_out_diff <- function(observed){
+    observed - realised
+  }
+  sapply(seq_dats[,rep_no]$observed, work_out_diff)
 }
 
+obs_realised_errors <- sapply(c(1:length(speeds)), obs_realised_error_calc)
+obs_realised_errors_vector <- c()
+for (i in c(1:n)){
+  x <- as.numeric(unlist(obs_realised_errors[i]))
+  obs_realised_errors_vector <- c(obs_realised_errors_vector, x)
+}
+obs_realised_errors_vector <- obs_realised_errors_vector[!is.nan(obs_realised_errors_vector)]
 
-# make box and whisker plot comparing measured_speeds, hmean averages, and each SBM average:
+# # plot with just realised errors
+# 
+# # obs_realised_errors_df <- data.frame(error = obs_realised_errors_vector)
+# # 
+# # obs_realised_error_plot <- ggplot(obs_realised_errors_df, aes(x = error))+
+# #   geom_density(size = 0.6)+
+# #   theme_minimal()+
+# #   geom_vline(xintercept = 0, colour = "red")+
+# #   labs(title = "Errors between observed and realised speeds")
+# # obs_realised_error_plot  
+# 
+# 
+# # work out errors between observed speeds and the speed parameter:
+# 
+obs_param_error_calc <- function(rep_no){
+  work_out_diff <- function(observed){
+    observed - speed_parameter
+  }
+  sapply(seq_dats[,rep_no]$observed, work_out_diff)
+}
 
-# make df:
-# bc of different lengths: need to fill the tails of some columns with NAs
-list_all <- list(measured_speeds, harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), SBM_weibull = as.numeric(mods_predict_weibull))
-len <- max(lengths(list_all))
-cols <- lapply(list_all, function(l) c(l, rep(NA, len - length(l))))
-boxplot_df <- as.data.frame(Reduce(cbind, cols, init = NULL))
-colnames(boxplot_df) <- c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull")
+obs_param_errors <- sapply(c(1:length(speeds)), obs_param_error_calc)
 
-# make it in a different format - better for plotting
-box_df <- data.frame(measure = c(rep("measured", length(measured_speeds)), 
-                                 rep("hmean", length(harmonics[1,])), 
-                                 rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), 
-                                 rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), 
-                                 rep("SBM_weibull", length(as.numeric(mods_predict_weibull)))),
-                     speed = c(measured_speeds, 
-                               harmonics[1,], 
-                               as.numeric(mods_predict_lnorm), 
-                               as.numeric(mods_predict_gamma), 
-                               as.numeric(mods_predict_weibull)))
+obs_param_errors_vector <- c()
+for (i in c(1:n)){
+  x <- as.numeric(unlist(obs_param_errors[i]))
+  obs_param_errors_vector <- c(obs_param_errors_vector, x)
+}
+obs_param_errors_vector <- obs_param_errors_vector[!is.nan(obs_param_errors_vector)]
 
 
-# set specific order to make plot clearer
-box_df$measure <- factor(box_df$measure , levels=c("SBM_weibull", "SBM_gamma", "SBM_lnorm","hmean", "measured"))
+# # plot for both realised and speed_parameter
+# 
+# obs_errors_df <- data.frame(error = c(obs_realised_errors_vector, obs_param_errors_vector),
+#                             measure = c(rep("realised_speed", length(obs_realised_errors_vector)), rep("speed_parameter", length(obs_param_errors_vector))))
+# 
+# obs_error_plot <- ggplot(obs_errors_df, aes(x = error, fill = measure))+
+#   geom_density(size = 0.6)+
+#   #facet_grid(rows = vars(measure))+
+#   theme_minimal()+
+#   geom_vline(xintercept = 0, colour = "red")+
+#   labs(title = "Errors between observed speeds and either realised speeds or the speed parameter")
+# #obs_error_plot 
+# 
 
-# plot:
-box <- ggplot(box_df, aes(x = measure, y = speed, fill = measure))+ 
-  geom_boxplot(notch = TRUE)+
+observed_all <- c()
+for (i in c(1:n)){
+  x <- seq_dats[,i]$observed
+  observed_all <- c(observed_all, x)
+}
+observed_all <- observed_all[!is.nan(observed_all)]
+# observed_all_df <- data.frame(speed = observed_all)
+# 
+# observed_distr <- ggplot(observed_all_df, aes(x = speed))+
+#   geom_density()+
+#   theme_minimal()+
+#   geom_vline(xintercept = speed_parameter, colour = "blue", linetype = "dashed")+
+#   labs(title = paste("Distribution of observed speeds relative to the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# #observed_distr
+# 
+# # - would be nice to add the distribution of realised speeds into this: make separate plot in case it makes everything look too messy
+# 
+realised_all <- c()
+for (i in c(1:n)){
+  x <- seq_dats[,i]$realised[1]
+  realised_all <- c(realised_all, x)
+}
+realised_all <- realised_all[!is.nan(realised_all)]
+
+
+# obs_real_all_df <- data.frame(speed = c(observed_all, realised_all),
+#                               measure = c(rep("observed", length(observed_all)), rep("realised", length(realised_all))))
+# 
+# obs_real_plot <- ggplot(obs_real_all_df, aes(x = speed, fill = measure))+
+#   geom_density()+
+#   theme_minimal()+
+#   geom_vline(xintercept = speed_parameter, linetype = "dashed", colour = "blue")+
+#   labs(title = paste("Distribution of observed speeds relative to realised speeds and the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# obs_real_plot
+# 
+# 
+# #### save the main plots ####
+# 
+# png(file = paste("plots/simulation_outputs/sp_", exp(speed_parameter), "_n_", n, ".png", sep = ""),
+#     width = 600, height = 1000)
+# plots_arranged <- ggarrange(errors_plot, box, medians_plot, labels = c("A", "B", "C"), nrow = 3)
+# annotate_figure(plots_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s", sep = ""))
+# dev.off()
+# 
+# png(file = paste("plots/obs_bias/sp_", exp(speed_parameter), "_n_", n, ".png", sep = ""),
+#     width = 600, height = 1000)
+# obs_arranged <- ggarrange(obs_error_plot, obs_real_plot, labels = c("A", "B"), nrow = 2)
+# annotate_figure(obs_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s", sep = ""))
+# dev.off()
+
+
+
+
+
+
+## instead: make one big 4-panelled plot encompassing all of the above:
+
+# biases relating to observed speeds:
+
+obs_errors_df <- data.frame(error = c(obs_realised_errors_vector, obs_param_errors_vector),
+                            measure = c(rep("realised", length(obs_realised_errors_vector)), rep("speed parameter", length(obs_param_errors_vector))))
+
+obs_error_plot <- ggplot(obs_errors_df, aes(x = error, fill = measure))+
+  geom_density(size = 0.6)+
+  facet_grid(rows = vars(measure))+
+  #theme_minimal()+
+  geom_vline(xintercept = 0)+
+  labs(title = "Errors between observed speeds and either\nrealised speeds or the speed parameter",
+       x = "speed (m/s)")+
+  theme(legend.position = "none")
+
+obs_real_all_df <- data.frame(speed = c(observed_all, realised_all),
+                              measure = c(rep("observed", length(observed_all)), rep("realised", length(realised_all))))
+
+obs_real_plot <- ggplot(obs_real_all_df, aes(x = speed, fill = measure))+
+  geom_density()+
+  theme_minimal()+
+  theme(legend.position = "bottom")+
+  geom_vline(xintercept = speed_parameter, linetype = "dashed", colour = "blue")+
+  labs(title = paste("Distribution of observed speeds relative to\nrealised speeds and the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"),
+       x = "speed (m/s)")
+
+
+estimated_error_df <- data.frame(error = c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real, hmean_error_sp, lnorm_error_sp, gamma_error_sp, weibull_error_sp),
+                                 method = c(rep("hmean", length(hmean_error_real)), rep("SBM_lnorm", length(lnorm_error_real)), rep("SBM_gamma", length(gamma_error_real)), rep("SBM_weibull", length(weibull_error_real)), rep("hmean", length(hmean_error_sp)), rep("SBM_lnorm", length(lnorm_error_sp)), rep("SBM_gamma", length(gamma_error_sp)), rep("SBM_weibull", length(weibull_error_sp))),
+                                 measure = c(rep("realised", length(c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real))), rep("speed parameter", length(c(hmean_error_sp, lnorm_error_sp, gamma_error_sp, weibull_error_sp)))))
+
+estimated_error_plot <- ggplot(estimated_error_df, aes(x = error, fill = method))+
+  geom_density(alpha = 0.3)+
+  theme(legend.position = "bottom")+
+  facet_grid(rows = vars(measure))+
+  labs(title = "Error between estimated speeds and either\nrealised speeds or the speed parameter",
+       x = "speed (m/s)")
+#estimated_error_plot
+
+box_df <- data.frame(speed = c(harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), as.numeric(mods_predict_weibull)),
+                     method = c(rep("hmean", length(harmonics[1,])), rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), rep("SBM_weibull", length(mods_predict_weibull))))
+
+box <- ggplot(box_df, aes(x = method, y = speed))+ 
+  geom_boxplot()+
+  geom_hline(yintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
+  #geom_text(aes(0.3, (exp(speed_parameter)), label = paste("speed parameter = ", signif(exp(speed_parameter), digits = 3), "m/s"), vjust = -1), size = 3, colour = "blue")+
   coord_flip()+
   theme_minimal()+
   theme(legend.position="none")+
-  labs(y = "speed (m/s)")
-  
+  labs(y = "speed (m/s)", title = paste("Estimated speeds relative to speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+#box
 
-## -- looks like high speeds get missed by all the methods?
+## save all 4 plots in one doc:
 
-
-# remove some of the high measured values to better compare the distributions:
-box_df2 <- box_df[box_df$speed < 4*exp(simulate_speed), ]
-
-box_minus_high_measured_speeds <- ggplot(box_df2, aes(x = measure, y = speed, fill = measure))+ 
-  geom_boxplot(notch = TRUE)+
-  coord_flip()+
-  theme_minimal()+
-  theme(legend.position="none")+
-  labs(y = "speed (m/s)")
-
-
-
-# plot comparing amongst medians and means
-# averages_df <- data.frame(measure = c("measured", "hmean", "SBM_lnorm","SBM_gamma", "SBM_weibull"),
-#                           median = c(median(measured_speeds), 
-#                                     median(harmonics[1,]), 
-#                                     median(as.numeric(mods_predict_lnorm)), 
-#                                     median(as.numeric(mods_predict_gamma)), 
-#                                     median(as.numeric(mods_predict_weibull))),
-#                           mean = c(mean(measured_speeds), 
-#                                    mean(harmonics[1,]), 
-#                                    mean(as.numeric(mods_predict_lnorm)), 
-#                                    mean(as.numeric(mods_predict_gamma)), 
-#                                    mean(as.numeric(mods_predict_weibull)))) 
-
-averages_df <- data.frame(speed = c(median(measured_speeds),
-                                    mean(measured_speeds),
-                                    median(harmonics[1,]),
-                                    mean(harmonics[1,]),
-                                    median(as.numeric(mods_predict_lnorm)),
-                                    mean(as.numeric(mods_predict_lnorm)),
-                                    median(as.numeric(mods_predict_gamma)),
-                                    mean(as.numeric(mods_predict_gamma)),
-                                    median(as.numeric(mods_predict_weibull)),
-                                    mean(as.numeric(mods_predict_weibull))),
-                          measure = c(rep("measured", length(2)), rep("hmean", length(2)), rep("SBM_lnorm", length(2)), rep("SBM_gamma", length(2)), rep("SBM_weibull", length(2))),
-                          average = c(rep(c("median", "mean"), length(5))))
-
-averages_df$measure <- factor(averages_df$measure , levels=c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull"))
-
-averages_plot <- ggplot(averages_df, aes(x = measure, y = speed))+
-  geom_point()+
-  facet_grid(rows = vars(average))
-
-
-#--> stick to comparing medians:
-
-
-
-#### save the three main plots ####
-
-png(file = paste("plots/simulated_speed_exp(", simulate_speed, ").png", sep = ""),
-    width = 600, height = 1000)
-plots_arranged <- ggarrange(box, box_minus_high_measured_speeds, averages_plot, labels = c("A", "B", "C"), nrow = 3)
-annotate_figure(plots_arranged, top = paste("Simulated speed = ", exp(simulate_speed), " m/s", " (exp(", simulate_speed, "))", sep = ""))
+png(file = paste("plots/sim_4outputs/sp_", exp(speed_parameter), "_n_", n, "_nstep_", step_no, ".png", sep = ""),
+    width = 900, height = 1000)
+plots_arranged <- ggarrange(obs_error_plot, estimated_error_plot, obs_real_plot, box, nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
+annotate_figure(plots_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s, n = ", n, ", step_no = ", step_no, sep = ""))
 dev.off()
 
 
-# Pablo's behavioural states addition -------------------------------------
 
-# need to check that what he's doing is theoretically & empirically robust
+# biases relating to estimated speeds:
 
 
 
@@ -458,3 +606,104 @@ dev.off()
 
 
 
+
+
+
+#### previous plotting stuff:
+
+# simulated input speeds:
+# concatenate all 100 sets of measured speeds:
+
+# measured_speeds <- c()
+# # format speeds per input rep number
+# 
+# for (i in 1:length(speeds)){
+#   s1 <- seq_dats[i]
+#   s2 <- s1$measured
+#   s3 <- s2[!is.nan(s2)]
+#   
+#   measured_speeds <- c(measured_speeds, s3)
+# }
+# 
+# 
+# # make box and whisker plot comparing measured_speeds, hmean averages, and each SBM average:
+# 
+# # make df:
+# # bc of different lengths: need to fill the tails of some columns with NAs
+# list_all <- list(measured_speeds, harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), SBM_weibull = as.numeric(mods_predict_weibull))
+# len <- max(lengths(list_all))
+# cols <- lapply(list_all, function(l) c(l, rep(NA, len - length(l))))
+# boxplot_df <- as.data.frame(Reduce(cbind, cols, init = NULL))
+# colnames(boxplot_df) <- c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull")
+# 
+# # make it in a different format - better for plotting
+# box_df <- data.frame(measure = c(rep("measured", length(measured_speeds)), 
+#                                  rep("hmean", length(harmonics[1,])), 
+#                                  rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), 
+#                                  rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), 
+#                                  rep("SBM_weibull", length(as.numeric(mods_predict_weibull)))),
+#                      speed = c(measured_speeds, 
+#                                harmonics[1,], 
+#                                as.numeric(mods_predict_lnorm), 
+#                                as.numeric(mods_predict_gamma), 
+#                                as.numeric(mods_predict_weibull)))
+# 
+# 
+# # set specific order to make plot clearer
+# box_df$measure <- factor(box_df$measure , levels=c("SBM_weibull", "SBM_gamma", "SBM_lnorm","hmean", "measured"))
+# 
+# # plot:
+# box <- ggplot(box_df, aes(x = measure, y = speed, fill = measure))+ 
+#   geom_boxplot(notch = TRUE)+
+#   coord_flip()+
+#   theme_minimal()+
+#   theme(legend.position="none")+
+#   labs(y = "speed (m/s)")
+#   
+# 
+# ## -- looks like high speeds get missed by all the methods?
+# 
+# 
+# # remove some of the high measured values to better compare the distributions:
+# box_df2 <- box_df[box_df$speed < 4*exp(speed_parameter), ]
+# 
+# box_minus_high_measured_speeds <- ggplot(box_df2, aes(x = measure, y = speed, fill = measure))+ 
+#   geom_boxplot(notch = TRUE)+
+#   coord_flip()+
+#   theme_minimal()+
+#   theme(legend.position="none")+
+#   labs(y = "speed (m/s)")
+
+
+
+# plot comparing amongst medians and means
+# averages_df <- data.frame(measure = c("measured", "hmean", "SBM_lnorm","SBM_gamma", "SBM_weibull"),
+#                           median = c(median(measured_speeds), 
+#                                     median(harmonics[1,]), 
+#                                     median(as.numeric(mods_predict_lnorm)), 
+#                                     median(as.numeric(mods_predict_gamma)), 
+#                                     median(as.numeric(mods_predict_weibull))),
+#                           mean = c(mean(measured_speeds), 
+#                                    mean(harmonics[1,]), 
+#                                    mean(as.numeric(mods_predict_lnorm)), 
+#                                    mean(as.numeric(mods_predict_gamma)), 
+#                                    mean(as.numeric(mods_predict_weibull)))) 
+# 
+# averages_df <- data.frame(speed = c(median(measured_speeds),
+#                                     mean(measured_speeds),
+#                                     median(harmonics[1,]),
+#                                     mean(harmonics[1,]),
+#                                     median(as.numeric(mods_predict_lnorm)),
+#                                     mean(as.numeric(mods_predict_lnorm)),
+#                                     median(as.numeric(mods_predict_gamma)),
+#                                     mean(as.numeric(mods_predict_gamma)),
+#                                     median(as.numeric(mods_predict_weibull)),
+#                                     mean(as.numeric(mods_predict_weibull))),
+#                           measure = c(rep("measured", length(2)), rep("hmean", length(2)), rep("SBM_lnorm", length(2)), rep("SBM_gamma", length(2)), rep("SBM_weibull", length(2))),
+#                           average = c(rep(c("median", "mean"), length(5))))
+# 
+# averages_df$measure <- factor(averages_df$measure , levels=c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull"))
+# 
+# averages_plot <- ggplot(averages_df, aes(x = measure, y = speed))+
+#   geom_point()+
+#   facet_grid(rows = vars(average))

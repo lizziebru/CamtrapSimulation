@@ -289,7 +289,7 @@ fitDF.conhaz <- function(y, plotres=FALSE, title=NULL)
 {	nmod <- fitDF(y, "point", "nor", "inc")
 PkHt <- DFPeak(nmod)
 names(PkHt) <- NULL
-PH <- 1/(1+1/exp(15*PkHt-6.7))
+PH <- 1/(1+1/exp(15*PkHt-6.7)) ##-- this looks like the log model describing lower probability of being detected when too close to CT
 res <- fitDF(y, "point", "haz", "inc", fixPk=PH)
 if(plotres) plotmod(res,resln=20,title=title)
 res
@@ -459,7 +459,7 @@ res
 
 
 ##############################################
-# Linear covariate detection model functions #
+# Linear covariate detection model functions #   --- ask about what this corresponds to?
 ##############################################
 
 

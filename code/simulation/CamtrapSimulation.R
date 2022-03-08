@@ -202,46 +202,38 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
 
+## ORIGINAL FUNCTION:
 is_in_dz <- function(point, dzone){
-  
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-  
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-  
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-  
   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-  
   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-    
     ifelse(pt[, 2]<dz$y, # test: is y-coord less than the d-zone y coord?
            # if yes, bear = pi:
-           pi, 
+           pi,
            # if no:
            ifelse(pt[, 1]< dz$x, # test: is x-coord less than the d-zone x coord?
                   # if yes, bear = 2 pi
                   2*pi,
                   # if no, bear = 0:
                   0))
-  
   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-  
   beardif <- ifelse(beardif>pi,
                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
                     beardif) # if not: just keep as it was
-  
-  
   # conditions for it to be in the dz:
   # beardif is less than half the detection zone angle - but why half the detection angle?
   # dist is less than the detection zone radius
   res <- ifelse(beardif < dz$th/2 & dist < dz$r, # this is the line to probably change
-                TRUE, 
-                FALSE) 
-  
+                TRUE,
+                FALSE)
   # return matrix with TRUE or FALSE for each point
   return(matrix(res, nrow=nrow(point)))
-  
 }
+
+
+
 
 # edits to is_in_dz to include distance as a probability density:
 
@@ -254,18 +246,71 @@ point <- path$path[,1:2]
 
 dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
   
+## TAKE 1
+## incorporating distance PDF using the regents' park data -- but only did this for distance, not angle yet
+# is_in_dz2 <- function(point, dzone){
+#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+#     ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
+#            # if yes, bear = pi:
+#            pi,
+#            # if no:
+#            ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
+#                   # if yes, bear = 2 pi
+#                   2*pi,
+#                   # if no, bear = 0:
+#                   0))
+#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+#   beardif <- ifelse(beardif>pi,
+#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+#                     beardif) # if not: just keep as it was
+#   # conditions for it to be in the dz:
+#   # beardif is less than half the detection zone angle
+#   # dist is less than the detection zone radius
+#   res <- ifelse(beardif < dz$th/2 & dist < dz$r,
+#                 TRUE,
+#                 FALSE)
+#   # make df of distances of each point and whether they're true or false
+#   df <- data.frame(res = as.factor(res),
+#                    dist = dist)
+# 
+#   # now for the ones which are true:
+# 
+#   # reassign them as true based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
+# 
+#   dist_prob <- function(x){ # == the probability density function estimated from fox & hedgehog data combined
+#     dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
+#   } # --> BUT: probably need to make separate functions for diff spp
+# 
+#   # select only those which are TRUE
+#   for (i in 1:nrow(df)) {
+#     d <- df[i,]
+#     if (d$res==TRUE) { # ignore if res is FALSE
+# 
+#       # work out the probability of being detected based on the estimated probability density:
+#       prob <- dist_prob(d$dist)
+# 
+#       # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+#       df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob, 1-prob))
+#     }
+#   }
+# 
+#   # return matrix with TRUE or FALSE for each point
+#   return(matrix(as.logical(df$res), nrow=nrow(point)))
+# 
+# }
+# athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
+
+
 is_in_dz2 <- function(point, dzone){
-
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-
   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-
   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-
     ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
            # if yes, bear = pi:
            pi,
@@ -275,16 +320,13 @@ is_in_dz2 <- function(point, dzone){
                   2*pi,
                   # if no, bear = 0:
                   0))
-
   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-
   beardif <- ifelse(beardif>pi,
                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
                     beardif) # if not: just keep as it was
 
-
   # conditions for it to be in the dz:
-  # beardif is less than half the detection zone angle - but why half the detection angle? - guessing this is bc beardif is measured from the centre of the CT dz?
+  # beardif is less than half the detection zone angle
   # dist is less than the detection zone radius
   res <- ifelse(beardif < dz$th/2 & dist < dz$r,
                 TRUE,
@@ -293,14 +335,16 @@ is_in_dz2 <- function(point, dzone){
   # make df of distances of each point and whether they're true or false
   df <- data.frame(res = as.factor(res),
                    dist = dist)
-
+  
+  
   # now for the ones which are true:
-  # reassign them as true based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
-
-  dist_prob <- function(x){ # == the probability density function estimated from fox & hedgehog data combined
-    dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
+  
+  # reassign them as true based on the probability density -- use hazard rate model from Rowcliffe et al. 2011
+  
+  hazard <- function(dist_or_angle){ # == the probability density function estimated from fox & hedgehog data combined
+    1 - exp(-(width/dist_or_angle)^shape)
   } # --> BUT: probably need to make separate functions for diff spp
-
+  
   # select only those which are TRUE
   
   for (i in 1:nrow(df)) {
@@ -308,21 +352,17 @@ is_in_dz2 <- function(point, dzone){
     if (d$res==TRUE) { # ignore if res is FALSE
       
       # work out the probability of being detected based on the estimated probability density:
-      prob <- dist_prob(d$dist)
+      prob <- hazard(d$dist)
       
       # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
       df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob, 1-prob))
     }
   }
-
+  
   # return matrix with TRUE or FALSE for each point
   return(matrix(as.logical(df$res), nrow=nrow(point)))
   
 }
-
-# athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
-
-
 
 
 

@@ -1,13 +1,7 @@
 ### RUNNING THE SIMULATION USING PIPELINE ###
 
-# TO DO:
-# - parallelise sapply to use all 4 cores -- maybe try mclapply instead?
-# - play with mclapply
-# - also actually probably just do fewer runs but do more steps per run to fix this discrepancy
-
-
 rm(list = ls())
-#dev.off()
+dev.off()
 
 
 # speed parameter:
@@ -26,9 +20,20 @@ n <- 100
 
 # number of steps per path:
 
-step_no <- 5e4
+step_no <- 5e3
 # --> if increase this could help to make realised speeds converge better on the speed parameter
 # --> problem: as you increase this it makes the simulation take forever
+
+
+# 
+
+## other things to vary:
+
+# hazard rate vs hazard rate with logistic mix detection PDF -- esp should probs use logistic mix when simulating smaller spp
+
+
+
+
 
 
 # run pipeline.R script:

@@ -1,5 +1,7 @@
 ## DISTANCE FROM CT PROBABILITY DENSITY OF BEING DETECTED ##
 
+require(stats4)
+
 # 2 ways of applying this:
 
 # 1. resample TRUE/FALSE in is_in_dz function with p(TRUE) = p(getting detected at that distance based on the probability density function found here)
@@ -9,6 +11,86 @@
 
 
 # --> first method is better
+
+# FINAL -------------------------------------------------------------------
+
+# candidates:
+# - my normal function derived from the regents' park data -- but check with M cause there's not THAT much data so might be better to stick to what the paper did 
+# - Rowcliffe et al. 2011 hazard rate model (potentially then adding logistic mix if simulating smaller spp) - currently best is to work out the parameters from the regents' park data -- but check with M this is a good idea
+
+# for each one: need to decide whether to use box foxes and hedgehogs combined or both separately instead
+
+
+# work out the parameters needed to put in the hazard rate function:
+
+hazard <- function(dist_or_angle, width, shape){ # == the probability density function estimated from fox & hedgehog data combined
+  1 - exp(-(width/dist_or_angle)^shape)
+}
+
+posdata <- read.csv("data/posdat.csv")
+
+
+# work out parameters using fox & hedgehog data together:
+
+ggplot(posdata, aes(x = radius))+
+  geom_density()
+
+ggplot(posdata, aes(x = angle))+
+  geom_density()
+
+# try overlay with hazard model with random parameters and see what happens:
+
+x <- seq(0,10, length = 1000)
+y <- sapply(x, hazard, width = 2, shape = 2)
+
+ggplot()+
+  geom_density(aes(x = posdata$radius))+
+  geom_smooth(aes(x = x, y = y))
+
+# also work out parameters for either just foxes or just hedgehogs:
+
+
+# max likelihood:
+
+# negative log likelihood function:
+
+hazard_nll <- function(width, shape){
+  x <- seq(0,10, length = 1000)
+  -sum(log(1 - exp(-(width/x)^shape)))
+}
+
+
+# compute MLE coefficient estimates:
+est <- stats4::mle(minuslog=hazard_nll, start=list(width=2, shape=2), method = "Nelder-Mead")
+summary(est)
+
+# could use optim too?
+
+## -- go from here: fit hazard to dist and angle using MLE to get the parameters and plonk those into the is_in_dz function
+
+
+# instead: could use half normal function too:
+
+half_normal <- function(dist_or_angle, sigma){
+  exp(-dist_or_angle^2/2*sigma^2)
+}
+
+x <- seq(0,10, length = 1000)
+y_hn <- sapply(x, half_normal, sigma = 1) # Marcus suggested sigma of 1 or 2 should be good but still doesn't look great
+
+ggplot()+
+  geom_density(aes(x = posdata$radius))+
+  geom_smooth(aes(x = x, y = y_hn))
+
+
+# hazard definitely looks better - just would be nice to find parameters than fit nicely
+
+
+
+## best thing to do would be to find specific parameters/add on logistic mix etc depending on what category of animal I'm simulating
+
+# but for now: ask Francis to help with how to do Max Likelihood
+
 
 
 # PDFs from regents' park data only ------------------------------------------------------
@@ -56,6 +138,10 @@ panama_06$speed <- panama_06$distance / (panama_06$intervals * panama_06$avgdura
 # - hazard rate
 # - half normal with logistic mix
 # - hazard rate with logistic mix
+
+## for the time being just fit the hazard rate model (models a slightly longer flat section at the start before tailing off vs the half normal starts decreasing immediately)
+# -- then could see if half normal is any better - but probs not for now bc it's a bit trivial and their paper did show hazard rate had a generally slightly better fit
+# -- when simulate diff sized spp etc could then consider switching to logistic mix
 
 
 library(bbmle)	#for mle2

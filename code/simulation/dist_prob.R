@@ -1,6 +1,7 @@
 ## DISTANCE FROM CT PROBABILITY DENSITY OF BEING DETECTED ##
 
 require(stats4)
+require(minpack.lm)
 
 # 2 ways of applying this:
 
@@ -61,15 +62,11 @@ hazard_nll <- function(width, shape){
 
 
 # compute MLE coefficient estimates:
-est <- stats4::mle(minuslog=hazard_nll, start=list(width=2, shape=2), method = "Nelder-Mead")
-summary(est)
-
-# could use optim too?
-
-## -- go from here: fit hazard to dist and angle using MLE to get the parameters and plonk those into the is_in_dz function
+# est <- stats4::mle(minuslog=hazard_nll, start=list(width=2, shape=2), method = "Nelder-Mead")
+# summary(est)
 
 
-# instead: could use half normal function too:
+# could use half normal function too:
 
 half_normal <- function(dist_or_angle, sigma){
   exp(-dist_or_angle^2/2*sigma^2)
@@ -83,13 +80,84 @@ ggplot()+
   geom_smooth(aes(x = x, y = y_hn))
 
 
-# hazard definitely looks better - just would be nice to find parameters than fit nicely
+# hazard definitely looks better - just need to find good parameters
 
 
 
 ## best thing to do would be to find specific parameters/add on logistic mix etc depending on what category of animal I'm simulating
 
-# but for now: ask Francis to help with how to do Max Likelihood
+
+# Francis' advice: use nls fitting to get parameter values:
+
+distance <- posdata$radius
+
+
+# 1st attempt:
+
+# dist_dens <- density(posdata$radius)
+# plot(dist_dens)
+# plot(dist_dens$x, dist_dens$y)
+# 
+# dist_dens_y <- dist_dens$y
+# dist_dens_x <- dist_dens$x
+# 
+# hz_model_dist <- nls(dist_dens_y ~ (1 - exp(-(w/dist_dens_x)^s)))
+# problems:
+# don't think dist_dens_y and dist_dens_x are the right things to be using here...
+
+
+
+# 2nd attempt:
+
+# try using approxfun:
+
+dist_dens_approxfun <- approxfun(density(posdata$radius))
+dist_density <- dist_dens_approxfun(posdata$radius)
+
+plot(distance, dist_density) # looks correct
+ 
+# fit the model using nls:
+hz_model_dist <- nls(dist_density ~ (1 - exp(-(w/distance)^s)))
+
+# need to set starting values now:
+
+# visualise the fit
+plot(distance, dist_density)
+lines(distance,predict(hz_model_dist), lty=1, col="blue", lwd=2)
+# doesn't look amazing
+
+coef(hz_model_dist)
+
+
+# use starting values:
+hz_model_dist2 <- nls(dist_density ~ (1 - exp(-(w/distance)^s)), start = list(w = 1, s = 1))
+
+plot(distance, dist_density) 
+lines(distance,predict(hz_model_dist2), lty=1, col="blue", lwd=2)
+# -- still doesn't look great
+
+hz_model_dist3 <- nlsLM(dist_density ~ (1 - exp(-(w/distance)^s)), start = list(w = 1, s = 1))
+
+plot(distance, dist_density) 
+lines(distance,predict(hz_model_dist3), lty=1, col="blue", lwd=2)
+
+# -- why does it look so weird??
+
+
+
+
+
+# try with half normal model instead:
+
+hn_model_dist <- nls(dist_density ~ exp(-distance^2/2*w^2), start = list(w = 1))
+
+plot(distance, dist_density) 
+lines(distance,predict(hn_model_dist), lty=1, col="blue", lwd=2)
+
+# -- also looks horrendous
+
+# - ask Francis about...
+
 
 
 

@@ -87,7 +87,12 @@ ggplot()+
 ## best thing to do would be to find specific parameters/add on logistic mix etc depending on what category of animal I'm simulating
 
 
-# Francis' advice: use nls fitting to get parameter values:
+
+
+
+
+
+###### Francis' advice: use nls fitting to get parameter values:
 
 distance <- posdata$radius
 
@@ -114,34 +119,61 @@ distance <- posdata$radius
 dist_dens_approxfun <- approxfun(density(posdata$radius))
 dist_density <- dist_dens_approxfun(posdata$radius)
 
-plot(distance, dist_density) # looks correct
+plot(distance, dist_density)
+# looks correct: so use distance as x and dist_density as y
+
+
+### hazard rate model
  
 # fit the model using nls:
 hz_model_dist <- nls(dist_density ~ (1 - exp(-(w/distance)^s)))
-
-# need to set starting values now:
-
-# visualise the fit
-plot(distance, dist_density)
-lines(distance,predict(hz_model_dist), lty=1, col="blue", lwd=2)
-# doesn't look amazing
-
 coef(hz_model_dist)
 
 
-# use starting values:
+# set starting values:
 hz_model_dist2 <- nls(dist_density ~ (1 - exp(-(w/distance)^s)), start = list(w = 1, s = 1))
 
-plot(distance, dist_density) 
-lines(distance,predict(hz_model_dist2), lty=1, col="blue", lwd=2)
-# -- still doesn't look great
+ggplot()+ 
+  geom_point(aes(x=distance, y=dist_density))+
+  geom_point(aes(x=distance, y=predict(hz_model_dist2)), colour="red")
 
 hz_model_dist3 <- nlsLM(dist_density ~ (1 - exp(-(w/distance)^s)), start = list(w = 1, s = 1))
+coef(hz_model_dist3)
+# - good to check whether it fixes one of the coefficients weirdly cause that could be causing problems
 
-plot(distance, dist_density) 
-lines(distance,predict(hz_model_dist3), lty=1, col="blue", lwd=2)
+hz_model_dist4 <- nlsLM(dist_density ~ (1 - exp(-(w/distance)^5)), start = list(w = 1)) # nice to sometimes play around with setting one parameter and change the other to see what happens
+coef(hz_model_dist4)
 
-# -- why does it look so weird??
+ggplot()+ 
+  geom_point(aes(x=distance, y=dist_density))+
+  geom_point(aes(x=distance, y=predict(hz_model_dist3)), colour = "blue")+
+  geom_point(aes(x=distance, y=predict(hz_model_dist4)), colour="red")
+
+
+
+
+### hz with logistic mix:
+
+# eqn:
+# y = (1 - exp(-(w/x)^s))/(1 + exp(b(e - x)))
+
+hzlog_model_dist <- nlsLM(dist_density ~ (1 - exp(-(w/distance)^s))/(1 + exp(b*(e - distance))), start = list(w = 1, s = 1, b = 1, e = 1))
+ggplot()+ 
+  geom_point(aes(x=distance, y=dist_density))+
+  geom_point(aes(x=distance, y=predict(hzlog_model_dist)), colour = "red")
+coef(hzlog_model_dist)
+
+#--> it worked!!
+
+
+### things to try when struggling with nls:
+# set some bounds e.g. between 0 and 1000
+# fix some parameters while varying others just to better figure out what's going on
+# try bounding the parameters
+  # - try to limit it as little as possible - start as wide as possible - e.g. can it be negative? can it be zero? can it be super large?
+# just try different numbers and try to understand what the parameters are doing
+
+
 
 
 
@@ -151,12 +183,11 @@ lines(distance,predict(hz_model_dist3), lty=1, col="blue", lwd=2)
 
 hn_model_dist <- nls(dist_density ~ exp(-distance^2/2*w^2), start = list(w = 1))
 
-plot(distance, dist_density) 
-lines(distance,predict(hn_model_dist), lty=1, col="blue", lwd=2)
+ggplot()+ 
+  geom_point(aes(x=distance, y=dist_density))+
+  geom_point(aes(x=distance, y=predict(hn_model_dist)), colour = "red")
+# not a good fit
 
-# -- also looks horrendous
-
-# - ask Francis about...
 
 
 

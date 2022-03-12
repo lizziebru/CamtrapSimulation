@@ -15,6 +15,12 @@ speed_parameter <- log(0.5)
 n <- 100 
 # maybe stick to 100 for now but just increase the step_no to make realised speed converge better on speed parameter
 
+# to get good series of plots to investigate whether speed is proportional to trap rate:
+# make multipanel plot with just plot of distribution of observed speeds relative to speed parameter and realised speed
+# just do one run per speed
+# and maybe do this for 10 different speeds?
+# make a new set of scripts for this
+
 
 # number of steps per path:
 step_no <- 5e3

@@ -45,47 +45,28 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # speed: step speeds
 
 pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrap=FALSE){
-  
   spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
   # so you're generating a normal distribution of variates on the log scale (using logspeed)
   # so take exp to get them back to linear scale
-  
-  tTurn <- rbinom(n,1,pTurn) # generates set of n (= no of steps) numbers which can be 1 or 0 where higher probability of turning at each step = more likely to have 1
-  
+  tTurn <- rbinom(n,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
   if(kCor==TRUE){ # if we want to correlate kappa with speed:
-    
     kappas <- kTurn * spds / mean(spds)
-    
     deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
   } 
-  
   else 
-  
-      deviates <- as.numeric(rvonmises(n, circular(0), kTurn))
-  
-  deviates[tTurn==0] <- 0
-  
-  angles <- runif(1)*2*pi + cumsum(deviates)
-  
-  x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2])
-  
+      deviates <- as.numeric(rvonmises(n, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+  deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+  angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
+  x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # looks like spds is being used as the hypotenuse for each step (so kind of interchangeably with distance?) - this might be a cause of the problems?
   y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
-  
   absdevs <- deviates
-  
   i <- absdevs>pi
-  
   absdevs[i] <- 2*pi-absdevs[i]
-  
   absdevs <- abs(absdevs)
-  
   res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
-  
-  if(wrap) res <- wrap(res, xlim, ylim) # if we want to wrap the path, wrap it within the x and y limits
-  
+  if(wrap) res <- wrap(res, xlim, ylim)
   res
-  
 }
 
 

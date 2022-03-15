@@ -58,7 +58,7 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
       deviates <- as.numeric(rvonmises(n, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
   deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
   angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
-  x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # looks like spds is being used as the hypotenuse for each step (so kind of interchangeably with distance?) - this might be a cause of the problems?
+  x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
   y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
   absdevs <- deviates
   i <- absdevs>pi

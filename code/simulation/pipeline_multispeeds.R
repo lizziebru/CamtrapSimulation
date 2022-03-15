@@ -19,19 +19,8 @@ require(parallel)
 # INPUT:
 # speeds: vector of the speed parameter repeated n times (n = no. of simulation runs)
 seq_dat <- function(speed_parameter, step_no) { 
-  path <- pathgen(n=step_no,
-                  kTurn=2, 
-                  kCor=TRUE, 
-                  pTurn=1, 
-                  logspeed=speed_parameter, 
-                  speedSD=1, 
-                  speedCor=0, 
-                  xlim=c(0,20),
-                  ylim=c(2,16),
-                  wrap=TRUE)
-  
-  dz <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of raddi & angles in regent's park data
-  
+  path <- pathgen(n=step_no, kTurn=2, kCor=TRUE, pTurn=1, logspeed=speed_parameter, speedSD=1, speedCor=0, xlim=c(0,20), ylim=c(2,16), wrap=TRUE)
+  dz <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data
   # make plot
   #p <- plot_wrap(path, lineargs = list(col="grey"))
   #plot_dzone(dz, border=2)
@@ -45,11 +34,50 @@ seq_dat <- function(speed_parameter, step_no) {
   # work out speeds of sequences
   v <- calc_speed(posdat)
   
-  # return realised and observed speeds
   
-  df <- data.frame(realised = rep(mean(path$speed), length(v$speed)), # -- will just be using the first value of this column - they don't correspond to the observed speeds in the neighboring column but felt like the easiest way to return both realised and observed speeds in one function
+  # work out trap rate: --> DON'T USE FOR NOW 
+  # ## = no. of points captured / total distance travelled
+  # n_points <- nrow(posdat)
+  # # total distance: sum of distances between each set of x and y coords:
+  # dists <- c()
+  # for (i in 1:(nrow(path$path)-1)){
+  #   p <- path$path
+  #   d <- sqrt((p$x[i+1]-p$x[i])^2 + (p$y[i+1]-p$y[i])^2)
+  #   dists <- c(dists, d)
+  # }
+  # total_dist <- sum(dists)
+  # # trap rate:
+  # trap_rate <- n_points/total_dist
+  
+  
+  ## realised speeds: get a set of them that are equivalent to the average lengths of the sequence IDs
+  
+  # store the length of the observed speed sequences:
+  obs_lengths <- c()
+  for (i in 1:length(unique(posdat$sequenceID))){
+    p <- posdat[posdat$sequenceID==i,]
+    obs_lengths <- c(obs_lengths, nrow(p))
+  }
+  
+  # use the mean of these lengths as the number of position data points to use in realised speed segments
+  r_lengths <- round(mean(obs_lengths))
+  
+  # in path$speed, select sets of speeds of length r_lengths:
+  extract_realised <- function(realised_speeds, r_lengths){ # function to extract one set of realised speeds
+    firstIndex <- sample(seq(length(realised_speeds) - r_lengths + 1), 1)
+    realised_speeds[firstIndex:(firstIndex + r_lengths -1)]
+  }
+  
+  realised_speeds <- c()
+  realised_spds <- replicate(length(v$speed),{
+    realised_speeds <- c(realised_speeds, mean(extract_realised(path$speed, r_lengths)))
+  })
+  
+  # return realised speeds and observed speeds
+  df <- data.frame(realised = realised_spds,
                    observed = v$speed)
-  
+                   #trap_rate = rep(trap_rate, length(v$speed)))
+
   return(df)
 }
 
@@ -58,7 +86,7 @@ seq_dat <- function(speed_parameter, step_no) {
 #### run on all the speeds in the speed_parameter ####
 
 
-#seq_dats <- sapply(speeds, seq_dat)
+seq_dats <- sapply(speed_parameter, seq_dat, step_no = step_no)
 
 # --> need to parallelise this sapply - takes ages
 
@@ -79,38 +107,126 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   else answer
 }
 
-seq_dats <- mcsapply(speed_parameter, seq_dat, mc.cores = 4, step_no = step_no)
+#seq_dats <- mcsapply(speed_parameter, seq_dat, mc.cores = 4, step_no = step_no)
 
 
 
-# observed speeds <=> realised speed --------------------------------------
+# PLOTS FOR BIAS #1  --------------------------------------
 
-# realised and observed speeds are in seq_dats[,1] through to seq_dats[,10]
-
-p <- list()
-for(i in 1:length(speed_parameter)) {
+# distribution of observed speeds vs realised speeds:
+bias1_plots_list <- list()
+for (i in 1:length(speed_parameter)){
   s <- seq_dats[,i]
-  df <- data.frame(observed = s$observed)
-  p[[i]] <- ggplot(df, aes(x = observed))+
-    geom_density(size = 2)+
-    geom_vline(xintercept = s$realised[1], col = "blue", size = 2)+
-    geom_vline(xintercept = exp(speed_parameter[i]), col = "red", size = 2)+
+  df <- data.frame(speed = c(s$realised, s$observed),
+                   obs_real = c(rep("realised", length(s$realised)), rep("observed", length(s$observed))))
+  bias1_plots_list[[i]] <- ggplot(df, aes(x = speed, colour = obs_real))+
+    geom_density(size = 1)+
     theme_minimal()+
-    xlab("observed speeds (m/s)")+
+    theme(legend.title = element_blank())+
+    scale_colour_manual(values = c("blue", "red"))+
+    xlab("speed (m/s)")+
     labs(title = paste("speed parameter = ", exp(speed_parameter[i])))
 }
 
-p_arranged <- marrangeGrob(grobs=p, nrow=5, ncol=2)
-ggsave(filename = "plots/obs_multispeeds.png", plot = p_arranged, height = 15, width = 13)
 
-# --> something's gone weirdly wrong here... - there's this discrepancy between realised and speed parameter at each stage
 
-#--> discuss with M?
+nrow_p <- length(speed_parameter)/5
+ncol_p <- length(speed_parameter)/nrow_p 
 
-# --> best discuss this before start looking into doing more plots 
+bias1_arranged <- marrangeGrob(grobs=bias1_plots_list, nrow=nrow_p, ncol=ncol_p)
+
+ggsave(filename = "plots/bias1_1.png", plot = bias1_arranged, height = 10, width = 30)
+
+
+# plot: error between observed & mean realised speed against mean realised speed:
+
+obs_real_error <- c()
+mean_realised_speeds <- c()
+for (i in 1:length(speed_parameter)){
+  o <- seq_dats[,i]$observed
+  o <- o[!is.na(o)]
+  r <- mean(seq_dats[,i]$realised)
+  mean_realised_speeds <- c(mean_realised_speeds, r)
+  errors <- c()
+  for (j in 1:length(s)){
+    e <- o[j] - r
+    errors <- c(errors, e)
+    errors_mean <- mean(errors)
+  }
+  obs_real_error <- c(obs_real_error, errors_mean)
+}
+
+bias1_errors_df <- data.frame(error = obs_real_error,
+                              mean_realised = mean_realised_speeds)
+
+bias1_errors_plot <- ggplot(bias1_errors_df, aes(x = mean_realised, y = error))+
+  geom_point()+
+  theme_minimal()+
+  theme(axis.title = element_text(size=18))+
+  labs(x = "mean realised speed (m/s)", y = "error (m/s)", title = "Error between observed speeds and mean realised\nspeed for different mean realised speeds")
+bias1_errors_plot
+
+png(file="plots/bias1_2.png",
+    width=700, height=600)
+bias1_errors_plot
+dev.off()
+
+
+# plot to see how this bias affects our overall ability to estimate speeds: plot error between obs and mean realised against error between mean realised and estimated 
+# (i.e. how good are the SBMs at correcting for this bias?)
+
+# different coloured line for each type of speed estimation:
+
+est_real_error <- c()
+mean_realised_speeds <- c()
+for (i in 1:length(speed_parameter)){
+  o <- seq_dats[,i]$observed
+  o <- o[!is.na(o)]
+  r <- mean(seq_dats[,i]$realised)
+  mean_realised_speeds <- c(mean_realised_speeds, r)
+  errors <- c()
+  for (j in 1:length(s)){
+    e <- o[j] - r
+    errors <- c(errors, e)
+    errors_mean <- mean(errors)
+  }
+  obs_real_error <- c(obs_real_error, errors_mean)
+}
+
+
+bias1_effects_df <- data.frame(error_obs_real = obs_real_error,
+                               error_est_real = c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real),
+                               method = )
+# to do: finish plot!!
+
+
+
+
+
+
+
+
+
+
+
+
+# PLOTS FOR EFFECTS OF BIAS #1 --------------------------------------------
+
 
 # - would also be good to make plots somehow showing a relationship between the extent of biases and the level of discrepancy between estimated speed and speed parameter for that simulation
-# --> so that can basically show how the biases have such a negative effect
+# --> so that can basically show how the biases have a negative effect
+
+
+
+
+
+
+
+
+
+
+
+# PLOTS FOR BIAS #2 -------------------------------------------------------
 
 # NEXT STEPS:
 
@@ -118,6 +234,12 @@ ggsave(filename = "plots/obs_multispeeds.png", plot = p_arranged, height = 15, w
 # --> that'll help show high speeds getting missed by CTs
 
 # then linking those two biases to the resulting discrepancy between estimated speed and speed parameter would be helpful to demonstrate how the biases are affecting our way of estimating average speed of movement 
+
+
+
+
+
+
 
 
 ##### calculate estimated speeds - using hmean and SBMs #####
@@ -279,22 +401,22 @@ model_AICs <- data.frame(input = exp(speed_parameter),
 
 # calculate errors between realised and estimated speeds:
 hmean_error_real_calc <- function(speed_no){
-  as.numeric(harmonics[1, speed_no]) - seq_dats[,speed_no]$realised[1] #-- negative == means the estimated speed is smaller than the realised speed
+  as.numeric(harmonics[1, speed_no]) - mean(seq_dats[,speed_no]$realised) #-- negative == means the estimated speed is smaller than the realised speed
 }
 hmean_error_real <- sapply(c(1:length(speed_parameter)), hmean_error_real_calc)
 
 lnorm_error_real_calc <- function(speed_no){
-  as.numeric(mods_predict_lnorm[speed_no]) - seq_dats[,speed_no]$realised[1]
+  as.numeric(mods_predict_lnorm[speed_no]) - mean(seq_dats[,speed_no]$realised)
 }
 lnorm_error_real <- sapply(c(1:length(speed_parameter)), lnorm_error_real_calc)
 
 gamma_error_real_calc <- function(speed_no){
-  as.numeric(mods_predict_gamma[speed_no]) - seq_dats[,speed_no]$realised[1]
+  as.numeric(mods_predict_gamma[speed_no]) - mean(seq_dats[,speed_no]$realised)
 }
 gamma_error_real <- sapply(c(1:length(speed_parameter)), gamma_error_real_calc)
 
 weibull_error_real_calc <- function(speed_no){
-  as.numeric(mods_predict_weibull[speed_no]) - seq_dats[,speed_no]$realised[1]
+  as.numeric(mods_predict_weibull[speed_no]) - mean(seq_dats[,speed_no]$realised)
 }
 weibull_error_real <- sapply(c(1:length(speed_parameter)), weibull_error_real_calc)
 
@@ -733,3 +855,65 @@ dev.off()
 #   labs(title = "Errors between observed speeds and either realised speeds or the speed parameter")
 # #obs_error_plot 
 # 
+
+
+
+
+
+## previous plotting for bias1:
+# p <- list()
+# for(i in 1:length(speed_parameter)) {
+#   s <- seq_dats[,i]
+#   df <- data.frame(observed = s$observed)
+#   p[[i]] <- ggplot(df, aes(x = observed))+
+#     geom_density(size = 2)+
+#     geom_vline(xintercept = s$realised[1], col = "blue", size = 2)+
+#     geom_vline(xintercept = exp(speed_parameter[i]), col = "red", size = 2)+
+#     theme_minimal()+
+#     xlab("observed speeds (m/s)")+
+#     labs(title = paste("speed parameter = ", exp(speed_parameter[i])))
+# }
+# make and save a legend for this: - commented out now bc don't need to do it again - would be nice to figure out how to make a common legend in marrangeGrob at some point though
+# legend_df <- data.frame(xvals = seq(0,10, length = 10),
+#                         yvals = c(4,3,6,8,2,3,4, 7, 0, 2),
+#                         cols = c(rep(c("realised speed", "speed parameter"), length(5))))
+# legend_plot <- ggplot(legend_df, aes(x = xvals, y = yvals, colour = cols))+
+#   geom_smooth()+
+#   scale_colour_manual(values=c("blue", "red"))+
+#   theme(legend.title = element_blank(),
+#         legend.position = "bottom")
+# legend_plot
+#ggsave(filename = "plots/legend_plot.png", plot = legend_plot)
+
+
+
+
+
+### previous plot for bias1: plot of trap rate against speed:
+
+# define trap rate as no. of points captured by CT / total distance travelled
+
+# and probably up the number of speeds to 20
+
+
+# # trap rate for each speed:
+# trap_rates <- c()
+# for (i in 1:length(speed_parameter)){
+#   s <- seq_dats[,i]
+#   trap_rates <- c(trap_rates, s$trap_rate[1])
+# }
+# 
+# trap_rates_df <- data.frame(trap_rate = trap_rates,
+#                             speed_parameter = exp(speed_parameter))
+# 
+# trap_rates_plot <- ggplot(trap_rates_df, aes(x = speed_parameter, y = trap_rate))+
+#   geom_point()+
+#   theme_minimal()+
+#   labs(x = "speed parameter (m/s)",
+#        y = "trap rate (points/m)")+
+#   theme(axis.title = element_text(size=18))
+# 
+# png(file="plots/bias1_2.png",
+#     width=700, height=600)
+# trap_rates_plot
+# dev.off()

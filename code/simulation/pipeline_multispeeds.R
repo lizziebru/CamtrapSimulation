@@ -67,12 +67,7 @@ seq_dat <- function(speed_parameter, step_no) {
     firstIndex <- sample(seq(length(realised_speeds) - r_lengths + 1), 1)
     realised_speeds[firstIndex:(firstIndex + r_lengths -1)]
   }
-  
-  realised_speeds <- c()
   realised_spds <- replicate(length(v$speed),{
-    realised_speeds <- c(realised_speeds, mean(extract_realised(path$speed, r_lengths)))
-  })
-  rs <- replicate(length(v$speed),{
     mean(extract_realised(path$speed, r_lengths))
   })
   
@@ -90,16 +85,71 @@ seq_dat <- function(speed_parameter, step_no) {
   ### number of zero-frame sequences:
   # select pairs of consecutive points on the path that aren't in posdat (i.e. don't fall into the detection zone) - but also make sure they're not points in between which the animal went round the back of the torus (define this as having a distance between them that's greater than half of the width of the space?)
   # draw a straight line between them and sample 100 points on that line
-  # if the coordinates of any one of those points lies in the coordinate space of the detection zone: count it as a zero-frame sequence
-  
-  
-  
+  # if the coordinates of any one of those points lies in the dz: count it as a zero-frame sequence
+  xy_path <- path$path[,1:2]
+  xy_path["12",]
+  rows_path <- as.numeric(rownames(xy_path))
+  rows_posdat <- as.numeric(rownames(posdat))
+  rows_not_in_posdat <- setdiff(rows_path, rows_posdat)
+  coords_not_in_posdat <- xy_path[rows_not_in_posdat,]
+  n_zeros <- 0
+  for (i in (1:(nrow(coords_not_in_posdat)-1))){
+    c1 <- coords_not_in_posdat[i,]
+    c2 <- coords_not_in_posdat[i+1,]
+    d <- sqrt((c2$x-c1$x)^2 + (c2$y-c1$y)^2) # distance between the coords
+    if (d > xlim[2]/2){ # maybe need to change this though - ask M and C for thoughts
+      next
+    }
+    
+    # sample points on the line between the two coords:
+    # make equation of the straight line between the 2 points:
+    # df <- data.frame(x = c(c1$x, c2$x),
+    #                  y = c(c1$y, c2$y))
+    # line_eqn <- lm(y~x, df)
+    # x <- c(c1$x, c2$x)
+    # y <- c(c1$y, c2$y)
+    # line <- SpatialLines(list(Lines(Line(cbind(x,y)), ID="a")))
+    # linedf <- SpatialLinesDataFrame(line,
+    #                                 data.frame(Z=c("c1","c2"),
+    #                                                row.names=c("x","y")))
+    #--> making a line looks like a bit too much of a faff
+    
+    # instead: divide the up and across distances by the same values and add to x1,y1 to get a point along the line between the 2 coords
+    up <- c2$y-c1$y
+    across <- c2$x-c1$x
+    x3 <- c1$x + across/2
+    y3 <- c1$y + up/2
+    c3 <- data.frame(x = x3,
+                     y = y3)
+    if (is_in_dz(c3,dz)==TRUE){ # if these coords are in the dz, add 1 to the count of zero frame numbers
+      n_zeros <- n_zeros + 1
+    }
+    else{
+      x4 <- c1$x + across/4
+      y4 <- c1$y + up/4
+      c4 <- data.frame(x = x4,
+                       y = y4)
+      if (is_in_dz(c4,dz)==TRUE){
+        n_zeros <- n_zeros + 1
+      }
+      else{
+        x5 <- c1$x + 3*across/4
+        y5 <- c1$y + 3*up/4
+        c5 <- data.frame(x = x5,
+                         y = y5)
+        if(is_in_dz(c5,dz)==TRUE){
+          n_zeros <- n_zeros + 1
+        }
+      }
+    }
+}
   
   
   ### return realised speeds, observed speeds, no. of single frames, and no. of zero frames
   df <- data.frame(realised = realised_spds,
                    observed = v$speed,
-                   n_singles = c(rep(n_singles, length(v$speed))))
+                   n_singles = c(rep(n_singles, length(v$speed))),
+                   n_zeros = c(rep(n_zeros, length(v$speed))))
                    #trap_rate = rep(trap_rate, length(v$speed)))
 
   return(df)
@@ -356,10 +406,25 @@ dev.off()
 
 ## PLOT: bias2_1.png
 # number of single- and zero-frame sequences against mean realised speed - to see how many crossings get missed
+real_mean <- c()
+singles <- c()
+zeros <- c()
+for (i in 1:length(speed_parameter)){
+  s <- seq_dats[,i]
+  real_mean <- c(real_mean, mean(s$realised))
+  singles <- s$n_singles[1]
+  zeros <- s$n_zeros[1]
+}
 
+bias2_1_df <- data.frame(real_mean = c(rep(real_mean, length(2))),
+                         count = c(singles, zeros),
+                         type_of_count = c(rep("single", length(singles)), rep("zero", length(zeros))))
 
+bias2_1_plot <- ggplot(bias2_1_df, aes(x = real_mean, y = count, colour = type_of_count))+
+  geom_point()
+bias2_1_plot
 
-
+# --> TO DO: figure out what's gone wrong here
 
 
 ## PLOT: bias2_2.png

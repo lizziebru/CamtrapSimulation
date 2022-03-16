@@ -72,10 +72,34 @@ seq_dat <- function(speed_parameter, step_no) {
   realised_spds <- replicate(length(v$speed),{
     realised_speeds <- c(realised_speeds, mean(extract_realised(path$speed, r_lengths)))
   })
+  rs <- replicate(length(v$speed),{
+    mean(extract_realised(path$speed, r_lengths))
+  })
   
-  # return realised speeds and observed speeds
+  # problem: some of the realised speeds are randomly really high...
+  # maybe get rid of those and resample
+  
+  
+  
+  ### number of single-frame sequences:
+  # count the number of single-occurring numbers in the sequenceID column of posdat:
+  t <- data.frame(table(posdat$sequenceID))
+  n_singles <- nrow(td[td$Freq==1,])
+  
+  
+  ### number of zero-frame sequences:
+  # select pairs of consecutive points on the path that aren't in posdat (i.e. don't fall into the detection zone) - but also make sure they're not points in between which the animal went round the back of the torus (define this as having a distance between them that's greater than half of the width of the space?)
+  # draw a straight line between them and sample 100 points on that line
+  # if the coordinates of any one of those points lies in the coordinate space of the detection zone: count it as a zero-frame sequence
+  
+  
+  
+  
+  
+  ### return realised speeds, observed speeds, no. of single frames, and no. of zero frames
   df <- data.frame(realised = realised_spds,
-                   observed = v$speed)
+                   observed = v$speed,
+                   n_singles = c(rep(n_singles, length(v$speed))))
                    #trap_rate = rep(trap_rate, length(v$speed)))
 
   return(df)
@@ -111,9 +135,32 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 
 
+
+
+# PLOTS FOR DISTRIBUTION OF REALISED SPEEDS -------------------------------
+
+real_spds_distr <- ggplot()+
+  geom_density(aes(x = path$speed))+
+  theme_minimal()+
+  labs(title = "Distribution of realised speeds for input speed parameter = 0.5m/s",
+       x = "Realised speed (m/s)")
+real_spds_distr
+
+png(file="plots/real_spds_distr.png",
+    width=700, height=600)
+real_spds_distr
+dev.off()
+
+# some of the realised speeds are way too high - have asked Marcus about these but probs just ignore
+
+
 # PLOTS FOR BIAS #1  --------------------------------------
 
+#--> NB: probs re-do these once have taken care of weirdly high realised speeds
+
+## PLOT: bias1_1.png
 # distribution of observed speeds vs realised speeds:
+
 bias1_plots_list <- list()
 for (i in 1:length(speed_parameter)){
   s <- seq_dats[,i]
@@ -122,10 +169,11 @@ for (i in 1:length(speed_parameter)){
   bias1_plots_list[[i]] <- ggplot(df, aes(x = speed, colour = obs_real))+
     geom_density(size = 1)+
     theme_minimal()+
-    theme(legend.title = element_blank())+
+    theme(legend.title = element_blank(),
+          legend.position = "bottom")+
     scale_colour_manual(values = c("blue", "red"))+
     xlab("speed (m/s)")+
-    labs(title = paste("speed parameter = ", exp(speed_parameter[i])))
+    labs(title = paste("speed parameter = ", exp(speed_parameter[i]), " m/s"))
 }
 
 
@@ -138,7 +186,8 @@ bias1_arranged <- marrangeGrob(grobs=bias1_plots_list, nrow=nrow_p, ncol=ncol_p)
 ggsave(filename = "plots/bias1_1.png", plot = bias1_arranged, height = 10, width = 30)
 
 
-# plot: error between observed & mean realised speed against mean realised speed:
+# PLOT: bias1_2.png
+# error between observed & mean realised speed against mean realised speed:
 
 obs_real_error <- c()
 mean_realised_speeds <- c()
@@ -160,10 +209,11 @@ bias1_errors_df <- data.frame(error = obs_real_error,
                               mean_realised = mean_realised_speeds)
 
 bias1_errors_plot <- ggplot(bias1_errors_df, aes(x = mean_realised, y = error))+
-  geom_point()+
+  geom_point(size = 2, colour = "blue")+
   theme_minimal()+
-  theme(axis.title = element_text(size=18))+
-  labs(x = "mean realised speed (m/s)", y = "error (m/s)", title = "Error between observed speeds and mean realised\nspeed for different mean realised speeds")
+  theme(axis.title = element_text(size=18),
+        axis.text = element_text(size = 15))+
+  labs(x = "mean realised speed (m/s)", y = "error (m/s)")
 bias1_errors_plot
 
 png(file="plots/bias1_2.png",
@@ -172,6 +222,83 @@ bias1_errors_plot
 dev.off()
 
 
+## PLOT: bias1_4.png
+# plot to show how the detection probability of a given speed varies depending on its value
+# method to work out detection probability:
+# for each set of realised speeds (1 set per input speed parameter):
+# - take each realised speed
+# - at that speed: what's the probability density of the observed speed that has the same value (need to interpolate in the observed speed density curve)
+real_sp <- c()
+det_probs <- c()
+for (i in 1:length(speed_parameter)){
+  s <- seq_dats[,i]
+  r <- s$realised
+  o <- s$observed
+  o <- o[!is.na(o)]
+  for (i in 1:length(r)){
+    real_sp <- c(real_sp, r[i])
+    o_interp <- approxfun(density(o)) # interpolation function from the density of observed speeds
+    r_detect_prob <- o_interp(r[i]) # use this function to estimate detection probability of a given realised speed
+    det_probs <- c(det_probs, r_detect_prob)
+  }
+}
+
+det_probs_df <- data.frame(speed = real_sp,
+                           detection_prob = det_probs)
+
+det_probs_plot <- ggplot(det_probs_df, aes(x = speed, y = detection_prob))+
+  geom_point()+
+  theme_minimal()
+det_probs_plot
+
+# for now: get rid of speeds greater than 10m/s:
+det_probs_df2 <- det_probs_df[det_probs_df$speed<10,]
+
+det_probs_plot <- ggplot(det_probs_df2, aes(x = speed, y = detection_prob))+
+  geom_point()+
+  theme_minimal()+
+  theme(axis.title = element_text(size=18),
+        axis.text = element_text(size = 15))+
+  labs(y = "Detection probability",
+       x = "speed (m/s)")
+det_probs_plot
+
+png(file="plots/bias1_4.png",
+    width=700, height=600)
+det_probs_plot
+dev.off()
+
+
+
+
+# make dataframe for all observed and realised speeds for each speed parameter - give up on this for now - but if you need it could just make separate vectors for each of obs, real, & sps and concatenate them together into a dataframe
+# columns <- c("observed","realised", "speed_parameter") # main purpose of having the speed parameter in here is to section out the sets of realised and observed speeds
+# # number of rows: select the seq_dats[,i]$realised that has the longest length and use that multiplied by the speed parameter:
+# realised_lengths <- c()
+# for (i in 1:length(speed_parameter)){
+#   r <- seq_dats[,i]$realised
+#   realised_lengths <- c(realised_lengths, length(r))
+# }
+# no_rows <- max(realised_lengths) * length(speed_parameter) 
+# obs_real_df <- data.frame(matrix(nrow = 0, ncol = length(columns)))
+# colnames(obs_real_df) <- columns
+# 
+# for (i in 1:length(speed_parameter)){
+#   o <- seq_dats[,i]$observed
+#   r <- seq_dats[,i]$realised
+#   sp <- exp(speed_parameter[i])
+#   sps <- c(rep(sp, length(o)))
+#   obs_real_df$observed <- c(obs_real_df$observed, o)
+#   obs_real_df$realised <- c(obs_real_df$realised, r)
+#   obs_real_df$speed_parameter <- c(obs_real_df$speed_parameter, sps)
+# }
+
+
+
+
+
+
+## PLOT: bias1_3.png
 # plot to see how this bias affects our overall ability to estimate speeds: plot error between obs and mean realised against error between mean realised and estimated 
 # (i.e. how good are the SBMs at correcting for this bias?)
 
@@ -194,10 +321,25 @@ for (i in 1:length(speed_parameter)){
 }
 
 
-bias1_effects_df <- data.frame(error_obs_real = obs_real_error,
+bias1_effects_df <- data.frame(error_obs_real = c(rep(obs_real_error, length(4))),
                                error_est_real = c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real),
-                               method = )
-# to do: finish plot!!
+                               method = c(rep("harmonic mean", length(hmean_error_real)), rep("SBM lnorm", length(lnorm_error_real)), rep("SBM gamma", length(gamma_error_real)), rep("SBM weibull", length(weibull_error_real))))
+
+bias1_effects_plot <- ggplot(bias1_effects_df, aes(x = error_obs_real, y = error_est_real, colour = method))+
+  geom_point(size = 2)+
+  theme_minimal()+
+  theme(axis.title = element_text(size=18),
+        legend.text = element_text(size = 17),
+        legend.title = element_text(size = 17),
+        axis.text = element_text(size = 15))+
+  labs(x = "mean error between observed speeds and mean realised speeds (m/s)",
+       y = "mean error between estimated speeds and mean realised speeds (m/s)")
+bias1_effects_plot
+
+png(file="plots/bias1_3.png",
+    width=700, height=650)
+bias1_effects_plot
+dev.off()
 
 
 
@@ -212,9 +354,17 @@ bias1_effects_df <- data.frame(error_obs_real = obs_real_error,
 
 # PLOTS FOR EFFECTS OF BIAS #1 --------------------------------------------
 
+## PLOT: bias2_1.png
+# number of single- and zero-frame sequences against mean realised speed - to see how many crossings get missed
 
-# - would also be good to make plots somehow showing a relationship between the extent of biases and the level of discrepancy between estimated speed and speed parameter for that simulation
-# --> so that can basically show how the biases have a negative effect
+
+
+
+
+
+## PLOT: bias2_2.png
+# number of single- and zero-frame sequences against error between realised and estimated speed - to see the effect of this bias on our estimations of speed
+
 
 
 

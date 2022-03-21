@@ -19,7 +19,9 @@ require(parallel)
 # INPUT:
 # speeds: vector of the speed parameter repeated n times (n = no. of simulation runs)
 seq_dat <- function(speed_parameter, step_no) { 
-  path <- pathgen(n=step_no, kTurn=2, kCor=TRUE, pTurn=1, logspeed=speed_parameter, speedSD=1, speedCor=0, xlim=c(0,20), ylim=c(2,16), wrap=TRUE)
+  xlim <- c(0.20)
+  ylim <- c(2,16)
+  path <- pathgen(n=step_no, kTurn=2, kCor=TRUE, pTurn=1, logspeed=speed_parameter, speedSD=0.05, speedCor=0, xlim=xlim, ylim=ylim, wrap=TRUE)
   dz <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data
   # make plot
   #p <- plot_wrap(path, lineargs = list(col="grey"))
@@ -79,7 +81,7 @@ seq_dat <- function(speed_parameter, step_no) {
   ### number of single-frame sequences:
   # count the number of single-occurring numbers in the sequenceID column of posdat:
   t <- data.frame(table(posdat$sequenceID))
-  n_singles <- nrow(td[td$Freq==1,])
+  n_singles <- nrow(t[t$Freq==1,])
   
   
   ### number of zero-frame sequences:
@@ -87,7 +89,6 @@ seq_dat <- function(speed_parameter, step_no) {
   # draw a straight line between them and sample 100 points on that line
   # if the coordinates of any one of those points lies in the dz: count it as a zero-frame sequence
   xy_path <- path$path[,1:2]
-  xy_path["12",]
   rows_path <- as.numeric(rownames(xy_path))
   rows_posdat <- as.numeric(rownames(posdat))
   rows_not_in_posdat <- setdiff(rows_path, rows_posdat)
@@ -317,6 +318,8 @@ png(file="plots/bias1_4.png",
     width=700, height=600)
 det_probs_plot
 dev.off()
+
+
 
 
 

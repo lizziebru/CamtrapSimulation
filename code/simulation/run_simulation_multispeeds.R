@@ -1,7 +1,7 @@
 ### RUNNING THE SIMULATION USING PIPELINE - for multiple different speeds ###
 
 rm(list = ls())
-dev.off()
+#dev.off()
 
 
 # speed parameter:
@@ -25,9 +25,6 @@ for (i in 1:n_sp){
 }
 
 
-# range of speeds that are realistic to simulate: 
-# hedgehog speeds: roughly up to 2m/s
-# fox speeds: roughly up to 13.9m/s
 
 
 # number of steps per path:
@@ -37,6 +34,11 @@ step_no <- 5e3
 
 
 
+# small or large:
+# small: size = 0
+# large: size = 1
+size <- 0
+# --> at the moment all this affects is distance detection probability stuff --> maybe look into other things to change too though e.g. tortuosity, bimodality of speed, speedSD
 
 
 

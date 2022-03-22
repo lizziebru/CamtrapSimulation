@@ -18,7 +18,7 @@ require(parallel)
 # runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
 # INPUT:
 # speeds: vector of the speed parameter repeated n times (n = no. of simulation runs)
-seq_dat <- function(speed_parameter, step_no) { 
+seq_dat <- function(speed_parameter, step_no, size) { 
   xlim <- c(0.20)
   ylim <- c(2,16)
   path <- pathgen(n=step_no, kTurn=2, kCor=TRUE, pTurn=1, logspeed=speed_parameter, speedSD=0.05, speedCor=0, xlim=xlim, ylim=ylim, wrap=TRUE)
@@ -28,7 +28,14 @@ seq_dat <- function(speed_parameter, step_no) {
   #plot_dzone(dz, border=2)
   
   # generate position data
-  posdat <- sequence_data(path, dz)
+  # use alternative versions of sequence_data function depending on if small or large
+  
+  if (size == 1){
+    posdat <- sequence_data_large(path, dz)
+  }
+  if (size == 0){
+    posdat <- sequence_data_small(path, dz)
+  }
   
   # add points to plot
   #points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
@@ -161,7 +168,7 @@ seq_dat <- function(speed_parameter, step_no) {
 #### run on all the speeds in the speed_parameter ####
 
 
-seq_dats <- sapply(speed_parameter, seq_dat, step_no = step_no)
+seq_dats <- sapply(speed_parameter, seq_dat, step_no = step_no, size = size)
 
 # --> need to parallelise this sapply - takes ages
 
@@ -187,27 +194,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
 
 
 
-
-# PLOTS FOR DISTRIBUTION OF REALISED SPEEDS -------------------------------
-
-real_spds_distr <- ggplot()+
-  geom_density(aes(x = path$speed))+
-  theme_minimal()+
-  labs(title = "Distribution of realised speeds for input speed parameter = 0.5m/s",
-       x = "Realised speed (m/s)")
-real_spds_distr
-
-png(file="plots/real_spds_distr.png",
-    width=700, height=600)
-real_spds_distr
-dev.off()
-
-# some of the realised speeds are way too high - have asked Marcus about these but probs just ignore
-
-
 # PLOTS FOR BIAS #1  --------------------------------------
-
-#--> NB: probs re-do these once have taken care of weirdly high realised speeds
 
 ## PLOT: bias1_1.png
 # distribution of observed speeds vs realised speeds:
@@ -234,7 +221,7 @@ ncol_p <- length(speed_parameter)/nrow_p
 
 bias1_arranged <- marrangeGrob(grobs=bias1_plots_list, nrow=nrow_p, ncol=ncol_p)
 
-ggsave(filename = "plots/bias1_1.png", plot = bias1_arranged, height = 10, width = 30)
+#ggsave(filename = "plots/bias1_1.png", plot = bias1_arranged, height = 10, width = 30) --> PUT BACK IN AFTERWARDS THOUGH
 
 
 # PLOT: bias1_2.png
@@ -267,10 +254,11 @@ bias1_errors_plot <- ggplot(bias1_errors_df, aes(x = mean_realised, y = error))+
   labs(x = "mean realised speed (m/s)", y = "error (m/s)")
 bias1_errors_plot
 
-png(file="plots/bias1_2.png",
-    width=700, height=600)
-bias1_errors_plot
-dev.off()
+# --> PUT BACK IN AFTERWARDS THOUGH
+# png(file="plots/bias1_2.png",
+#     width=700, height=600)
+# bias1_errors_plot
+# dev.off()
 
 
 ## PLOT: bias1_4.png
@@ -314,10 +302,11 @@ det_probs_plot <- ggplot(det_probs_df2, aes(x = speed, y = detection_prob))+
        x = "speed (m/s)")
 det_probs_plot
 
-png(file="plots/bias1_4.png",
-    width=700, height=600)
-det_probs_plot
-dev.off()
+# --> PUT BACK IN AFTERWARDS THOUGH
+# png(file="plots/bias1_4.png",
+#     width=700, height=600)
+# det_probs_plot
+# dev.off()
 
 
 
@@ -389,10 +378,11 @@ bias1_effects_plot <- ggplot(bias1_effects_df, aes(x = error_obs_real, y = error
        y = "mean error between estimated speeds and mean realised speeds (m/s)")
 bias1_effects_plot
 
-png(file="plots/bias1_3.png",
-    width=700, height=650)
-bias1_effects_plot
-dev.off()
+# --> PUT BACK IN AFTERWARDS THOUGH
+# png(file="plots/bias1_3.png",
+#     width=700, height=650)
+# bias1_effects_plot
+# dev.off()
 
 
 
@@ -448,10 +438,7 @@ bias2_1_plot
 
 # NEXT STEPS:
 
-# figure out how to extract the number of paths that cross without getting detected and the number of paths that just get detected by a single frame
-# --> that'll help show high speeds getting missed by CTs
-
-# then linking those two biases to the resulting discrepancy between estimated speed and speed parameter would be helpful to demonstrate how the biases are affecting our way of estimating average speed of movement 
+# linking no. of single & zero frames to the resulting discrepancy between estimated speed and speed parameter would be helpful to demonstrate how the biases are affecting our way of estimating average speed of movement 
 
 
 
@@ -614,8 +601,7 @@ model_AICs <- data.frame(input = exp(speed_parameter),
                          weibullAIC = weibull_AICs)
 
 
-
-#### PLOTS ####
+# ERRORS BETWEEN ESTIMATED AND REALISED SPEEDS --------
 
 # calculate errors between realised and estimated speeds:
 hmean_error_real_calc <- function(speed_no){
@@ -639,188 +625,172 @@ weibull_error_real_calc <- function(speed_no){
 weibull_error_real <- sapply(c(1:length(speed_parameter)), weibull_error_real_calc)
 
 
-# error between speed parameter and estimated speeds:
-hmean_error_sp_calc <- function(speed_no){
-  as.numeric(harmonics[1, speed_no]) - exp(speed_parameter[speed_no])
-}
-hmean_error_sp <- sapply(c(1:length(speed_parameter)), hmean_error_sp_calc)
 
-lnorm_error_sp_calc <- function(speed_no){
-  as.numeric(mods_predict_lnorm[speed_no]) - exp(speed_parameter[speed_no])
-}
-lnorm_error_sp <- sapply(c(1:length(speed_parameter)), lnorm_error_sp_calc)
 
-gamma_error_sp_calc <- function(speed_no){
-  as.numeric(mods_predict_gamma[speed_no]) - exp(speed_parameter[speed_no])
-}
-gamma_error_sp <- sapply(c(1:length(speed_parameter)), gamma_error_sp_calc)
+# PREVIOUS PLOTTING -------------------------------------------------------
 
-weibull_error_sp_calc <- function(speed_no){
-  as.numeric(mods_predict_weibull[speed_no]) - exp(speed_parameter[speed_no])
-}
-weibull_error_sp <- sapply(c(1:length(speed_parameter)), weibull_error_sp_calc)
-
+# previous plotting - to look through and double check but probs don't need anymore
 
 # PLOT A: errors between observed speeds and either realised speed or the speed parameter
 
 # work out errors between observed and realised speeds:
-obs_realised_error_calc <- function(rep_no){
-  realised <- seq_dats[,rep_no]$realised[1]
-  work_out_diff <- function(observed){
-    observed - realised
-  }
-  sapply(seq_dats[,rep_no]$observed, work_out_diff)
-}
-obs_realised_errors <- sapply(c(1:length(speeds)), obs_realised_error_calc)
-obs_realised_errors_vector <- c()
-for (i in c(1:n)){
-  x <- as.numeric(unlist(obs_realised_errors[i]))
-  obs_realised_errors_vector <- c(obs_realised_errors_vector, x)
-}
-obs_realised_errors_vector <- obs_realised_errors_vector[!is.nan(obs_realised_errors_vector)]
-
-
-# work out errors between observed speeds and the speed parameter:
-obs_param_error_calc <- function(rep_no){
-  work_out_diff <- function(observed){
-    observed - exp(speed_parameter)
-  }
-  sapply(seq_dats[,rep_no]$observed, work_out_diff)
-}
-obs_param_errors <- sapply(c(1:length(speeds)), obs_param_error_calc)
-obs_param_errors_vector <- c()
-for (i in c(1:n)){
-  x <- as.numeric(unlist(obs_param_errors[i]))
-  obs_param_errors_vector <- c(obs_param_errors_vector, x)
-}
-obs_param_errors_vector <- obs_param_errors_vector[!is.nan(obs_param_errors_vector)]
-
-
-# make a vector with all the observed speeds:
-observed_all <- c()
-for (i in c(1:n)){
-  x <- seq_dats[,i]$observed
-  observed_all <- c(observed_all, x)
-}
-observed_all <- observed_all[!is.nan(observed_all)]
-# observed_all_df <- data.frame(speed = observed_all)
+# obs_realised_error_calc <- function(rep_no){
+#   realised <- seq_dats[,rep_no]$realised[1]
+#   work_out_diff <- function(observed){
+#     observed - realised
+#   }
+#   sapply(seq_dats[,rep_no]$observed, work_out_diff)
+# }
+# obs_realised_errors <- sapply(c(1:length(speeds)), obs_realised_error_calc)
+# obs_realised_errors_vector <- c()
+# for (i in c(1:n)){
+#   x <- as.numeric(unlist(obs_realised_errors[i]))
+#   obs_realised_errors_vector <- c(obs_realised_errors_vector, x)
+# }
+# obs_realised_errors_vector <- obs_realised_errors_vector[!is.nan(obs_realised_errors_vector)]
 # 
-# observed_distr <- ggplot(observed_all_df, aes(x = speed))+
-#   geom_density()+
-#   theme_minimal()+
-#   geom_vline(xintercept = speed_parameter, colour = "blue", linetype = "dashed")+
-#   labs(title = paste("Distribution of observed speeds relative to the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
-# #observed_distr
 # 
-# # - would be nice to add the distribution of realised speeds into this: make separate plot in case it makes everything look too messy
-
-# make vector of all the realised speeds
-realised_all <- c()
-for (i in c(1:n)){
-  x <- seq_dats[,i]$realised[1]
-  realised_all <- c(realised_all, x)
-}
-realised_all <- realised_all[!is.nan(realised_all)]
-
-
+# # work out errors between observed speeds and the speed parameter:
+# obs_param_error_calc <- function(rep_no){
+#   work_out_diff <- function(observed){
+#     observed - exp(speed_parameter)
+#   }
+#   sapply(seq_dats[,rep_no]$observed, work_out_diff)
+# }
+# obs_param_errors <- sapply(c(1:length(speeds)), obs_param_error_calc)
+# obs_param_errors_vector <- c()
+# for (i in c(1:n)){
+#   x <- as.numeric(unlist(obs_param_errors[i]))
+#   obs_param_errors_vector <- c(obs_param_errors_vector, x)
+# }
+# obs_param_errors_vector <- obs_param_errors_vector[!is.nan(obs_param_errors_vector)]
+# 
+# 
+# # make a vector with all the observed speeds:
+# observed_all <- c()
+# for (i in c(1:n)){
+#   x <- seq_dats[,i]$observed
+#   observed_all <- c(observed_all, x)
+# }
+# observed_all <- observed_all[!is.nan(observed_all)]
+# # observed_all_df <- data.frame(speed = observed_all)
+# # 
+# # observed_distr <- ggplot(observed_all_df, aes(x = speed))+
+# #   geom_density()+
+# #   theme_minimal()+
+# #   geom_vline(xintercept = speed_parameter, colour = "blue", linetype = "dashed")+
+# #   labs(title = paste("Distribution of observed speeds relative to the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# # #observed_distr
+# # 
+# # # - would be nice to add the distribution of realised speeds into this: make separate plot in case it makes everything look too messy
+# 
+# # make vector of all the realised speeds
+# realised_all <- c()
+# for (i in c(1:n)){
+#   x <- seq_dats[,i]$realised[1]
+#   realised_all <- c(realised_all, x)
+# }
+# realised_all <- realised_all[!is.nan(realised_all)]
+# 
+# 
+# # obs_real_all_df <- data.frame(speed = c(observed_all, realised_all),
+# #                               measure = c(rep("observed", length(observed_all)), rep("realised", length(realised_all))))
+# # 
+# # obs_real_plot <- ggplot(obs_real_all_df, aes(x = speed, fill = measure))+
+# #   geom_density()+
+# #   theme_minimal()+
+# #   geom_vline(xintercept = speed_parameter, linetype = "dashed", colour = "blue")+
+# #   labs(title = paste("Distribution of observed speeds relative to realised speeds and the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# # obs_real_plot
+# # 
+# # 
+# save the main plots:
+# # 
+# # png(file = paste("plots/simulation_outputs/sp_", exp(speed_parameter), "_n_", n, ".png", sep = ""),
+# #     width = 600, height = 1000)
+# # plots_arranged <- ggarrange(errors_plot, box, medians_plot, labels = c("A", "B", "C"), nrow = 3)
+# # annotate_figure(plots_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s", sep = ""))
+# # dev.off()
+# # 
+# # png(file = paste("plots/obs_bias/sp_", exp(speed_parameter), "_n_", n, ".png", sep = ""),
+# #     width = 600, height = 1000)
+# # obs_arranged <- ggarrange(obs_error_plot, obs_real_plot, labels = c("A", "B"), nrow = 2)
+# # annotate_figure(obs_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s", sep = ""))
+# # dev.off()
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# ### 2 plots showing observed speeds relative to realised speeds and the speed_parameter
+# 
+# obs_errors_df <- data.frame(error = c(obs_realised_errors_vector, obs_param_errors_vector),
+#                             measure = c(rep("realised", length(obs_realised_errors_vector)), rep("speed parameter", length(obs_param_errors_vector))))
+# 
+# 
+# # plot showing the error between observed speeds and either realised speeds or speed_parameter
+# obs_error_plot <- ggplot(obs_errors_df, aes(x = error, fill = measure))+
+#   geom_density(size = 0.6)+
+#   facet_grid(rows = vars(measure))+
+#   #theme_minimal()+
+#   geom_vline(xintercept = 0)+
+#   labs(title = "Errors between observed speeds and either\nrealised speeds or the speed parameter",
+#        x = "speed (m/s)")+
+#   theme(legend.position = "none")
+# 
+# 
 # obs_real_all_df <- data.frame(speed = c(observed_all, realised_all),
 #                               measure = c(rep("observed", length(observed_all)), rep("realised", length(realised_all))))
 # 
+# # plot showing the speed parameter, realised speeds, and observed speeds relative to each other:
 # obs_real_plot <- ggplot(obs_real_all_df, aes(x = speed, fill = measure))+
 #   geom_density()+
 #   theme_minimal()+
-#   geom_vline(xintercept = speed_parameter, linetype = "dashed", colour = "blue")+
-#   labs(title = paste("Distribution of observed speeds relative to realised speeds and the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
-# obs_real_plot
+#   theme(legend.position = "bottom")+
+#   geom_vline(xintercept = exp(speed_parameter), linetype = "dashed", colour = "blue")+
+#   labs(title = paste("Distribution of observed speeds relative to\nrealised speeds and the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"),
+#        x = "speed (m/s)")
 # 
 # 
-# #### save the main plots ####
 # 
-# png(file = paste("plots/simulation_outputs/sp_", exp(speed_parameter), "_n_", n, ".png", sep = ""),
-#     width = 600, height = 1000)
-# plots_arranged <- ggarrange(errors_plot, box, medians_plot, labels = c("A", "B", "C"), nrow = 3)
-# annotate_figure(plots_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s", sep = ""))
+# ### 2 plots showing estimated speeds relative to realised speeds and the speed parameter:
+# 
+# estimated_error_df <- data.frame(error = c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real, hmean_error_sp, lnorm_error_sp, gamma_error_sp, weibull_error_sp),
+#                                  method = c(rep("hmean", length(hmean_error_real)), rep("SBM_lnorm", length(lnorm_error_real)), rep("SBM_gamma", length(gamma_error_real)), rep("SBM_weibull", length(weibull_error_real)), rep("hmean", length(hmean_error_sp)), rep("SBM_lnorm", length(lnorm_error_sp)), rep("SBM_gamma", length(gamma_error_sp)), rep("SBM_weibull", length(weibull_error_sp))),
+#                                  measure = c(rep("realised", length(c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real))), rep("speed parameter", length(c(hmean_error_sp, lnorm_error_sp, gamma_error_sp, weibull_error_sp)))))
+# 
+# # plot showing the errors between estimated speeds and either realised speeds or the speed_parameter
+# estimated_error_plot <- ggplot(estimated_error_df, aes(x = error, fill = method))+
+#   geom_density(alpha = 0.3)+
+#   theme(legend.position = "bottom")+
+#   facet_grid(rows = vars(measure))+
+#   labs(title = "Error between estimated speeds and either\nrealised speeds or the speed parameter",
+#        x = "speed (m/s)")
+# 
+# box_df <- data.frame(speed = c(harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), as.numeric(mods_predict_weibull)),
+#                      method = c(rep("hmean", length(harmonics[1,])), rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), rep("SBM_weibull", length(mods_predict_weibull))))
+# 
+# # plot showing estimated speeds relative to the speed_parameter
+# box <- ggplot(box_df, aes(x = method, y = speed))+ 
+#   geom_boxplot()+
+#   geom_hline(yintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
+#   #geom_text(aes(0.3, (exp(speed_parameter)), label = paste("speed parameter = ", signif(exp(speed_parameter), digits = 3), "m/s"), vjust = -1), size = 3, colour = "blue")+
+#   coord_flip()+
+#   theme_minimal()+
+#   theme(legend.position="none")+
+#   labs(y = "speed (m/s)", title = paste("Estimated speeds relative to speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
+# 
+# 
+# 
+# ## save all 4 plots in one png:
+# 
+# png(file = paste("plots/sim_4outputs/sp_", exp(speed_parameter), "_n_", n, "_nstep_", step_no, ".png", sep = ""),
+#     width = 900, height = 1000)
+# plots_arranged <- ggarrange(obs_error_plot, estimated_error_plot, obs_real_plot, box, nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
+# annotate_figure(plots_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s, n = ", n, ", step_no = ", step_no, sep = ""))
 # dev.off()
-# 
-# png(file = paste("plots/obs_bias/sp_", exp(speed_parameter), "_n_", n, ".png", sep = ""),
-#     width = 600, height = 1000)
-# obs_arranged <- ggarrange(obs_error_plot, obs_real_plot, labels = c("A", "B"), nrow = 2)
-# annotate_figure(obs_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s", sep = ""))
-# dev.off()
-
-
-
-
-
-
-
-### 2 plots showing observed speeds relative to realised speeds and the speed_parameter
-
-obs_errors_df <- data.frame(error = c(obs_realised_errors_vector, obs_param_errors_vector),
-                            measure = c(rep("realised", length(obs_realised_errors_vector)), rep("speed parameter", length(obs_param_errors_vector))))
-
-
-# plot showing the error between observed speeds and either realised speeds or speed_parameter
-obs_error_plot <- ggplot(obs_errors_df, aes(x = error, fill = measure))+
-  geom_density(size = 0.6)+
-  facet_grid(rows = vars(measure))+
-  #theme_minimal()+
-  geom_vline(xintercept = 0)+
-  labs(title = "Errors between observed speeds and either\nrealised speeds or the speed parameter",
-       x = "speed (m/s)")+
-  theme(legend.position = "none")
-
-
-obs_real_all_df <- data.frame(speed = c(observed_all, realised_all),
-                              measure = c(rep("observed", length(observed_all)), rep("realised", length(realised_all))))
-
-# plot showing the speed parameter, realised speeds, and observed speeds relative to each other:
-obs_real_plot <- ggplot(obs_real_all_df, aes(x = speed, fill = measure))+
-  geom_density()+
-  theme_minimal()+
-  theme(legend.position = "bottom")+
-  geom_vline(xintercept = exp(speed_parameter), linetype = "dashed", colour = "blue")+
-  labs(title = paste("Distribution of observed speeds relative to\nrealised speeds and the speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"),
-       x = "speed (m/s)")
-
-
-
-### 2 plots showing estimated speeds relative to realised speeds and the speed parameter:
-
-estimated_error_df <- data.frame(error = c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real, hmean_error_sp, lnorm_error_sp, gamma_error_sp, weibull_error_sp),
-                                 method = c(rep("hmean", length(hmean_error_real)), rep("SBM_lnorm", length(lnorm_error_real)), rep("SBM_gamma", length(gamma_error_real)), rep("SBM_weibull", length(weibull_error_real)), rep("hmean", length(hmean_error_sp)), rep("SBM_lnorm", length(lnorm_error_sp)), rep("SBM_gamma", length(gamma_error_sp)), rep("SBM_weibull", length(weibull_error_sp))),
-                                 measure = c(rep("realised", length(c(hmean_error_real, lnorm_error_real, gamma_error_real, weibull_error_real))), rep("speed parameter", length(c(hmean_error_sp, lnorm_error_sp, gamma_error_sp, weibull_error_sp)))))
-
-# plot showing the errors between estimated speeds and either realised speeds or the speed_parameter
-estimated_error_plot <- ggplot(estimated_error_df, aes(x = error, fill = method))+
-  geom_density(alpha = 0.3)+
-  theme(legend.position = "bottom")+
-  facet_grid(rows = vars(measure))+
-  labs(title = "Error between estimated speeds and either\nrealised speeds or the speed parameter",
-       x = "speed (m/s)")
-
-box_df <- data.frame(speed = c(harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), as.numeric(mods_predict_weibull)),
-                     method = c(rep("hmean", length(harmonics[1,])), rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), rep("SBM_weibull", length(mods_predict_weibull))))
-
-# plot showing estimated speeds relative to the speed_parameter
-box <- ggplot(box_df, aes(x = method, y = speed))+ 
-  geom_boxplot()+
-  geom_hline(yintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
-  #geom_text(aes(0.3, (exp(speed_parameter)), label = paste("speed parameter = ", signif(exp(speed_parameter), digits = 3), "m/s"), vjust = -1), size = 3, colour = "blue")+
-  coord_flip()+
-  theme_minimal()+
-  theme(legend.position="none")+
-  labs(y = "speed (m/s)", title = paste("Estimated speeds relative to speed parameter\n(dashed blue line = speed parameter = ", exp(speed_parameter), "m/s)"))
-
-
-
-## save all 4 plots in one png:
-
-png(file = paste("plots/sim_4outputs/sp_", exp(speed_parameter), "_n_", n, "_nstep_", step_no, ".png", sep = ""),
-    width = 900, height = 1000)
-plots_arranged <- ggarrange(obs_error_plot, estimated_error_plot, obs_real_plot, box, nrow = 2, ncol = 2, labels = c("A", "B", "C", "D"))
-annotate_figure(plots_arranged, top = paste("Speed parameter = ", exp(speed_parameter), " m/s, n = ", n, ", step_no = ", step_no, sep = ""))
-dev.off()
 
 
 
@@ -1135,3 +1105,50 @@ dev.off()
 #     width=700, height=600)
 # trap_rates_plot
 # dev.off()
+
+
+
+# PLOTS FOR DISTRIBUTION OF REALISED SPEEDS - for when was struggling to understand why had massively high realised speeds --> turns out was bc of the speedSD value
+# real_spds_distr <- ggplot()+
+#   geom_density(aes(x = path$speed))+
+#   theme_minimal()+
+#   labs(title = "Distribution of realised speeds for input speed parameter = 0.5m/s",
+#        x = "Realised speed (m/s)")
+# real_spds_distr
+# 
+# png(file="plots/real_spds_distr.png",
+#     width=700, height=600)
+# real_spds_distr
+# dev.off()
+# some of the realised speedswere way too high - have discussed with M now though so don't need anymore
+
+
+
+
+
+
+
+
+
+
+
+# # error between speed parameter and estimated speeds:
+# hmean_error_sp_calc <- function(speed_no){
+#   as.numeric(harmonics[1, speed_no]) - exp(speed_parameter[speed_no])
+# }
+# hmean_error_sp <- sapply(c(1:length(speed_parameter)), hmean_error_sp_calc)
+# 
+# lnorm_error_sp_calc <- function(speed_no){
+#   as.numeric(mods_predict_lnorm[speed_no]) - exp(speed_parameter[speed_no])
+# }
+# lnorm_error_sp <- sapply(c(1:length(speed_parameter)), lnorm_error_sp_calc)
+# 
+# gamma_error_sp_calc <- function(speed_no){
+#   as.numeric(mods_predict_gamma[speed_no]) - exp(speed_parameter[speed_no])
+# }
+# gamma_error_sp <- sapply(c(1:length(speed_parameter)), gamma_error_sp_calc)
+# 
+# weibull_error_sp_calc <- function(speed_no){
+#   as.numeric(mods_predict_weibull[speed_no]) - exp(speed_parameter[speed_no])
+# }
+# weibull_error_sp <- sapply(c(1:length(speed_parameter)), weibull_error_sp_calc)

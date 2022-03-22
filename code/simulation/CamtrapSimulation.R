@@ -89,39 +89,22 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
 # A path object with x,y co-ordinates wrapped and breaks column added indicating wrap breaks
 
 wrap <- function(path, xlim, ylim=xlim){
-  
   pth <- path$path
-  
   n <- nrow(pth)
-  
   brkpnts <- vector()
-  
   repeat{
-    
     xout <- which(pth$x<xlim[1] | pth$x>xlim[2])[1]
-    
     yout <- which(pth$y<ylim[1] | pth$y>ylim[2])[1]
-    
     if(is.na(xout) & is.na(yout)) break else {
-      
       if(!is.na(xout)){
-        
         brkpnts <- c(brkpnts, xout)
-        
         addn <- if(pth$x[xout]<xlim[1]) diff(xlim) else -diff(xlim) 
-        
         pth$x[xout:n] <- pth$x[xout:n]+addn
-      
       }
-      
       if(!is.na(yout)){
-        
         brkpnts <- c(brkpnts,yout)
-        
         addn <- if(pth$y[yout]<ylim[1]) diff(ylim) else -diff(ylim) 
-        
         pth$y[yout:n] <- pth$y[yout:n]+addn
-      
       }
     }
   }
@@ -220,12 +203,12 @@ is_in_dz <- function(point, dzone){
 
 
 # to test it:
-path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
-                logspeed=-2, speedSD=1, speedCor=0, 
-                xlim=c(0,10), wrap=TRUE)
-point <- path$path[,1:2]
-
-dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
+#                 logspeed=-2, speedSD=1, speedCor=0,
+#                 xlim=c(0,10), wrap=TRUE)
+# point <- path$path[,1:2]
+# 
+# dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
   
 ## TAKE 1
 ## incorporating distance PDF using the regents' park data -- but only did this for distance, not angle yet
@@ -285,8 +268,8 @@ dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
 # }
 # athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
 
-
-is_in_dz2 <- function(point, dzone){
+# for large species:
+is_in_dz_large <- function(point, dzone){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -305,46 +288,93 @@ is_in_dz2 <- function(point, dzone){
   beardif <- ifelse(beardif>pi,
                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
                     beardif) # if not: just keep as it was
-
   # conditions for it to be in the dz:
   # beardif is less than half the detection zone angle
   # dist is less than the detection zone radius
   res <- ifelse(beardif < dz$th/2 & dist < dz$r,
                 TRUE,
                 FALSE)
-  
   # make df of distances of each point and whether they're true or false
-  df <- data.frame(res = as.factor(res),
-                   dist = dist)
+  isindz_df <- data.frame(res = as.factor(res),
+                   radius = dist,
+                   angle = bear)
   
   
-  # now for the ones which are true:
+  # now for the ones which are true: reassign them as true based on probability density
   
-  # reassign them as true based on the probability density -- use hazard rate model from Rowcliffe et al. 2011
-  
-  hazard <- function(dist_or_angle){ # == the probability density function estimated from fox & hedgehog data combined
-    1 - exp(-(width/dist_or_angle)^shape)
-  } # --> BUT: probably need to make separate functions for diff spp
-  
-  # select only those which are TRUE
-  
-  for (i in 1:nrow(df)) {
-    d <- df[i,]
-    if (d$res==TRUE) { # ignore if res is FALSE
-      
-      # work out the probability of being detected based on the estimated probability density:
-      prob <- hazard(d$dist)
-      
-      # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob, 1-prob))
+  # model for large species' radius: hazard rate with logistic mix
+  large_radius <- function(radius){
+    (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+  }
+  # model for large species' angle: normal 
+  large_angle <- function(angle){
+    dnorm(angle, mean = 0.01114079, sd = 0.21902793)
+  }
+  for (i in 1:nrow(isindz_df)) {
+    d <- isindz_df[i,]
+    if (d$res==TRUE) { # select those which are TRUE
+      prob_radius <- large_radius(d$radius) # probability of being detected based on the estimated probability density for the radius
+      prob_angle <- large_angle(d$angle)
+      total_prob <- prob_radius * prob_angle # total probability = multiply both
+      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(total_prob, 1-total_prob)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
     }
   }
-  
-  # return matrix with TRUE or FALSE for each point
-  return(matrix(as.logical(df$res), nrow=nrow(point)))
-  
+  return(matrix(as.logical(isindz_df$res), nrow=nrow(point))) # return matrix with TRUE or FALSE for each point
 }
 
+# for small species:
+is_in_dz_small <- function(point, dzone){
+  ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+  pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+  dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+  dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+  bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+    ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
+           # if yes, bear = pi:
+           pi,
+           # if no:
+           ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
+                  # if yes, bear = 2 pi
+                  2*pi,
+                  # if no, bear = 0:
+                  0))
+  beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+  beardif <- ifelse(beardif>pi,
+                    2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+                    beardif) # if not: just keep as it was
+  # conditions for it to be in the dz:
+  # beardif is less than half the detection zone angle
+  # dist is less than the detection zone radius
+  res <- ifelse(beardif < dz$th/2 & dist < dz$r,
+                TRUE,
+                FALSE)
+  # make df of distances of each point and whether they're true or false
+  isindz_df <- data.frame(res = as.factor(res),
+                   radius = dist,
+                   angle = bear)
+  
+  
+  # now for the ones which are true: reassign them as true based on probability density
+  
+  # model for small species' radius: hazard rate with logistic mix
+  small_radius <- function(radius){
+    (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+  }
+  # model for small species' angle: normal 
+  small_angle <- function(angle){
+    dnorm(angle, mean = 0.01114079, sd = 0.21902793)
+  }
+  for (i in 1:nrow(isindz_df)) {
+    d <- isindz_df[i,]
+    if (d$res==TRUE) { # select those which are TRUE
+      prob_radius <- large_radius(d$radius) # probability of being detected based on the estimated probability density for the radius
+      prob_angle <- large_angle(d$angle)
+      total_prob <- prob_radius * prob_angle # total probability = multiply both
+      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(total_prob, 1-total_prob)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+    }
+  }
+  return(matrix(as.logical(isindz_df$res), nrow=nrow(point))) # return matrix with TRUE or FALSE for each point
+}
 
 
 
@@ -364,13 +394,9 @@ is_in_dz2 <- function(point, dzone){
 # dzone: a four column array of parameters as defined above
 
 plot_dzone <- function(dzone, ...){
-  
   for(i in 1:nrow(dzone)){
-    
     sq <- with(dzone[i, ], seq(dir-th/2, dir+th/2, len=50))
-    
     poly <- with(dzone[i, ], cbind(x + c(0, r*sin(sq)), y + c(0, r*cos(sq)))) # set of x and y coords representing the points on perimeter of the dz polygon
-    
     polygon(poly, ...) # draws the dz polygon
   }
 }
@@ -397,36 +423,57 @@ plot_dzone <- function(dzone, ...){
 # x,y: x,y co-ordinates of sequence points in detection zones
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
-
+# original function:
 sequence_data <- function(pth, dzone){
-  
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  
   isin <- is_in_dz(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
-  
   isin[1,] <- FALSE # ask Marcus why this is necessary?
-  
   isin <- as.vector(isin)
-  
   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  
   newseq <- tail(isin, -1) > head(isin, -1)
-  
   seqid <- c(0, cumsum(newseq))[isin]
-  
   xy <- pth[isin, ]
-  
   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-  
   newseq <- tail(seqid, -1) > head(seqid, -1)
-  
   dist[newseq] <- NA
-  
   dist <- c(NA, dist)
-  
   data.frame(xy, sequenceID=seqid, distance=dist)
-
 }
+
+# for small species:
+sequence_data_small <- function(pth, dzone){
+  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+  isin <- is_in_dz_small(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
+  isin[1,] <- FALSE # ask Marcus why this is necessary?
+  isin <- as.vector(isin)
+  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq <- tail(isin, -1) > head(isin, -1)
+  seqid <- c(0, cumsum(newseq))[isin]
+  xy <- pth[isin, ]
+  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+  newseq <- tail(seqid, -1) > head(seqid, -1)
+  dist[newseq] <- NA
+  dist <- c(NA, dist)
+  data.frame(xy, sequenceID=seqid, distance=dist)
+}
+
+# for large species:
+sequence_data_large <- function(pth, dzone){
+  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+  isin <- is_in_dz_large(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
+  isin[1,] <- FALSE # ask Marcus why this is necessary?
+  isin <- as.vector(isin)
+  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq <- tail(isin, -1) > head(isin, -1)
+  seqid <- c(0, cumsum(newseq))[isin]
+  xy <- pth[isin, ]
+  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+  newseq <- tail(seqid, -1) > head(seqid, -1)
+  dist[newseq] <- NA
+  dist <- c(NA, dist)
+  data.frame(xy, sequenceID=seqid, distance=dist)
+}
+
 
 
 

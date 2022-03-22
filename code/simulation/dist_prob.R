@@ -108,7 +108,7 @@ ggplot()+
   geom_point(aes(x=large_dat$angle, y=l_a_density))+
   geom_point(aes(x=large_dat$angle, y=predict(hzlog_model_dist)), colour = "red")
 coef(hzlog_l_a)
-## --> need to get it to fit
+## --> struggling to get it to fit
 
 # looks more normally distributed: try with normal distribution:
 normal_l_a <- nlsLM(l_a_density ~ (dnorm(l_a, mean = mean, sd = sd)), start = list(mean = mean(large_dat$angle), sd = sd(large_dat$angle)))

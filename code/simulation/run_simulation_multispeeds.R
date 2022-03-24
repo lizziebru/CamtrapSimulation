@@ -12,10 +12,10 @@ rm(list = ls())
 
 
 # set lowest starting speed parameter
-starting_sp <- log(0.025)
+starting_sp <- log(0.1)
 
 # set number of speed parameters to simulate
-n_sp <- 15
+n_sp <- 10
 
 speed_parameter <- c()
 for (i in 1:n_sp){
@@ -25,10 +25,8 @@ for (i in 1:n_sp){
 }
 
 
-
-
 # number of steps per path:
-step_no <- 5e3
+step_no <- 5e4
 # --> if increase this could help to make realised speeds converge better on the speed parameter
 # --> problem: as you increase this it makes the simulation take forever
 

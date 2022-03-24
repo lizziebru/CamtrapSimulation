@@ -11,14 +11,10 @@ library(circular)
 # r: the autocorrelation coefficient (between 0 and 1)
 
 rautonorm <- function(n,mean=0,sd=1,r){
-  
   ranfunc <- function(i,z,r) sqrt(1-r^2) * sum(z[2:(i+1)]*r^(i-(1:i))) + z[1]*r^i # for the autocorrelation
   # this is a known eqn that someone's worked out somewhere - he's lost the reference now though
-  
   z <- rnorm(n)
-  
   mean + sd*c(z[1], sapply(1:(n-1), ranfunc, z, r))
-  
   }
 
 
@@ -126,35 +122,22 @@ wrap <- function(path, xlim, ylim=xlim){
 # axisargs, lineargs, pointargs: lists of arguments to control axis lines or point characteristics
 
 plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lineargs=list(), pointargs=list()){
-  
   type <- match.arg(type)
-  
   if(!"xlab" %in% names(axisargs)) axisargs <- c(xlab="", axisargs)
-  
   if(!"ylab" %in% names(axisargs)) axisargs <- c(ylab="", axisargs)
-  
   if(!add) do.call("plot", c(list(path$path[,1:2], type="n"), axisargs, asp=1))
-  
   for(i in unique(path$path$breaks)) {
-  
     j <- path$path$breaks==i
-    
     xy <- subset(path$path, j)
-    
     pargs <- lapply(pointargs, function(x) if(length(x)==nrow(path$path)) x[j] else x)
-    
     if(type %in% c("l", "b")) do.call("lines", c(list(xy$x, xy$y), lineargs))
-    
     if(type %in% c("p", "b")) do.call("points", c(list(xy$x, xy$y), pargs))
-  
   }
 }
 
 
 ## is_in_dz
-
 # Defines whether points are within detection zones
-
 # INPUT:
 # point: a two column x,y array of point positions
 # dzone: four column array of parameters defining a sector-shaped detection zone
@@ -162,10 +145,8 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 #           x,y: x,y coordinates of camera
 #           r, th: detection zone radius and angle
 #           dir: radian direction in which the camera is facing
-
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-
 ## ORIGINAL FUNCTION:
 is_in_dz <- function(point, dzone){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
@@ -203,7 +184,7 @@ is_in_dz <- function(point, dzone){
 
 
 # to test it:
-# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
+# pth <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
 #                 logspeed=-2, speedSD=1, speedCor=0,
 #                 xlim=c(0,10), wrap=TRUE)
 # point <- path$path[,1:2]
@@ -349,13 +330,10 @@ is_in_dz_small <- function(point, dzone){
                 TRUE,
                 FALSE)
   # make df of distances of each point and whether they're true or false
-  isindz_df <- data.frame(res = as.factor(res),
+  isindz_df <- data.frame(res = res,
                    radius = dist,
                    angle = bear)
-  
-  
   # now for the ones which are true: reassign them as true based on probability density
-  
   # model for small species' radius: hazard rate with logistic mix
   small_radius <- function(radius){
     (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
@@ -367,8 +345,8 @@ is_in_dz_small <- function(point, dzone){
   for (i in 1:nrow(isindz_df)) {
     d <- isindz_df[i,]
     if (d$res==TRUE) { # select those which are TRUE
-      prob_radius <- large_radius(d$radius) # probability of being detected based on the estimated probability density for the radius
-      prob_angle <- large_angle(d$angle)
+      prob_radius <- small_radius(d$radius) # probability of being detected based on the estimated probability density for the radius
+      prob_angle <- small_angle(d$angle)
       total_prob <- prob_radius * prob_angle # total probability = multiply both
       isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(total_prob, 1-total_prob)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
     }
@@ -384,15 +362,10 @@ is_in_dz_small <- function(point, dzone){
 
 
 
-
-
 # plot_dzone
-
 # Convenience function for plotting detection zones (adds to existing plot)
-
 # INPUT:
 # dzone: a four column array of parameters as defined above
-
 plot_dzone <- function(dzone, ...){
   for(i in 1:nrow(dzone)){
     sq <- with(dzone[i, ], seq(dir-th/2, dir+th/2, len=50))
@@ -405,7 +378,6 @@ plot_dzone <- function(dzone, ...){
 # simulation happens between pathgen (simulates a path) and sequence data (simulating detection process)
 
 ## sequence_data
-
 # 1. Takes dataframes defining a path and a detection zone (as defined above)
 # 2. Filters the path points falling within the detection zone
 # 3. Assigns each contiguous sequence of points a unique sequence identifier
@@ -413,11 +385,9 @@ plot_dzone <- function(dzone, ...){
 # finds which points on the path are in the detection zone
 # and assigns sequence identifiers to each snippet (so there are multiple within one path)
 # returns parts of a path that are in the detection zone
-
 # INPUT
 # path: a path object
 # a detection zone array
-
 # OUTPUT
 # A data frame with columns:
 # x,y: x,y co-ordinates of sequence points in detection zones
@@ -426,8 +396,8 @@ plot_dzone <- function(dzone, ...){
 # original function:
 sequence_data <- function(pth, dzone){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin <- is_in_dz(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
-  isin[1,] <- FALSE # ask Marcus why this is necessary?
+  isin <- is_in_dz(pth, dzone) # returns TRUE or FALSE for whether each point in the path intersects with the dzone
+  isin[1,] <- FALSE
   isin <- as.vector(isin)
   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
   newseq <- tail(isin, -1) > head(isin, -1)
@@ -440,11 +410,40 @@ sequence_data <- function(pth, dzone){
   data.frame(xy, sequenceID=seqid, distance=dist)
 }
 
+# # these work:
+# pth <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
+#                  logspeed=-2, speedSD=1, speedCor=0,
+#                  xlim=c(0,10), wrap=TRUE)
+# dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# 
+# # these don't:
+# pth <- pathgen(n=5e3, kTurn=2, kCor=TRUE, pTurn=1,
+#                 logspeed=speed_parameter[1], speedSD=0.05, speedCor=0,
+#                 xlim=xlim,
+#                 ylim = ylim, ##--> this is causing the issue --> no clue why though?
+#                 wrap=TRUE)
+# dzone <- data.frame(x=10, y=5, r=10, th=1.65, dir=0)
+# pth <- pathgen(n=step_no, 
+#                 kTurn=2, 
+#                 kCor=TRUE, 
+#                 pTurn=1, 
+#                 logspeed=speed_parameter[1], 
+#                 speedSD=0.05, 
+#                 speedCor=0, 
+#                 xlim=c(0,20),
+#                 wrap=TRUE)
+# dzone <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) 
+
+#--> also: issue seems to be caused by speeds being too low sometimes so it doesn't cross the dz at all
+# --> keep the number of steps pretty high to mitigate against this
+
+
+
 # for small species:
 sequence_data_small <- function(pth, dzone){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
   isin <- is_in_dz_small(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
-  isin[1,] <- FALSE # ask Marcus why this is necessary?
+  isin[1,] <- FALSE
   isin <- as.vector(isin)
   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
   newseq <- tail(isin, -1) > head(isin, -1)
@@ -481,8 +480,6 @@ sequence_data_large <- function(pth, dzone){
 
 
 
-
-
 ## calc_speed
 # Summarises speeds for a dataframe of position sequences
 
@@ -502,8 +499,6 @@ calc_speed <- function(dat){
   speed <- dist/(points-1)
   data.frame(sequenceID=unique(dat$sequenceID), distance=dist, points=points, speed=speed)
 }
-
-
 
 
 

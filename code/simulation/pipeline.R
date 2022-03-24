@@ -46,10 +46,8 @@ seq_dat <- function(speeds, step_no) {
   v <- calc_speed(posdat)
   
   # return realised and observed speeds
-  
   df <- data.frame(realised = rep(mean(path$speed), length(v$speed)), # -- will just be using the first value of this column - they don't correspond to the observed speeds in the neighboring column but felt like the easiest way to return both realised and observed speeds in one function
                    observed = v$speed)
-    
   return(df)
 }
 

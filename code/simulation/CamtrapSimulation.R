@@ -1,5 +1,5 @@
 
-library(circular)
+require(circular)
 
 ## rautonorm
 # this deffo gives you random autocorrelated numbers which are good to use - doesn't need improvement
@@ -278,7 +278,7 @@ is_in_dz_large <- function(point, dzone){
   # make df of distances of each point and whether they're true or false
   isindz_df <- data.frame(res = as.factor(res),
                    radius = dist,
-                   angle = bear)
+                   angle = beardif) 
   
   
   # now for the ones which are true: reassign them as true based on probability density
@@ -332,7 +332,7 @@ is_in_dz_small <- function(point, dzone){
   # make df of distances of each point and whether they're true or false
   isindz_df <- data.frame(res = res,
                    radius = dist,
-                   angle = bear)
+                   angle = beardif)
   # now for the ones which are true: reassign them as true based on probability density
   # model for small species' radius: hazard rate with logistic mix
   small_radius <- function(radius){

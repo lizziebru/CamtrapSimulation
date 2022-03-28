@@ -11,8 +11,10 @@ rm(list = ls())
 # TO ADD IN LATER: SIMULATE EACH SPEED MULTIPLE TIMES TO BOOTSTRAP SO THAT YOU OVERCOME THE ISSUE OF THE PATH NOT BEING EXACTLY THE SAME EACH TIME
 
 
+# for multiple speeds: use this:
+
 # set lowest starting speed parameter
-starting_sp <- log(0.1)
+starting_sp <- log(1)
 
 # set number of speed parameters to simulate
 n_sp <- 10
@@ -25,8 +27,12 @@ for (i in 1:n_sp){
 }
 
 
+# for single speed: use this:
+# speed_parameter <- log(0.1)
+
+
 # number of steps per path:
-step_no <- 5e4
+step_no <- 5e3
 # --> if increase this could help to make realised speeds converge better on the speed parameter
 # --> problem: as you increase this it makes the simulation take forever
 
@@ -45,5 +51,3 @@ size <- 0
 
 # run pipeline.R script:
 source("~/Documents/Project/CamtrapSimulation/code/simulation/pipeline_multispeeds.R", echo=TRUE)
-
-

@@ -1,7 +1,7 @@
 ## Calculating average speed ##
 
-library(bbmle)
-library(MASS)
+require(bbmle)
+require(MASS)
 
 setClass("sbm", representation("list"))
 

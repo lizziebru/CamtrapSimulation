@@ -184,7 +184,7 @@ is_in_dz <- function(point, dzone){
 
 
 # to test it:
-# pth <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
+# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
 #                 logspeed=-2, speedSD=1, speedCor=0,
 #                 xlim=c(0,10), wrap=TRUE)
 # point <- path$path[,1:2]
@@ -287,17 +287,20 @@ is_in_dz_large <- function(point, dzone){
   large_radius <- function(radius){
     (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
   }
-  # model for large species' angle: normal 
-  large_angle <- function(angle){
-    dnorm(angle, mean = 0.01114079, sd = 0.21902793)
-  }
+  # model for large species' angle: normal --> get rid of this for now
+  # large_angle <- function(angle){
+  #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
+  # }
   for (i in 1:nrow(isindz_df)) {
     d <- isindz_df[i,]
     if (d$res==TRUE) { # select those which are TRUE
-      prob_radius <- large_radius(d$radius) # probability of being detected based on the estimated probability density for the radius
-      prob_angle <- large_angle(d$angle)
-      total_prob <- prob_radius * prob_angle # total probability = multiply both
-      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(total_prob, 1-total_prob)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
+      if (prob_radius>1){
+        prob_radius <- 1
+      }
+      #prob_angle <- large_angle(d$angle)
+      #total_prob <- prob_radius * prob_angle # total probability = multiply both
+      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
     }
   }
   return(matrix(as.logical(isindz_df$res), nrow=nrow(point))) # return matrix with TRUE or FALSE for each point
@@ -339,16 +342,19 @@ is_in_dz_small <- function(point, dzone){
     (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
   }
   # model for small species' angle: normal 
-  small_angle <- function(angle){
-    dnorm(angle, mean = 0.01114079, sd = 0.21902793)
-  }
+  # small_angle <- function(angle){
+  #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
+  # }
   for (i in 1:nrow(isindz_df)) {
     d <- isindz_df[i,]
     if (d$res==TRUE) { # select those which are TRUE
-      prob_radius <- small_radius(d$radius) # probability of being detected based on the estimated probability density for the radius
-      prob_angle <- small_angle(d$angle)
-      total_prob <- prob_radius * prob_angle # total probability = multiply both
-      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(total_prob, 1-total_prob)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+      if (prob_radius>1){
+        prob_radius <- 1
+      }
+      # prob_angle <- small_angle(d$angle)
+      # total_prob <- prob_radius * prob_angle # total probability = multiply both
+      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
     }
   }
   return(matrix(as.logical(isindz_df$res), nrow=nrow(point))) # return matrix with TRUE or FALSE for each point

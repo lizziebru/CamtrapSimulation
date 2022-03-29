@@ -7,6 +7,9 @@ regentspark_mov_data <- read.csv("data/regentspark_mov_data.csv")
 india_mov_data <- read.csv("data/india_mov_data.csv")
 panama_data <- read.csv("data/panama_data.csv")
 
+
+
+
 # except panama data doesn't have radii or angles so can't use
 
 rp <- regentspark_mov_data[,c("species", "radius", "angle")]
@@ -984,6 +987,41 @@ persp(den3d_h,
 
 
 
+
+
+
+# scaling detection probability density -----------------------------------
+
+# currently max detection probability = max density in the density curves from distribution of radii in real data
+
+# need the max probability to be 1 though
+
+
+# find the max and divide 1 by it to work out how much need to scale everything by
+
+# model for large species' radius: hazard rate with logistic mix
+large_radius <- function(radius){
+  (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+}
+
+small_radius <- function(radius){
+  (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+}
+
+x <- seq(0,10, length = 1000)
+y_large <- sapply(x, large_radius)
+y_small <- sapply(x, small_radius)
+
+ggplot()+
+  geom_smooth(aes(x = x, y = y_large, colour = "red"))+
+  geom_smooth(aes(x = x, y = y_small, colour = "blue"))
+
+max(y_large) # max for large == 0.3613462
+max(y_small) # max for small == 0.299322
+
+# so for large: need to multiply every probability by 1/0.3613462 == 2.767429
+
+# for small: multiply by 3.340884
 
 
 

@@ -23,7 +23,6 @@ xlim <- c(0,40)
 
 
 source("CamtrapSimulation.R", echo=TRUE)
-#source("sbd_functions.R", echo=TRUE)
 
 
 require(ggplot2)

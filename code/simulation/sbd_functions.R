@@ -196,3 +196,101 @@ plot.sbm <- function(obj, log=TRUE, lpar=list(col="red"), add=FALSE, title, ...)
   title(paste(title, "model", sep = " "))
 }
 
+
+
+## Lizzie's added functions:
+
+## calc_hmean
+# work out harmonic mean of a set of observed speeds (i.e. each simulation rep)
+# returns a harmonic mean and standard error for each set of speeds
+# INPUT:
+# number of reps of the simulation - so that can loop through every set of observed speeds
+calc_hmean <- function(speed_no){
+  s <- seq_dats[,speed_no]
+  o <- s$observed
+  o <- o[!is.nan(o)]
+  hmean(o)
+}
+
+## mods_all_fit
+# fits all 3 SBMs (lognormal, gamma, Weibull) to each set of observed speeds (i.e. each simulation rep)
+# return three models for each set of measured speeds
+# INPUT:
+# number of reps of the simulation
+mods_all_fit <- function(speed_no){
+  s <- seq_dats[,i]
+  s$observed <- na.omit(s$observed)
+  if (length(s$observed) < 2){ # skip the ones where there aren't enough observed speeds
+    next
+  }
+  df <- data.frame(speed = s$observed)
+  sbm3(speed~1, df) # fit all three models
+}
+
+## predict_lnorm
+# predict average speed using a fitted lognormal model for each set of observed speeds (i.e. each simulation rep)
+# INPUT:
+# number of reps of the simulation
+predict_lnorm <- function(speed_no){
+  predict.sbm(mods[[1,speed_no]]$lnorm)[1]
+}
+
+## predict_gamma
+# predict average speed using a fitted gamma model for each set of observed speeds (i.e. each simulation rep)
+# INPUT:
+# number of reps of the simulation
+predict_gamma <- function(speed_no){
+  predict.sbm(mods[[1,speed_no]]$gamma)[1]
+}
+
+## predict_weibull
+# predict average speed using a fitted Weibull model for each set of observed speeds (i.e. each simulation rep)
+# INPUT:
+# number of reps of the simulation
+predict_weibull <- function(speed_no){
+  predict.sbm(mods[[1,speed_no]]$weibull)[1]
+}
+
+# # lnorm_AIC_extract
+# return the AIC for the fitted lognormal model for each set of observed speeds
+# INPUT:
+# number of reps of the simulation
+lnorm_AIC_extract <- function(speed_no){
+  a1 <- mods[2,speed_no]
+  a2 <- a1$AICtab[1]
+  a2["lnorm",]
+}
+
+## gamma_AIC_extract
+# return the AIC for the fitted gamma model for each set of observed speeds
+# INPUT:
+# number of reps of the simulation
+gamma_AIC_extract <- function(speed_no){
+  a1 <- mods[2,speed_no]
+  a2 <- a1$AICtab[1]
+  a2["gamma",]
+}
+
+## weibull_AIC_extract
+# return the AIC for the fitted Weibull model for each set of observed speeds
+# INPUT:
+# number of reps of the simulation
+weibull_AIC_extract <- function(speed_no){
+  a1 <- mods[2,speed_no]
+  a2 <- a1$AICtab[1]
+  a2["weibull",]
+}
+
+# calculate errors between mean realised and estimated speeds:
+hmean_error_real_calc <- function(speed_no){
+  as.numeric(harmonics[1, speed_no]) - mean(seq_dats[,speed_no]$realised) #-- negative == means the estimated speed is smaller than the realised speed
+}
+lnorm_error_real_calc <- function(speed_no){
+  as.numeric(mods_predict_lnorm[speed_no]) - mean(seq_dats[,speed_no]$realised)
+}
+gamma_error_real_calc <- function(speed_no){
+  as.numeric(mods_predict_gamma[speed_no]) - mean(seq_dats[,speed_no]$realised)
+}
+weibull_error_real_calc <- function(speed_no){
+  as.numeric(mods_predict_weibull[speed_no]) - mean(seq_dats[,speed_no]$realised)
+}

@@ -1,6 +1,6 @@
 ## SIMULATION RESULTS ANALYSIS ##
 
-# NB: if add back in commented out stuff: make sure to change length(speed_parameter) to sim_length
+setwd("~/Documents/Project/CamtrapSimulation/code/simulation")
 
 source("sbd_functions.R", echo=TRUE)
 
@@ -8,35 +8,21 @@ require(ggplot2)
 require(gridExtra)
 
 # set which one to analyse:
-setwd("seq_dats/0.06-0.15_50000_0_(0,40)") # only thing that needs changing each time
+setwd("seq_dats/0.1-0.19_5e+05_1_(0,50)") # only thing that needs changing each time
 
 # load in data:
 load("seq_dats.RData")
 
 
 # work out things to use in plotting:
-
 sim_length <- length(seq_dats)/5 # number of speeds inputted into the simulation
-
 obs_real_error <- c() # mean error between observed and realised speeds for each simulated set of speeds
-for (i in 1:sim_length){
-  o <- seq_dats[,i]$observed
-  o <- o[!is.na(o)]
-  r <- mean(seq_dats[,i]$realised)
-  errors <- c()
-  for (j in 1:length(s)){
-    e <- o[j] - r
-    errors <- c(errors, e)
-    errors_mean <- mean(errors)
-  }
-  obs_real_error <- c(obs_real_error, errors_mean)
-}
-
 real_mean <- c() # mean realised speeds
 singles <- c() # number of single frames for each simulation run
 zeros <- c() # number of zero frames for each simulation run
 singles_prop <- c() # number of single frames / total number of points recorded
 zeros_prop <- c() # number of zero frames / total number of points recorded
+obs_count <- c() # number of observed speeds captured
 for (i in 1:sim_length){
   s <- seq_dats[,i]
   real_mean <- c(real_mean, mean(s$realised))
@@ -44,6 +30,17 @@ for (i in 1:sim_length){
   zeros <- c(zeros, s$n_zeros[1])
   singles_prop <- c(singles_prop, s$n_singles[1]/s$n_points[1])
   zeros_prop <- c(zeros_prop, s$n_zeros[1]/s$n_points[1])
+  obs_count <- c(obs_count, length(s$observed))
+  o <- s$observed
+  o <- o[!is.na(o)]
+  r <- mean(seq_dats[,i]$realised)
+  errors <- c()
+  for (j in 1:length(o)){
+    e <- o[j] - r
+    errors <- c(errors, e)
+    errors_mean <- mean(errors)
+  }
+  obs_real_error <- c(obs_real_error, errors_mean)
 }
 
 
@@ -67,38 +64,24 @@ for (i in 1:sim_length){
           legend.position = "bottom")+
     scale_colour_manual(values = c("blue", "red"))+
     xlab("speed (m/s)")+
-    labs(title = paste("mean realised speed = ", real_mean[i], " m/s"))+ # change this to mean realised speed
+    labs(title = paste("mean realised speed = ", round_dp(real_mean[i], 3), "m/s, n = ", obs_count[i]))+ # change this to mean realised speed
     geom_vline(xintercept = density(s$realised)$x[which.max(density(s$realised)$y)], colour = "red")+
     geom_vline(xintercept = density(s$observed)$x[which.max(density(s$observed)$y)], colour = "blue")
 }
 
-bias1_plots_list2 <- bias1_plots_list[-which(sapply(bias1_plots_list, is.null))]
+bias1_plots_list2 <- bias1_plots_list[-which(sapply(bias1_plots_list, is.null))] # if there are null plots - use this instead
 length(bias1_plots_list2)
 # manually set row and column numbers based on length of plot list:
-nrow_p <- 3
-ncol_p <- 3
+nrow_p <- 2
+ncol_p <- 5
 
-bias1_arranged <- marrangeGrob(grobs=bias1_plots_list2, nrow=nrow_p, ncol=ncol_p)
+bias1_arranged <- marrangeGrob(grobs=bias1_plots_list, nrow=nrow_p, ncol=ncol_p)
 
 ggsave(filename = "bias1_1.png", plot = bias1_arranged, height = 10, width = 30)
 
 
 # PLOT: bias1_2.png --> commented out for now to keep things simpler
 # mean error between observed & mean realised speed against mean realised speed:
-obs_real_error <- c()
-for (i in 1:sim_length){
-  o <- seq_dats[,i]$observed
-  o <- o[!is.na(o)]
-  r <- mean(seq_dats[,i]$realised)
-  errors <- c()
-  for (j in 1:length(s)){
-    e <- o[j] - r
-    errors <- c(errors, e)
-    errors_mean <- mean(errors)
-  }
-  obs_real_error <- c(obs_real_error, errors_mean)
-}
-
 bias1_2_df <- data.frame(error = obs_real_error,
                               mean_realised = real_mean)
 
@@ -107,6 +90,9 @@ bias1_2_plot <- ggplot(bias1_2_df, aes(x = mean_realised, y = error))+
   theme_minimal()+
   theme(axis.title = element_text(size=18),
         axis.text = element_text(size = 15))+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_text(x = 0.14, y = 0.0005, label = "obs > real", size = 6)+
+  geom_text(x = 0.14, y = -0.0005, label = "real > obs", size = 6)+
   labs(x = "mean realised speed (m/s)", y = "mean error between observed and realised speeds (m/s)")
 bias1_2_plot
 
@@ -163,20 +149,14 @@ mods <- sapply(c(1:sim_length), mods_all_fit)
 # -- mods[,1] = models & AICs for input_speed[1]
 # -- mods[,2] = models & AICs for input_speed[2]
 
-
-# 2. plot the models
-
-# -- not needed currently
-# -- see extra code at bottom for this
-
-# 3. predict average speed using the models
+# 2. predict average speed using the models
 
 mods_predict_lnorm <- sapply(c(1:sim_length), predict_lnorm)
 mods_predict_gamma <- sapply(c(1:sim_length), predict_gamma)
 mods_predict_weibull <- sapply(c(1:sim_length), predict_weibull)
 
 
-# 4. extract and store the AICs for each model
+# 3. extract and store the AICs for each model
 
 lnorm_AICs <- sapply(c(1:sim_length), lnorm_AIC_extract)
 gamma_AICs <- sapply(c(1:sim_length), gamma_AIC_extract)
@@ -272,10 +252,9 @@ bias2_effects_plot <- ggplot(bias2_effects_df, aes(x = singles_zeros, y = error,
         axis.text = element_text(size = 15),
         strip.text.y = element_text(size = 15),
         legend.text = element_text(size = 17),
-        legend.title = element_text(size = 17),
-        legend.position = "bottom")+
+        legend.title = element_blank())+
   labs(x = "count",
-       y = "mean error between estimated speeds and mean realised speeds")
+       y = "mean error between estimated speeds and mean realised speeds (m/s)")
 bias2_effects_plot
 
 png(file= "bias2_effects.png",

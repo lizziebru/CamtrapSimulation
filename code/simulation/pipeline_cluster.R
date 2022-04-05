@@ -51,15 +51,17 @@ seq_dat <- function(speed_parameter, step_no, size, xlim) {
   dz <- data.frame(x=20, y=10, r=10, th=1.65, dir=0) # set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data
 
   if (size == 1){
-    posdat <- sequence_data_large(path, dz)
+    posdat_all <- sequence_data_large(path, dz)
   }
   if (size == 0){
-    posdat <- sequence_data_small(path, dz)
+    posdat_all <- sequence_data_small(path, dz)
   }
 
+  posdat <- posdat_all[posdat_all$detected==TRUE,]
+  
   v <- calc_speed(posdat) # speeds of sequences
-
-
+  
+  
   ## realised speeds:
 
   obs_lengths <- c() # lengths of the observed speed sequences
@@ -67,7 +69,6 @@ seq_dat <- function(speed_parameter, step_no, size, xlim) {
     p <- posdat[posdat$sequenceID==i,]
     obs_lengths <- c(obs_lengths, nrow(p))
   }
-
   r_lengths <- round(mean(obs_lengths))   # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
 
   # in path$speed, select sets of speeds of length r_lengths:
@@ -75,16 +76,29 @@ seq_dat <- function(speed_parameter, step_no, size, xlim) {
     firstIndex <- sample(seq(length(realised_speeds) - r_lengths + 1), 1)
     realised_speeds[firstIndex:(firstIndex + r_lengths -1)]
   }
-  realised_spds <- replicate(length(v$speed),{
+  realised_spds <- replicate(2*length(v$speed),{
     mean(extract_realised(path$speed, r_lengths))
   })
+  realised_spds2 <- realised_spds[1:length(v$speed)] # select only the number needed (i.e. = number of observed speeds)
 
   ### number of single-frame sequences:
   t <- data.frame(table(posdat$sequenceID))
   n_singles <- nrow(t[t$Freq==1,]) # count the number of single-occurring numbers in the sequenceID column of posdat
-
-
+  
+  
   ### number of zero-frame sequences:
+  path_df <- path$path
+  path_df2 <- path_df
+  path_df <- path_df[-nrow(path_df),] # remove last row
+  path_df2 <- path_df2[-1,] # remove first row
+  path_df_paired <- cbind(path_df, path_df2) # paired points
+  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  # remove rows where 1 or both of the points fell into the detection zone
+  # posdat_all$indz tells us whether they fell into the detection zone...
+  # need some statememt of if either xy coords are in the dz then discard those rows...
+  # use posdat_all once have fixed sequence_data function
+  
+  
   # select pairs of consecutive points on the path that aren't in posdat (i.e. don't fall into the detection zone) - but also make sure they're not points in between which the animal went round the back of the torus (define this as having a distance between them that's greater than half of the width of the space?)
   # sample points on 1/4, 1/2, and 3/4 of the length of the line between each pair of points
   # if the coordinates of any one of those points lies in the dz: count it as a zero-frame sequence
@@ -137,7 +151,7 @@ seq_dat <- function(speed_parameter, step_no, size, xlim) {
                    n_singles = c(rep(n_singles, length(v$speed))),
                    n_zeros = c(rep(n_zeros, length(v$speed))),
                    n_points = c(rep(nrow(posdat), length(v$speed))))
-
+  
   return(df)
 }
 
@@ -185,3 +199,53 @@ dev.off()
 save(seq_dats, file = paste(folder_name, "/seq_dats.RData", sep = ""))
 
 
+
+
+
+# previous way of working out zero frames ---------------------------------
+
+# select pairs of consecutive points on the path that aren't in posdat (i.e. don't fall into the detection zone) - but also make sure they're not points in between which the animal went round the back of the torus (define this as having a distance between them that's greater than half of the width of the space?)
+# sample points on 1/4, 1/2, and 3/4 of the length of the line between each pair of points
+# if the coordinates of any one of those points lies in the dz: count it as a zero-frame sequence
+# xy_path <- path$path[,1:2]
+# rows_path <- as.numeric(rownames(xy_path))
+# rows_posdat <- as.numeric(rownames(posdat))
+# rows_not_in_posdat <- setdiff(rows_path, rows_posdat)
+# coords_not_in_posdat <- xy_path[rows_not_in_posdat,]
+# n_zeros <- 0
+# for (i in (1:(nrow(coords_not_in_posdat)-1))){
+#   c1 <- coords_not_in_posdat[i,]
+#   c2 <- coords_not_in_posdat[i+1,]
+#   d <- sqrt((c2$x-c1$x)^2 + (c2$y-c1$y)^2)
+#   if (d > xlim[2]/2){
+#     next
+#   }
+#   
+#   up <- c2$y-c1$y
+#   across <- c2$x-c1$x
+#   x3 <- c1$x + across/2
+#   y3 <- c1$y + up/2
+#   c3 <- data.frame(x = x3,
+#                    y = y3)
+#   if (is_in_dz(c3,dz)==TRUE){ # if these coords are in the dz, add 1 to the count of zero frame numbers
+#     n_zeros <- n_zeros + 1
+#   }
+#   else{
+#     x4 <- c1$x + across/4
+#     y4 <- c1$y + up/4
+#     c4 <- data.frame(x = x4,
+#                      y = y4)
+#     if (is_in_dz(c4,dz)==TRUE){
+#       n_zeros <- n_zeros + 1
+#     }
+#     else{
+#       x5 <- c1$x + 3*across/4
+#       y5 <- c1$y + 3*up/4
+#       c5 <- data.frame(x = x5,
+#                        y = y5)
+#       if(is_in_dz(c5,dz)==TRUE){
+#         n_zeros <- n_zeros + 1
+#       }
+#     }
+#   }
+# }

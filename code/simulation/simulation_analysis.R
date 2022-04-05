@@ -8,7 +8,7 @@ require(ggplot2)
 require(gridExtra)
 
 # set which one to analyse:
-setwd("seq_dats/0.06-0.15_5e+05_0_(0,40)") # only thing that needs changing each time
+setwd("seq_dats/0.1-0.19_5e+05_1_(0,40)") # only thing that needs changing each time
 
 # load in data:
 load("seq_dats.RData")

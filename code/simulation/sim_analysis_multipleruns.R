@@ -5,7 +5,7 @@ require(ggplot2)
 
 setwd("~/Documents/Project/CamtrapSimulation/code/simulation")
 
-setwd("seq_dats/0.1-0.19_5e+05_1_(0,50)")
+setwd("seq_dats/0.06-0.15_5e+05_1_(0,40)")
 
 load("seq_dats.RData")
 
@@ -65,15 +65,19 @@ for (i in 1:sim_length){
 #                                 n_singles = singles_prop,
 #                                 n_zeros = zeros_prop)
 
+pooled6 <- data.frame(obs_real_error = obs_real_error, ## for 0.06-0.15_5e+05_1_0,40
+                                real_mean = real_mean,
+                                n_singles = singles_prop,
+                                n_zeros = zeros_prop)
 
 
-pooled_df <- rbind(pooled1, pooled2, pooled3, pooled4, pooled5)
-
-write.csv(pooled_df, file = "../pooled_results/pooled_df.csv")
 
 # for the next ones:
 pooled_df <- read.csv("seq_dats/pooled_results/pooled_df.csv")
 
+pooled_df <- rbind(pooled_df, pooled6)
+
+write.csv(pooled_df, file = "seq_dats/pooled_results/pooled_df.csv")
 
 
 
@@ -99,11 +103,11 @@ real_obs_errors_plot <- ggplot(pooled_df, aes(obs_real_error))+
   geom_vline(xintercept = 0, linetype = "dashed")+
   theme_minimal()+
   labs(x = "mean error between realised and observed speeds (m/s)")+
-  theme(axis.title = element_text(size=18),
-        axis.text = element_text(size = 15))
+  theme(axis.title = element_text(size=21),
+        axis.text = element_text(size = 18))
 real_obs_errors_plot
 
-png(file="real_obs_errors.png",
-    width=700, height=600)
+png(file="seq_dats/pooled_results/real_obs_errors.png",
+    width=900, height=600)
 real_obs_errors_plot
 dev.off()

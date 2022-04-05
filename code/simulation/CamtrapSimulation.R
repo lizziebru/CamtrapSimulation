@@ -148,34 +148,34 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
 ## ORIGINAL FUNCTION:
-is_in_dz <- function(point, dzone){
-  ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-  pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-  dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-  dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-  bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-    ifelse(pt[, 2]<dz$y, # test: is y-coord less than the d-zone y coord?
-           # if yes, bear = pi:
-           pi,
-           # if no:
-           ifelse(pt[, 1]< dz$x, # test: is x-coord less than the d-zone x coord?
-                  # if yes, bear = 2 pi
-                  2*pi,
-                  # if no, bear = 0:
-                  0))
-  beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-  beardif <- ifelse(beardif>pi,
-                    2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
-                    beardif) # if not: just keep as it was
-  # conditions for it to be in the dz:
-  # beardif is less than half the detection zone angle - but why half the detection angle?
-  # dist is less than the detection zone radius
-  res <- ifelse(beardif < dz$th/2 & dist < dz$r, # this is the line to probably change
-                TRUE,
-                FALSE)
-  # return matrix with TRUE or FALSE for each point
-  return(matrix(res, nrow=nrow(point)))
-}
+# is_in_dz <- function(point, dzone){
+#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+#     ifelse(pt[, 2]<dz$y, # test: is y-coord less than the d-zone y coord?
+#            # if yes, bear = pi:
+#            pi,
+#            # if no:
+#            ifelse(pt[, 1]< dz$x, # test: is x-coord less than the d-zone x coord?
+#                   # if yes, bear = 2 pi
+#                   2*pi,
+#                   # if no, bear = 0:
+#                   0))
+#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+#   beardif <- ifelse(beardif>pi,
+#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+#                     beardif) # if not: just keep as it was
+#   # conditions for it to be in the dz:
+#   # beardif is less than half the detection zone angle - but why half the detection angle?
+#   # dist is less than the detection zone radius
+#   res <- ifelse(beardif < dz$th/2 & dist < dz$r, # this is the line to probably change
+#                 TRUE,
+#                 FALSE)
+#   # return matrix with TRUE or FALSE for each point
+#   return(matrix(res, nrow=nrow(point)))
+# }
 
 
 
@@ -279,7 +279,7 @@ is_in_dz_large <- function(point, dzone){
   isindz_df <- data.frame(res = as.factor(res),
                    radius = dist,
                    angle = beardif) 
-  
+  isindz_df2 <- isindz_df
   
   # now for the ones which are true: reassign them as true based on probability density
   
@@ -291,8 +291,8 @@ is_in_dz_large <- function(point, dzone){
   # large_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
-  for (i in 1:nrow(isindz_df)) {
-    d <- isindz_df[i,]
+  for (i in 1:nrow(isindz_df2)) {
+    d <- isindz_df2[i,]
     if (d$res==TRUE) { # select those which are TRUE
       prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
       if (prob_radius>1){
@@ -300,10 +300,12 @@ is_in_dz_large <- function(point, dzone){
       }
       #prob_angle <- large_angle(d$angle)
       #total_prob <- prob_radius * prob_angle # total probability = multiply both
-      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
     }
   }
-  return(matrix(as.logical(isindz_df$res), nrow=nrow(point))) # return matrix with TRUE or FALSE for each point
+  isindz_all <- data.frame(indz = isindz_df$res,
+                           detected = isindz_df2$res)
+  return(isindz_all)
 }
 
 # for small species:
@@ -336,6 +338,7 @@ is_in_dz_small <- function(point, dzone){
   isindz_df <- data.frame(res = res,
                    radius = dist,
                    angle = beardif)
+  isindz_df2 <- isindz_df
   # now for the ones which are true: reassign them as true based on probability density
   # model for small species' radius: hazard rate with logistic mix
   small_radius <- function(radius){
@@ -345,8 +348,8 @@ is_in_dz_small <- function(point, dzone){
   # small_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
-  for (i in 1:nrow(isindz_df)) {
-    d <- isindz_df[i,]
+  for (i in 1:nrow(isindz_df2)) {
+    d <- isindz_df2[i,]
     if (d$res==TRUE) { # select those which are TRUE
       prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
       if (prob_radius>1){
@@ -354,10 +357,12 @@ is_in_dz_small <- function(point, dzone){
       }
       # prob_angle <- small_angle(d$angle)
       # total_prob <- prob_radius * prob_angle # total probability = multiply both
-      isindz_df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
     }
   }
-  return(matrix(as.logical(isindz_df$res), nrow=nrow(point))) # return matrix with TRUE or FALSE for each point
+  isindz_all <- data.frame(indz = isindz_df$res,
+                           detected = isindz_df2$res)
+  return(isindz_all)
 }
 
 
@@ -400,21 +405,23 @@ plot_dzone <- function(dzone, ...){
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
 # original function:
-sequence_data <- function(pth, dzone){
-  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin <- is_in_dz(pth, dzone) # returns TRUE or FALSE for whether each point in the path intersects with the dzone
-  isin[1,] <- FALSE
-  isin <- as.vector(isin)
-  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq <- tail(isin, -1) > head(isin, -1)
-  seqid <- c(0, cumsum(newseq))[isin]
-  xy <- pth[isin, ]
-  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-  newseq <- tail(seqid, -1) > head(seqid, -1)
-  dist[newseq] <- NA
-  dist <- c(NA, dist)
-  data.frame(xy, sequenceID=seqid, distance=dist)
-}
+# sequence_data <- function(pth, dzone){
+#   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+#   isin <- is_in_dz(pth, dzone) # returns TRUE or FALSE for whether each point in the path intersects with the dzone
+#   isin <- as.vector(isin$detected)
+#   isin[1] <- FALSE
+#   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+#   newseq <- tail(isin, -1) > head(isin, -1)
+#   seqid <- c(0, cumsum(newseq))[isin]
+#   xy <- pth[isin, ]
+#   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+#   newseq <- tail(seqid, -1) > head(seqid, -1)
+#   dist[newseq] <- NA
+#   dist <- c(NA, dist)
+#   data.frame(xy, 
+#              sequenceID=seqid, 
+#              distance=dist)
+# }
 
 # # these work:
 # pth <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
@@ -448,35 +455,91 @@ sequence_data <- function(pth, dzone){
 # for small species:
 sequence_data_small <- function(pth, dzone){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin <- is_in_dz_small(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
-  isin[1,] <- FALSE
-  isin <- as.vector(isin)
+  isin_all <- is_in_dz_small(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
+  
+  # to get xy, seqID, and dist for those that actually do get detected
+  isin_detected <- as.vector(isin_all$detected)
+  isin_detected[1] <- FALSE
   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq <- tail(isin, -1) > head(isin, -1)
-  seqid <- c(0, cumsum(newseq))[isin]
-  xy <- pth[isin, ]
+  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
+  seqid <- c(0, cumsum(newseq))[isin_detected]
+  xy <- pth[isin_detected, ]
   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
   newseq <- tail(seqid, -1) > head(seqid, -1)
   dist[newseq] <- NA
   dist <- c(NA, dist)
-  data.frame(xy, sequenceID=seqid, distance=dist)
+  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
+
+  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
+  isin_indz <- as.vector(isin_all$indz)
+  isin_indz[1] <- FALSE
+  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
+  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
+  xy2 <- pth2[isin_indz, ]
+  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
+  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
+  dist2[newseq2] <- NA
+  dist2 <- c(NA, dist2)
+  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
+  
+  df2["detected"] <- NA
+  for (i in 1:nrow(df2)){
+    d <- df2[i,]
+    if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
+      df2[i,]$detected <- TRUE
+    }
+    else{
+      df2[i,]$detected <- FALSE
+    }
+  }
+  
+  return(df2)
 }
 
 # for large species:
 sequence_data_large <- function(pth, dzone){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin <- is_in_dz_large(pth, dzone) # returns true or false for whether each position in the path is in the detection zone - this is probably where changes need to be made - to the is_in_dz function
-  isin[1,] <- FALSE # ask Marcus why this is necessary?
-  isin <- as.vector(isin)
+  isin_all <- is_in_dz_large(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
+  
+  # to get xy, seqID, and dist for those that actually do get detected
+  isin_detected <- as.vector(isin_all$detected)
+  isin_detected[1] <- FALSE
   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq <- tail(isin, -1) > head(isin, -1)
-  seqid <- c(0, cumsum(newseq))[isin]
-  xy <- pth[isin, ]
+  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
+  seqid <- c(0, cumsum(newseq))[isin_detected]
+  xy <- pth[isin_detected, ]
   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
   newseq <- tail(seqid, -1) > head(seqid, -1)
   dist[newseq] <- NA
   dist <- c(NA, dist)
-  data.frame(xy, sequenceID=seqid, distance=dist)
+  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
+  
+  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
+  isin_indz <- as.vector(isin_all$indz)
+  isin_indz[1] <- FALSE
+  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
+  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
+  xy2 <- pth2[isin_indz, ]
+  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
+  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
+  dist2[newseq2] <- NA
+  dist2 <- c(NA, dist2)
+  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
+  
+  df2["detected"] <- NA
+  for (i in 1:nrow(df2)){
+    d <- df2[i,]
+    if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
+      df2[i,]$detected <- TRUE
+    }
+    else{
+      df2[i,]$detected <- FALSE
+    }
+  }
+  
+  return(df2)
 }
 
 

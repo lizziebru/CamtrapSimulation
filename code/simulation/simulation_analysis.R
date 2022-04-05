@@ -8,7 +8,7 @@ require(ggplot2)
 require(gridExtra)
 
 # set which one to analyse:
-setwd("seq_dats/0.1-0.19_5e+05_1_(0,50)") # only thing that needs changing each time
+setwd("seq_dats/0.06-0.15_5e+05_0_(0,40)") # only thing that needs changing each time
 
 # load in data:
 load("seq_dats.RData")
@@ -80,13 +80,13 @@ bias1_arranged <- marrangeGrob(grobs=bias1_plots_list, nrow=nrow_p, ncol=ncol_p)
 ggsave(filename = "bias1_1.png", plot = bias1_arranged, height = 10, width = 30)
 
 
-# PLOT: bias1_2.png --> commented out for now to keep things simpler
+# PLOT: bias1_2.png
 # mean error between observed & mean realised speed against mean realised speed:
 bias1_2_df <- data.frame(error = obs_real_error,
                               mean_realised = real_mean)
 
 bias1_2_plot <- ggplot(bias1_2_df, aes(x = mean_realised, y = error))+
-  geom_point(size = 2, colour = "blue")+
+  geom_point(size = 3, colour = "blue")+
   theme_minimal()+
   theme(axis.title = element_text(size=18),
         axis.text = element_text(size = 15))+
@@ -102,6 +102,7 @@ bias1_2_plot
 dev.off()
 
 
+
 # plotting bias 2  --------------------------------------------
 
 ## PLOT: bias2_2.png
@@ -112,6 +113,7 @@ bias2_2_df <- data.frame(real_mean = c(rep(real_mean, length(2))),
 
 bias2_2_plot <- ggplot(bias2_2_df, aes(x = real_mean, y = count, colour = type_of_count))+
   geom_point(size = 2)+
+  geom_line()+
   theme(axis.title = element_text(size=18),
         axis.text = element_text(size = 15),
         legend.position = "none",

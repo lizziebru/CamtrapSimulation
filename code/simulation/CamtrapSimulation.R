@@ -1,6 +1,17 @@
 
 require(circular)
 
+# to test things:
+# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
+#                 logspeed=-2, speedSD=1, speedCor=0,
+#                 xlim=c(0,10), wrap=TRUE)
+# point <- path$path[,1:2]
+# 
+# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+
+
+
+
 ## rautonorm
 # this deffo gives you random autocorrelated numbers which are good to use - doesn't need improvement
 # generates a set of autocorrelated random normal variates - corresponding to different steps
@@ -33,13 +44,11 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
 # wrap: whether to wrap the path
-
 # OUTPUT:
 # A list with elements:
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
-
 pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrap=FALSE){
   spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
@@ -68,7 +77,6 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
 
 
 ## wrap
-
 # Takes a path object created with pathgen and wraps the co-ordinates within given limits
 # this means: constrains where the animal goes: it could wander off away from you or it could stay in the same-ish spot
 # wrapping is for convenience: so you can define a region you're working within
@@ -76,14 +84,11 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
 # just a convenient way to keep the animal within a confined arena
 # benefit here: can set your detection zone to cover a decent amount of space
 # this makes things more computationally small & feasible
-
 # INPUTS:
 # pth: a two column array of x,y positions defining the path
 # xlim, ylim: the x,y limits within which to wrap the path
-
 # OUTPUT:
 # A path object with x,y co-ordinates wrapped and breaks column added indicating wrap breaks
-
 wrap <- function(path, xlim, ylim=xlim){
   pth <- path$path
   n <- nrow(pth)
@@ -112,15 +117,12 @@ wrap <- function(path, xlim, ylim=xlim){
 
 
 ## plot_wrap
-
 # Plots a wrapped path
-
 # INPUTS:
 # path: a wrapped path object created by pathgen
 # type: l(ine), p(oint) or b(oth)
 # add: add to existing plot or create new one
 # axisargs, lineargs, pointargs: lists of arguments to control axis lines or point characteristics
-
 plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lineargs=list(), pointargs=list()){
   type <- match.arg(type)
   if(!"xlab" %in% names(axisargs)) axisargs <- c(xlab="", axisargs)
@@ -136,7 +138,7 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 }
 
 
-## is_in_dz
+## is_in_dz - see bottom for original function
 # Defines whether points are within detection zones
 # INPUT:
 # point: a two column x,y array of point positions
@@ -147,108 +149,6 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 #           dir: radian direction in which the camera is facing
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-## ORIGINAL FUNCTION:
-# is_in_dz <- function(point, dzone){
-#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-#     ifelse(pt[, 2]<dz$y, # test: is y-coord less than the d-zone y coord?
-#            # if yes, bear = pi:
-#            pi,
-#            # if no:
-#            ifelse(pt[, 1]< dz$x, # test: is x-coord less than the d-zone x coord?
-#                   # if yes, bear = 2 pi
-#                   2*pi,
-#                   # if no, bear = 0:
-#                   0))
-#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-#   beardif <- ifelse(beardif>pi,
-#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
-#                     beardif) # if not: just keep as it was
-#   # conditions for it to be in the dz:
-#   # beardif is less than half the detection zone angle - but why half the detection angle?
-#   # dist is less than the detection zone radius
-#   res <- ifelse(beardif < dz$th/2 & dist < dz$r, # this is the line to probably change
-#                 TRUE,
-#                 FALSE)
-#   # return matrix with TRUE or FALSE for each point
-#   return(matrix(res, nrow=nrow(point)))
-# }
-
-
-
-
-# edits to is_in_dz to include distance as a probability density:
-
-
-# to test it:
-# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
-#                 logspeed=-2, speedSD=1, speedCor=0,
-#                 xlim=c(0,10), wrap=TRUE)
-# point <- path$path[,1:2]
-# 
-# dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-  
-## TAKE 1
-## incorporating distance PDF using the regents' park data -- but only did this for distance, not angle yet
-# is_in_dz2 <- function(point, dzone){
-#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-#     ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
-#            # if yes, bear = pi:
-#            pi,
-#            # if no:
-#            ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
-#                   # if yes, bear = 2 pi
-#                   2*pi,
-#                   # if no, bear = 0:
-#                   0))
-#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-#   beardif <- ifelse(beardif>pi,
-#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
-#                     beardif) # if not: just keep as it was
-#   # conditions for it to be in the dz:
-#   # beardif is less than half the detection zone angle
-#   # dist is less than the detection zone radius
-#   res <- ifelse(beardif < dz$th/2 & dist < dz$r,
-#                 TRUE,
-#                 FALSE)
-#   # make df of distances of each point and whether they're true or false
-#   df <- data.frame(res = as.factor(res),
-#                    dist = dist)
-# 
-#   # now for the ones which are true:
-# 
-#   # reassign them as true based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
-# 
-#   dist_prob <- function(x){ # == the probability density function estimated from fox & hedgehog data combined
-#     dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
-#   } # --> BUT: probably need to make separate functions for diff spp
-# 
-#   # select only those which are TRUE
-#   for (i in 1:nrow(df)) {
-#     d <- df[i,]
-#     if (d$res==TRUE) { # ignore if res is FALSE
-# 
-#       # work out the probability of being detected based on the estimated probability density:
-#       prob <- dist_prob(d$dist)
-# 
-#       # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-#       df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob, 1-prob))
-#     }
-#   }
-# 
-#   # return matrix with TRUE or FALSE for each point
-#   return(matrix(as.logical(df$res), nrow=nrow(point)))
-# 
-# }
-# athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
-
 # for large species:
 is_in_dz_large <- function(point, dzone){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
@@ -368,11 +268,6 @@ is_in_dz_small <- function(point, dzone){
 
 
 
-
-
-
-
-
 # plot_dzone
 # Convenience function for plotting detection zones (adds to existing plot)
 # INPUT:
@@ -404,54 +299,6 @@ plot_dzone <- function(dzone, ...){
 # x,y: x,y co-ordinates of sequence points in detection zones
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
-# original function:
-# sequence_data <- function(pth, dzone){
-#   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-#   isin <- is_in_dz(pth, dzone) # returns TRUE or FALSE for whether each point in the path intersects with the dzone
-#   isin <- as.vector(isin$detected)
-#   isin[1] <- FALSE
-#   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-#   newseq <- tail(isin, -1) > head(isin, -1)
-#   seqid <- c(0, cumsum(newseq))[isin]
-#   xy <- pth[isin, ]
-#   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-#   newseq <- tail(seqid, -1) > head(seqid, -1)
-#   dist[newseq] <- NA
-#   dist <- c(NA, dist)
-#   data.frame(xy, 
-#              sequenceID=seqid, 
-#              distance=dist)
-# }
-
-# # these work:
-# pth <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
-#                  logspeed=-2, speedSD=1, speedCor=0,
-#                  xlim=c(0,10), wrap=TRUE)
-# dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-# 
-# # these don't:
-# pth <- pathgen(n=5e3, kTurn=2, kCor=TRUE, pTurn=1,
-#                 logspeed=speed_parameter[1], speedSD=0.05, speedCor=0,
-#                 xlim=xlim,
-#                 ylim = ylim, ##--> this is causing the issue --> no clue why though?
-#                 wrap=TRUE)
-# dzone <- data.frame(x=10, y=5, r=10, th=1.65, dir=0)
-# pth <- pathgen(n=step_no, 
-#                 kTurn=2, 
-#                 kCor=TRUE, 
-#                 pTurn=1, 
-#                 logspeed=speed_parameter[1], 
-#                 speedSD=0.05, 
-#                 speedCor=0, 
-#                 xlim=c(0,20),
-#                 wrap=TRUE)
-# dzone <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) 
-
-#--> also: issue seems to be caused by speeds being too low sometimes so it doesn't cross the dz at all
-# --> keep the number of steps pretty high to mitigate against this
-
-
-
 # for small species:
 sequence_data_small <- function(pth, dzone){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
@@ -460,7 +307,7 @@ sequence_data_small <- function(pth, dzone){
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
   isin_detected[1] <- FALSE
-  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
   newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
   seqid <- c(0, cumsum(newseq))[isin_detected]
   xy <- pth[isin_detected, ]
@@ -544,24 +391,16 @@ sequence_data_large <- function(pth, dzone){
 
 
 
-
-
-
-
-
 ## calc_speed
 # Summarises speeds for a dataframe of position sequences
-
 # INPUT
 # dat: a dataframe of position observations created by sequence_data (above)
-
 # OUTPUT
 # A dataframe with a row per sequence and columns:
 # sequenceID: integer sequence identifier
 # distance: total distance travelled during the sequence
 # points: number of points in the sequence
 # speed: overall sequence speed
-
 calc_speed <- function(dat){
   dist <- with(dat, tapply(distance, sequenceID, sum, na.rm=TRUE))
   points <- with(dat, tapply(distance, sequenceID, length))
@@ -571,13 +410,194 @@ calc_speed <- function(dat){
 
 
 
-# run the functions
-# then look inside them
-# see if you're happy with how they're working
-# then could see ways to modify them - e.g. the choices he gave for the movement path aren't enough
-# same goes for the detection process - could find ways to make it more realistic
-# also have a look at the data (mirrors what we wanna simulate)
-# understand the format so that can make sure the simulation is good - based on realistic patterns in the data
+## outside_buffer
+# INPUT:
+# x1, y1, x2, y2, = coords of two points (each should just be a number)
+# dz = four column array of parameters defining a sector-shaped detection zone
+#       required column headings: x, y (xy coords of the camera), r (radius), th (angle)
+# max_real = max realised speed for this simulation run
+# OUTPUT:
+# TRUE = one or both of the points lies outside the buffer
+# FALSE = both points lie inside the buffer
+outside_buffer <- function(x1, y1, x2, y2, dz, max_real){
+  counter <- 0
+  xc <- dz[1,1] # x coord of the camera
+  yc <- dz[1,2] # y coord of the camera
+  r <- dz[1,3] # radius of dz
+  th <- dz[1,4] # angle of dz
+  xbuffer_left <- xc - r*sin(th) - max_real
+  xbuffer_right <- xc + r*sin(th) + max_real
+  ybuffer_top <- yc + r + max_real
+  ybuffer_bottom <- yc - max_real
+  
+  if (x1 < xbuffer_left | x1 > xbuffer_right | y1 > ybuffer_top | y1 < ybuffer_bottom){
+    counter <- counter + 1 # if x1,y1 lies outside the buffer
+  }
+  if (x2 < xbuffer_left | x2 > xbuffer_right | y2 > ybuffer_top | y2 < ybuffer_bottom){
+    counter <- counter + 1 # if x2, y2 lies outside the buffer
+  }
+  if (counter > 0){
+    return(TRUE) # one or both points lies outside the buffer
+  }
+  else{
+    return(FALSE)
+  }
+}
+
+
+## zero_frame
+# INPUT:
+# paired points = 6-column dataframe containing paired points and whether they break the loop
+#       required column headings: x1, y2, breaks1, x2, y2, breaks2
+# dz = four column array of parameters defining a sector-shaped detection zone
+#       required column headings: x, y (xy coords of the camera), r (radius), th (angle)
+# posdat_all = dataframe of all points that fell into the dz
+#       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
+# OUTPUT:
+# vector of TRUE or FALSE for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
+zero_frame <- function(paired_points, dz, posdat_all, max_real){
+  x1 <- paired_points[1]
+  y1 <- paired_points[2]
+  breaks1 <- paired_points[3]
+  x2 <- paired_points[4]
+  y2 <- paired_points[5]
+  breaks2 <- paired_points[6]
+  p_line <- data.frame(x1 = x1, y1 = y1, x2 = x2, y2 = y2) # line between the two points
+  dzx1 <- dz[1,1] # x coord of the camera
+  dzy1 <- dz[1,2] # y coord of the camera
+  r <- dz[1,3] # radius of dz
+  th <- dz[1,4] # angle of dz
+  xdiff <- r*sin(th)
+  ydiff <- r*cos(th)
+  dzx2 <- dzx1 - xdiff # x coord of left tip of dz
+  dzy2 <- dzy1 + ydiff # y coord of left tip of dz
+  dzx3 <- dzx1 + xdiff # x coord of right tip of dz
+  dzy3 <- dzy2 # y coord of right tip of dz
+  dz_line1 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx2, y2 = dzy2) # LHS line of dz
+  dz_line2 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx3, y3 = dzy3) # RHS line of dz
+  dz_arc <- data.frame(x = dzx1, y = dzy1, r = r, th = th) # arc of the dz
+  
+  if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y) ){
+    zero <- FALSE # not a zero frame if one or both points fall in the dz 
+  }
+  else{
+    if (breaks1 != breaks2){
+      zero <- FALSE # not a zero frame if the animal looped round the back to get between the points
+    }
+    else{
+      if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
+        zero <- FALSE # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
+      }
+      else{ # for all remaining points:
+        cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
+        cross2 <- lines_cross(p_line, dz_line2) # ditto
+        cross3 <- line_arc_cross(p_line, dz_arc) # ditto
+        cross_sum <- sum(cross1, cross2, cross3) 
+        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame
+          zero <- TRUE
+        }
+        else{
+          zero <- FALSE
+        }
+      }
+    }
+  }
+  return(zero)
+}
+
+
+## extract_realised
+# extract sets of speeds of length r_lengths
+# INPUTS:
+# realised_speeds = all speeds in the path (1 speed between each pair of consecutive points, with speed == distance between the points due to fixed time interval)
+# r_lengths = mean length of observed speed sequences
+# OUTPUTS:
+# set of realised speeds of length r_length
+extract_realised <- function(realised_speeds, r_lengths){ # function to extract one set of realised speeds
+  firstIndex <- sample(seq(length(realised_speeds) - r_lengths + 1), 1)
+  realised_speeds[firstIndex:(firstIndex + r_lengths -1)]
+}
+
+
+# seq_dat
+# runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
+# INPUTS:
+# speed_parameter = vector of 10 input logged speeds
+# step_no = number of steps for the animal's path
+# size = size of the animal (1 = large, 0 = small)
+# xlim = in form (x1, x2): sets the limits of the arena in which the simulated path stays (e.g. (0,40) == arena of size 40x40m)
+# speedSD = standard deviation of input speed (i.e. how much the animal varies its speed about the mean input speed)
+# speedCor = autocorrelation in speed
+# kTurn = mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# OUTPUT:
+# dataframe containing: 
+# realised speeds
+# observed speeds (same number of observed and realised speeds)
+# no. of single frames (just one number but repeated to fill the length of the dataframe)
+# no. of zero frames (ditto)
+# no. of points detected by the camera (ditto)
+seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn){
+  xlim <- xlim
+  path <- pathgen(n=step_no,
+                  kTurn=kTurn,
+                  kCor=TRUE,
+                  pTurn=pTurn,
+                  logspeed=speed_parameter,
+                  speedSD=speedSD, # check each time you simulate a speed to make sure speedSD doesn't cause v unrealistic speeds
+                  speedCor=speedCor,
+                  xlim=xlim,
+                  wrap=TRUE)
+  dz <- data.frame(x=20, y=10, r=10, th=1, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
+  
+  if (size == 1){
+    posdat_all <- sequence_data_large(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+  }
+  if (size == 0){
+    posdat_all <- sequence_data_small(path, dz)
+  }
+  
+  posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
+  
+  v <- calc_speed(posdat) # speeds of sequences
+  
+  ### realised speeds:
+  obs_lengths <- c() # lengths of the observed speed sequences
+  for (i in 1:length(unique(posdat$sequenceID))){
+    p <- posdat[posdat$sequenceID==i,]
+    obs_lengths <- c(obs_lengths, nrow(p))
+  }
+  r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
+  
+  realised_spds <- replicate(length(v$speed),{
+    mean(extract_realised(path$speed, r_lengths)) # function to select sets of speeds of length r_lengths
+  })
+  
+  
+  ### number of single-frame sequences:
+  t <- data.frame(table(posdat$sequenceID))
+  n_singles <- nrow(t[t$Freq==1,]) # count the number of single-occurring numbers in the sequenceID column of posdat
+  
+  ### number of zero-frame sequences:
+  path_df <- path$path
+  path_df2 <- path_df
+  path_df <- path_df[-nrow(path_df),] # remove last row
+  path_df2 <- path_df2[-1,] # remove first row
+  path_df_paired <- cbind(path_df, path_df2) # paired points
+  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
+  zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+  n_zeros <- length(zeros[zeros==TRUE])
+  
+  df <- data.frame(realised = realised_spds, # realised speeds
+                   observed = v$speed, # observed speeds
+                   n_singles = c(rep(n_singles, length(v$speed))), # no. of single frames
+                   n_zeros = c(rep(n_zeros, length(v$speed))), # no. of zero frames
+                   n_points = c(rep(nrow(posdat), length(v$speed)))) # total no. of position datapoints detected by the camera
+  return(df)
+}
+
+
+
 
 
 # AIMS
@@ -587,4 +607,157 @@ calc_speed <- function(dat){
 # e.g. missing high speeds
 # it's all about quantifying bias
 # comparing estimation outcomes with the truth
+
+
+
+
+
+# extra bits of code not needed -------------------------------------------
+
+### is_in_dz
+## ORIGINAL FUNCTION:
+# is_in_dz <- function(point, dzone){
+#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+#     ifelse(pt[, 2]<dz$y, # test: is y-coord less than the d-zone y coord?
+#            # if yes, bear = pi:
+#            pi,
+#            # if no:
+#            ifelse(pt[, 1]< dz$x, # test: is x-coord less than the d-zone x coord?
+#                   # if yes, bear = 2 pi
+#                   2*pi,
+#                   # if no, bear = 0:
+#                   0))
+#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+#   beardif <- ifelse(beardif>pi,
+#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+#                     beardif) # if not: just keep as it was
+#   # conditions for it to be in the dz:
+#   # beardif is less than half the detection zone angle - but why half the detection angle?
+#   # dist is less than the detection zone radius
+#   res <- ifelse(beardif < dz$th/2 & dist < dz$r, # this is the line to probably change
+#                 TRUE,
+#                 FALSE)
+#   # return matrix with TRUE or FALSE for each point
+#   return(matrix(res, nrow=nrow(point)))
+# }
+
+
+
+
+# edits to is_in_dz to include distance as a probability density:
+
+
+## TAKE 1
+## incorporating distance PDF using the regents' park data -- but only did this for distance, not angle yet
+# is_in_dz2 <- function(point, dzone){
+#   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+#   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+#   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+#   dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+#   bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+#     ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
+#            # if yes, bear = pi:
+#            pi,
+#            # if no:
+#            ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
+#                   # if yes, bear = 2 pi
+#                   2*pi,
+#                   # if no, bear = 0:
+#                   0))
+#   beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+#   beardif <- ifelse(beardif>pi,
+#                     2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+#                     beardif) # if not: just keep as it was
+#   # conditions for it to be in the dz:
+#   # beardif is less than half the detection zone angle
+#   # dist is less than the detection zone radius
+#   res <- ifelse(beardif < dz$th/2 & dist < dz$r,
+#                 TRUE,
+#                 FALSE)
+#   # make df of distances of each point and whether they're true or false
+#   df <- data.frame(res = as.factor(res),
+#                    dist = dist)
+# 
+#   # now for the ones which are true:
+# 
+#   # reassign them as true based on the probability density estimated from the data (normal distribution with mean = 0.9976297 and sd = 0.5452)
+# 
+#   dist_prob <- function(x){ # == the probability density function estimated from fox & hedgehog data combined
+#     dnorm(x, mean = 0.9976297, sd = 0.5452, log = F)
+#   } # --> BUT: probably need to make separate functions for diff spp
+# 
+#   # select only those which are TRUE
+#   for (i in 1:nrow(df)) {
+#     d <- df[i,]
+#     if (d$res==TRUE) { # ignore if res is FALSE
+# 
+#       # work out the probability of being detected based on the estimated probability density:
+#       prob <- dist_prob(d$dist)
+# 
+#       # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+#       df[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob, 1-prob))
+#     }
+#   }
+# 
+#   # return matrix with TRUE or FALSE for each point
+#   return(matrix(as.logical(df$res), nrow=nrow(point)))
+# 
+# }
+# athough maybe need to set a threshold instead? e.g. like if it's at the bottom 30% tail end then only assign TRUE to 50% of them?
+
+
+
+
+
+
+### sequence_data
+# original function:
+# sequence_data <- function(pth, dzone){
+#   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+#   isin <- is_in_dz(pth, dzone) # returns TRUE or FALSE for whether each point in the path intersects with the dzone
+#   isin <- as.vector(isin)
+#   isin[1] <- FALSE
+#   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+#   newseq <- tail(isin, -1) > head(isin, -1)
+#   seqid <- c(0, cumsum(newseq))[isin]
+#   xy <- pth[isin, ]
+#   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+#   newseq <- tail(seqid, -1) > head(seqid, -1)
+#   dist[newseq] <- NA
+#   dist <- c(NA, dist)
+#   data.frame(xy,
+#              sequenceID=seqid,
+#              distance=dist)
+# }
+
+# # these work:
+# pth <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
+#                  logspeed=-2, speedSD=1, speedCor=0,
+#                  xlim=c(0,10), wrap=TRUE)
+# dzone <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# 
+# # these don't:
+# pth <- pathgen(n=5e3, kTurn=2, kCor=TRUE, pTurn=1,
+#                 logspeed=speed_parameter[1], speedSD=0.05, speedCor=0,
+#                 xlim=xlim,
+#                 ylim = ylim, ##--> this is causing the issue --> no clue why though?
+#                 wrap=TRUE)
+# dzone <- data.frame(x=10, y=5, r=10, th=1.65, dir=0)
+# pth <- pathgen(n=step_no, 
+#                 kTurn=2, 
+#                 kCor=TRUE, 
+#                 pTurn=1, 
+#                 logspeed=speed_parameter[1], 
+#                 speedSD=0.05, 
+#                 speedCor=0, 
+#                 xlim=c(0,20),
+#                 wrap=TRUE)
+# dzone <- data.frame(x=10, y=5, r=10, th=1.65, dir=0) 
+
+#--> also: issue seems to be caused by speeds being too low sometimes so it doesn't cross the dz at all
+# --> keep the number of steps pretty high to mitigate against this
 

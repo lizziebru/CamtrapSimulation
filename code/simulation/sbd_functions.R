@@ -295,5 +295,8 @@ weibull_error_real_calc <- function(speed_no){
   as.numeric(mods_predict_weibull[speed_no]) - mean(seq_dats[,speed_no]$realised)
 }
 
-round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k)) # function for rounding to specific number of decimal places (messes everything up otherwise for some reason)
 
+
+## round_dp
+# function for rounding to specific number of decimal places (messes everything up otherwise for some reason)
+round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k)) 

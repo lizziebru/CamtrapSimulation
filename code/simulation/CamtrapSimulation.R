@@ -429,7 +429,6 @@ outside_buffer <- function(x1, y1, x2, y2, dz, max_real){
   xbuffer_right <- xc + r*sin(th) + max_real
   ybuffer_top <- yc + r + max_real
   ybuffer_bottom <- yc - max_real
-  
   if (x1 < xbuffer_left | x1 > xbuffer_right | y1 > ybuffer_top | y1 < ybuffer_bottom){
     counter <- counter + 1 # if x1,y1 lies outside the buffer
   }
@@ -548,16 +547,13 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
                   xlim=xlim,
                   wrap=TRUE)
   dz <- data.frame(x=20, y=10, r=10, th=1, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-  
   if (size == 1){
     posdat_all <- sequence_data_large(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (size == 0){
     posdat_all <- sequence_data_small(path, dz)
   }
-  
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
-  
   v <- calc_speed(posdat) # speeds of sequences
   
   ### realised speeds:
@@ -567,11 +563,9 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
     obs_lengths <- c(obs_lengths, nrow(p))
   }
   r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
-  
   realised_spds <- replicate(length(v$speed),{
     mean(extract_realised(path$speed, r_lengths)) # function to select sets of speeds of length r_lengths
   })
-  
   
   ### number of single-frame sequences:
   t <- data.frame(table(posdat$sequenceID))
@@ -596,7 +590,59 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   return(df)
 }
 
+## plot_sim
+# plots the path, dz, and points captured by the camera for a simulation
+# INPUTS:
+# speed_parameter = vector of 10 input logged speeds
+# step_no = number of steps for the animal's path
+# size = size of the animal (1 = large, 0 = small)
+# xlim = in form (x1, x2): sets the limits of the arena in which the simulated path stays (e.g. (0,40) == arena of size 40x40m)
+# speedSD = standard deviation of input speed (i.e. how much the animal varies its speed about the mean input speed)
+# speedCor = autocorrelation in speed
+# kTurn = mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# OUTPUT:
+# plot
+plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn){
+  xlim <- xlim
+  path <- pathgen(n=step_no, 
+                  kTurn=kTurn, 
+                  kCor=TRUE, 
+                  pTurn=pTurn, 
+                  logspeed=speed_parameter, 
+                  speedSD=speedSD, 
+                  speedCor=speedCor, 
+                  xlim=xlim,
+                  wrap=TRUE)
+  dz <- data.frame(x=20, y=10, r=10, th=1, dir=0)
+  
+  if (size == 1){
+    posdat <- sequence_data_large(path, dz)
+  }
+  if (size == 0){
+    posdat <- sequence_data_small(path, dz)
+  }
+  
+  plot_wrap(path, lineargs = list(col="grey"))
+  plot_dzone(dz, border=2)
+  points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+}
 
+
+
+# mcsapply
+# mc-version of sapply: (mclapply is the parallel version for lapply but there isn't an equivalent for sapply
+# INPUTS: 
+# same as usual for sapply: the vector of values on which to apply the function, the function to apply, and the value of any additional parameters needed for the function
+# also add in mc.cores = (number of cores in your laptop)
+mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
+  FUN <- match.fun(FUN)
+  answer <- parallel::mclapply(X = X, FUN = FUN, ...)
+  if (USE.NAMES && is.character(X) && is.null(names(answer)))
+    names(answer) <- X
+  if (!isFALSE(simplify) && length(answer))
+    simplify2array(answer, higher = (simplify == "array"))
+  else answer
+}
 
 
 

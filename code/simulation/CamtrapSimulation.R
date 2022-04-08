@@ -528,6 +528,8 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # speedSD = standard deviation of input speed (i.e. how much the animal varies its speed about the mean input speed)
 # speedCor = autocorrelation in speed
 # kTurn = mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# r = radius of detection zone
+# th = angle of detection zone
 # OUTPUT:
 # dataframe containing: 
 # realised speeds
@@ -535,7 +537,7 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # no. of single frames (just one number but repeated to fill the length of the dataframe)
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
-seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn){
+seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, r, th){
   xlim <- xlim
   path <- pathgen(n=step_no,
                   kTurn=kTurn,
@@ -546,7 +548,7 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
                   speedCor=speedCor,
                   xlim=xlim,
                   wrap=TRUE)
-  dz <- data.frame(x=20, y=10, r=10, th=1, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
+  dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
   if (size == 1){
     posdat_all <- sequence_data_large(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
@@ -600,9 +602,11 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
 # speedSD = standard deviation of input speed (i.e. how much the animal varies its speed about the mean input speed)
 # speedCor = autocorrelation in speed
 # kTurn = mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# r = radius of detection zone
+# th = angle of detection zone
 # OUTPUT:
 # plot
-plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn){
+plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, r, th){
   xlim <- xlim
   path <- pathgen(n=step_no, 
                   kTurn=kTurn, 
@@ -613,7 +617,7 @@ plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speed
                   speedCor=speedCor, 
                   xlim=xlim,
                   wrap=TRUE)
-  dz <- data.frame(x=20, y=10, r=10, th=1, dir=0)
+  dz <- data.frame(x=10, y=10, r=r, th=th, dir=0)
   
   if (size == 1){
     posdat <- sequence_data_large(path, dz)

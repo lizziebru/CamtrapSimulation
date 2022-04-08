@@ -8,7 +8,7 @@ require(ggplot2)
 require(gridExtra)
 require(ggpubr)
 
-setwd("results1/0.05_5e5_0,40_0") # set which one to analyse
+setwd("results1/0.05_5e5_0_0,40/2_0.5_0") # set which one to analyse
 
 # load in data:
 load("seq_dats.RData")
@@ -24,6 +24,7 @@ for (i in 1:10){
   s <- seq_dats[,i]
   real <- c(real, s$realised)
   o <- s$observed
+  o[!is.finite(o)] <- NA
   o <- o[!is.na(o)]
   obs <- c(obs, o)
   obs_lengths <- c(obs_lengths, length(o))
@@ -41,17 +42,6 @@ for (i in 1:length(obs)){
 }
 
 
-
-# work out things to use in plotting:
-sim_length <- length(seq_dats)/5 # number of speeds inputted into the simulation
-obs_real_error <- c() # mean error between observed and realised speeds for each simulated set of speeds
-real_mean <- c() # mean realised speeds
-singles <- c() # number of single frames for each simulation run
-zeros <- c() # number of zero frames for each simulation run
-singles_prop <- c() # number of single frames / total number of points recorded
-zeros_prop <- c() # number of zero frames / total number of points recorded
-obs_count <- c() # number of observed speeds captured
-
 # plotting biases ---------------------------------------------------------
 
 ## PLOT: obs_real.png
@@ -59,7 +49,7 @@ obs_count <- c() # number of observed speeds captured
 obs_real_df <- data.frame(speed = c(real, obs),
                           obs_real = c(rep("realised", length(real)), rep("observed", length(obs))))
 obs_real_plot <- ggplot(obs_real_df, aes(x = speed, colour = obs_real))+
-  geom_density(size = 1)+
+  geom_density()+
   theme_minimal()+
   theme(legend.title = element_blank(),
         legend.position = "bottom")+
@@ -77,7 +67,9 @@ obs_real_error_plot <- ggplot(obs_real_error_df, aes(x = error))+
   theme_minimal()+
   labs(x = "error (m/s)",
        title = "Distribution of errors between observed and realised speeds")+
-  geom_vline(xintercept = 0, linetype = "dashed")
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  geom_text(x = -0.025, y = 1, label = "obs > real", size = 4)+
+  geom_text(x = 0.025, y = 1, label = "real > obs", size = 4)
 obs_real_error_plot
 
 png(file="obs_real.png",

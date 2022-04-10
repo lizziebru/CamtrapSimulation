@@ -8,7 +8,7 @@ require(ggplot2)
 require(gridExtra)
 require(ggpubr)
 
-setwd("results1/0.05_5e5_0_0,40/2_0.5_0") # set which one to analyse
+setwd("results1/dz_decisions/r6_th1") # set which one to analyse
 
 # load in data:
 load("seq_dats.RData")

@@ -8,7 +8,7 @@ require(ggplot2)
 require(gridExtra)
 require(ggpubr)
 
-setwd("results1/dz_decisions/r6_th1") # set which one to analyse
+setwd("results1/dz_decisions/r6_th0.8") # set which one to analyse
 
 # load in data:
 load("seq_dats.RData")
@@ -38,7 +38,7 @@ zeros_prop <- n_zeros/n_points
 obs_real_error <- c()
 for (i in 1:length(obs)){
   e <- obs[i] - mean(real)
-  obs_real_error <- c(real_obs_error, e)
+  obs_real_error <- c(obs_real_error, e)
 }
 
 

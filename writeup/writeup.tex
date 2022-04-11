@@ -13,7 +13,6 @@
 \usepackage{graphicx}
 
 
-
 \title{\textbf{Estimating average speed of movement from camera trap data}}
 \author[1]{Lizzie Bru}
 \affil[1]{School of Life Sciences, Imperial College London, Silwood Park Campus, Ascot SL5 7PY, UK}
@@ -113,6 +112,78 @@
 	
 	\section{Methods}
 	
+	\subsection{Data used}
+	
+	get info from M and C about how the data were collected etc
+	
+	
+	\subsection{Building the camera trap simulation}
+	
+	bulk of the work done
+	
+	\subsubsection{Architecture}
+	
+	would be nice to make some kind of flowchart
+	
+	
+	
+	
+	
+	\subsubsection{Parameters: camera trap}
+	
+	detection zone size and detection probability
+	- dz is probabilistic
+	- detection probability methods - used Rowcliffe et al. 2011 fitting the models to the data available
+	
+	
+	image capture rate
+	
+	
+	\subsubsection{Parameters: animal movement path}
+	
+	speedSD
+	- did some runs to investigate which is best
+	- maybe include some plots to show this?
+	
+	pTurn
+	- ditto
+	
+	speedCor
+	- ditto
+	
+	kTurn
+	
+	mean speed
+	
+	no. of steps
+	- this one should just be tuned so that can get enough data 
+	- chose 5e5
+	
+	spatial limits of the path
+	- need it to be big enough for us to see our biases
+	
+	variation in turnangle
+	
+	whether to correlate turnangle with speed
+	
+	\subsection{Using the simulation to investigate biases}
+	
+	what runs I did
+	
+	what I was plotting/testing for to see these biases
+	
+	
+	
+	
+	\subsection{Investigating factors affecting biases}
+	
+	
+	
+	
+	\subsection{Modelling to improve speed estimation}
+	
+
+	
 	
 	REM equation:
 	
@@ -127,12 +198,6 @@
 	- just did this for radius bc recent data suggests that actually there's a pretty high detection probability around the edges of the dz so the detection probability with angle is pretty uniform --> ask Marcus for reference on this?
 	- detection probability with angle is therefore informed by just hazard rate logistic mix from Rowcliffe et al. fitted to data I have (Regent's park + India)
 	- the detection zone of a camera trap is entirely probabilistic though of course - there's no hard detection zone boundary so hence why it was important to incorporate this detection probability
-	
-	
-	
-	
-	
-	
 	
 	
 	

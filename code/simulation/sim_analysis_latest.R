@@ -8,7 +8,7 @@ require(ggplot2)
 require(gridExtra)
 require(ggpubr)
 
-setwd("results1/dz_decisions/r6_th0.8") # set which one to analyse
+setwd("results1/0.05_5e5_0_0,40/1_0.5_0.5") # set which one to analyse
 
 # load in data:
 load("seq_dats.RData")
@@ -68,16 +68,17 @@ obs_real_error_plot <- ggplot(obs_real_error_df, aes(x = error))+
   labs(x = "error (m/s)",
        title = "Distribution of errors between observed and realised speeds")+
   geom_vline(xintercept = 0, linetype = "dashed")+
-  geom_text(x = -0.025, y = 1, label = "obs > real", size = 4)+
-  geom_text(x = 0.025, y = 1, label = "real > obs", size = 4)
+  geom_text(x = -0.04, y = 1, label = "obs > real", size = 3)+
+  geom_text(x = 0.4, y = 1, label = "real > obs", size = 3)
 obs_real_error_plot
 
 png(file="obs_real.png",
     width=700, height=600)
 obs_real_arranged <- ggarrange(obs_real_plot, obs_real_error_plot, nrow = 2)
-annotate_figure(obs_real_arranged, top = text_grob(paste("mean realised speed =", round_dp(mean(real), 3), "m/s, number of observed speeds =", length(obs), "\nnumber of single frames =", n_singles, ", number of zero frames =", n_zeros), 
+annotate_figure(obs_real_arranged, top = text_grob(paste("mean realised speed = ", round_dp(mean(real), 3), "m/s, number of observed speeds = ", length(obs), "\nsingle frame prop = ", signif(singles_prop, 3), ", zero frame prop = ", signif(zeros_prop, 3), "\nmean observed sequence length = ", mean(obs_lengths), sep = ""), 
                                                    face = "bold", size = 14))
 dev.off()
+
 
 
 # calculate estimated speeds - using hmean and SBMs #####
@@ -115,3 +116,4 @@ hmean_error <- harmonic - mean(real)
 lnorm_error <- lnorm - mean(real)
 gamma_error <- gamma - mean(real)
 weibull_error <- weibull - mean(real)
+

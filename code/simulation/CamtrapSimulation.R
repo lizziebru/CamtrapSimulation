@@ -20,7 +20,6 @@ require(circular)
 # n: number of variates to generate
 # mean, sd: mean and standard deviation of the normal distribution
 # r: the autocorrelation coefficient (between 0 and 1)
-
 rautonorm <- function(n,mean=0,sd=1,r){
   ranfunc <- function(i,z,r) sqrt(1-r^2) * sum(z[2:(i+1)]*r^(i-(1:i))) + z[1]*r^i # for the autocorrelation
   # this is a known eqn that someone's worked out somewhere - he's lost the reference now though
@@ -31,9 +30,7 @@ rautonorm <- function(n,mean=0,sd=1,r){
 
 
 ## pathgen
-
 ## generates a path of x, y positions using a correlated random walk
-
 # INPUTS:
 # n: number of steps
 # pTurn: probability of turning at each step
@@ -476,7 +473,7 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
   dz_line2 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx3, y3 = dzy3) # RHS line of dz
   dz_arc <- data.frame(x = dzx1, y = dzy1, r = r, th = th) # arc of the dz
   
-  if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y) ){
+  if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y)){
     zero <- FALSE # not a zero frame if one or both points fall in the dz 
   }
   else{
@@ -537,7 +534,7 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # no. of single frames (just one number but repeated to fill the length of the dataframe)
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
-seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, r, th){
+seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, x, y, r, th){
   xlim <- xlim
   path <- pathgen(n=step_no,
                   kTurn=kTurn,
@@ -548,7 +545,7 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
                   speedCor=speedCor,
                   xlim=xlim,
                   wrap=TRUE)
-  dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
+  dz <- data.frame(x=x, y=y, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
   if (size == 1){
     posdat_all <- sequence_data_large(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
@@ -592,6 +589,94 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   return(df)
 }
 
+
+# seq_dat_2CTs_1
+# runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
+# INPUTS:
+# speed_parameter = vector of 10 input logged speeds
+# step_no = number of steps for the animal's path
+# size = size of the animal (1 = large, 0 = small)
+# xlim = in form (x1, x2): sets the limits of the arena in which the simulated path stays (e.g. (0,40) == arena of size 40x40m)
+# speedSD = standard deviation of input speed (i.e. how much the animal varies its speed about the mean input speed)
+# speedCor = autocorrelation in speed
+# kTurn = mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# r = radius of detection zone
+# th = angle of detection zone
+# OUTPUT:
+# dataframe containing: 
+# realised speeds
+# observed speeds (same number of observed and realised speeds)
+# no. of single frames (just one number but repeated to fill the length of the dataframe)
+# no. of zero frames (ditto)
+# no. of points detected by the camera (ditto)
+seq_dat_2CTs_1 <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, x, y, r, th, plot_path = TRUE){
+  xlim <- xlim
+  path <- pathgen(n=step_no,
+                  kTurn=kTurn,
+                  kCor=TRUE,
+                  pTurn=pTurn,
+                  logspeed=speed_parameter,
+                  speedSD=speedSD, # check each time you simulate a speed to make sure speedSD doesn't cause v unrealistic speeds
+                  speedCor=speedCor,
+                  xlim=xlim,
+                  wrap=TRUE)
+  dz1 <- data.frame(x=x, y=y, r=r, th=th, dir=0)
+  dz2 <- data.frame(x = (x + r*sin(th)), y = (y + r*cos(th)), r = r, th = th, dir = 1)
+  if (size == 1){
+    posdat_all1 <- sequence_data_large(path, dz1) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data_large(path, dz2)
+    posdat_all <- rbind(posdat_all1, posdat_all2)
+  }
+  if (size == 0){
+    posdat_all1 <- sequence_data_small(path, dz1)
+    posdat_all2 <- sequence_data_small(path, dz2)
+    posdat_all <- rbind(posdat_all1, posdat_all2)
+  }
+  posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
+  v <- calc_speed(posdat) # speeds of sequences
+  
+  ### realised speeds:
+  obs_lengths <- c() # lengths of the observed speed sequences
+  for (i in 1:length(unique(posdat$sequenceID))){
+    p <- posdat[posdat$sequenceID==i,]
+    obs_lengths <- c(obs_lengths, nrow(p))
+  }
+  r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
+  realised_spds <- replicate(length(v$speed),{
+    mean(extract_realised(path$speed, r_lengths)) # function to select sets of speeds of length r_lengths
+  })
+  
+  ### number of single-frame sequences:
+  t <- data.frame(table(posdat$sequenceID))
+  n_singles <- nrow(t[t$Freq==1,]) # count the number of single-occurring numbers in the sequenceID column of posdat
+  
+  ### number of zero-frame sequences:
+  path_df <- path$path
+  path_df2 <- path_df
+  path_df <- path_df[-nrow(path_df),] # remove last row
+  path_df2 <- path_df2[-1,] # remove first row
+  path_df_paired <- cbind(path_df, path_df2) # paired points
+  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
+  zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+  n_zeros <- length(zeros[zeros==TRUE])
+  
+  df <- data.frame(realised = realised_spds, # realised speeds
+                   observed = v$speed, # observed speeds
+                   n_singles = c(rep(n_singles, length(v$speed))), # no. of single frames
+                   n_zeros = c(rep(n_zeros, length(v$speed))), # no. of zero frames
+                   n_points = c(rep(nrow(posdat), length(v$speed)))) # total no. of position datapoints detected by the camera
+  if (plot_path == TRUE){
+    plot_wrap(path, lineargs = list(col="grey"))
+    plot_dzone(dz, border=2)
+    points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+  }
+  return(df)
+}
+
+
+
+
 ## plot_sim
 # plots the path, dz, and points captured by the camera for a simulation
 # INPUTS:
@@ -606,7 +691,7 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
 # th = angle of detection zone
 # OUTPUT:
 # plot
-plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, r, th){
+plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, x, y, r, th){
   xlim <- xlim
   path <- pathgen(n=step_no, 
                   kTurn=kTurn, 
@@ -617,7 +702,7 @@ plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speed
                   speedCor=speedCor, 
                   xlim=xlim,
                   wrap=TRUE)
-  dz <- data.frame(x=10, y=10, r=r, th=th, dir=0)
+  dz <- data.frame(x=x, y=y, r=r, th=th, dir=0)
   
   if (size == 1){
     posdat <- sequence_data_large(path, dz)
@@ -631,6 +716,51 @@ plot_sim <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speed
   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
 }
 
+
+
+## plot_sim
+# plots the path, dz, and points captured by the camera for a simulation
+# INPUTS:
+# speed_parameter = vector of 10 input logged speeds
+# step_no = number of steps for the animal's path
+# size = size of the animal (1 = large, 0 = small)
+# xlim = in form (x1, x2): sets the limits of the arena in which the simulated path stays (e.g. (0,40) == arena of size 40x40m)
+# speedSD = standard deviation of input speed (i.e. how much the animal varies its speed about the mean input speed)
+# speedCor = autocorrelation in speed
+# kTurn = mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# r = radius of detection zone
+# th = angle of detection zone
+# OUTPUT:
+# plot
+plot_sim_2CTs_1 <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, x, y, r, th){
+  xlim <- xlim
+  path <- pathgen(n=step_no, 
+                  kTurn=kTurn, 
+                  kCor=TRUE, 
+                  pTurn=pTurn, 
+                  logspeed=speed_parameter, 
+                  speedSD=speedSD, 
+                  speedCor=speedCor, 
+                  xlim=xlim,
+                  wrap=TRUE)
+  dz1 <- data.frame(x=x, y=y, r=r, th=th, dir=0)
+  dz2 <- data.frame(x = (x + r*sin(th)), y = (y + r*cos(th)), r = r, th = th, dir = 1)
+  
+  if (size == 1){
+    posdat1 <- sequence_data_large(path, dz1)
+    posdat2 <- sequence_data_large(path, dz2)
+    posdat <- rbind(posdat1, posdat2)
+  }
+  if (size == 0){
+    posdat1 <- sequence_data_small(path, dz1)
+    posdat2 <- sequence_data_small(path, dz2)
+    posdat <- rbind(posdat1, posdat2)
+  }
+  
+  plot_wrap(path, lineargs = list(col="grey"))
+  plot_dzone(dz, border=2)
+  points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+}
 
 
 # mcsapply

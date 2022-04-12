@@ -12,6 +12,8 @@ require(ggpubr)
 require(parallel)
 
 
+Sys.getenv()
+
 # if simulating the same speed 10 times:
 speed_parameter <- rep(log(0.05), times = 10)
 
@@ -24,26 +26,27 @@ speed_parameter <- rep(log(0.05), times = 10)
 #   speed_parameter <- c(speed_parameter, log(sp))
 # }
 
-speedSD = 0.5
+speedSD = 1
 pTurn = 0.5
-speedCor = 0
+speedCor = 0.9
 kTurn = 2
 
 # dz dimensions:
-r = 10 # try 6 
-th = 1
+x = 15
+y = 15
+r = 4 
+th = 0.5
 
 
 # generate sequence data:
-seq_dats <- mcsapply(speed_parameter, seq_dat, mc.cores = 4, step_no = 5e5, size = 0, xlim = c(0,40), speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, r = r, th = th)
+seq_dats <- sapply(speed_parameter, seq_dat_2CTs_1, step_no = 5e5, size = 0, xlim = c(0,40), speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, x = x, y = y, r = r, th = th)
 
 # save results:
-folder_name <- paste("results1/5e5_0,40_0", exp(speed_parameter[1]), "_SD", speedSD, "_pTurn", pTurn, "_Cor", speedCor, "_kTurn", kTurn, sep = "")
-dir.create(folder_name)
+filename <- paste("2CTs_1_x", x, "_y", y, "_r", r, "_th", th, "_run", i, sep = "")
 
-save(seq_dats, file = paste(folder_name, "/seq_dats.RData", sep = ""))
+save(seq_dats, file = paste(filename, ".RData", sep = ""))
 
-png(file= paste(folder_name, "/plot", sep = ""),
+png(file= paste(filename, ".png", sep = ""),
     width=700, height=650)
-plot_sim(speed_parameter[1], step_no = 5e5, size = 0, xlim = c(0,40), speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, r = r, th = th) # plot just the first one
+plot_sim_2CTs_1(speed_parameter[1], step_no = 5e5, size = 0, xlim = c(0,40), speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, x = x, y = y, r = r, th = th) # plot just the first one
 dev.off()

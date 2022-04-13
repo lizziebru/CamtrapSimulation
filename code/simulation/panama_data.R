@@ -10,8 +10,8 @@ panama_data <- read.csv('data/panama_data.csv')
 
 ## explore the data a bit:
 
-ggplot(panama, aes(x = speed))+
+ggplot(panama_data, aes(x = speed))+
   geom_density()
 
-ggplot(panama, aes(x = speed, colour = species))+
+ggplot(panama_data, aes(x = speed, colour = species))+
   geom_density()

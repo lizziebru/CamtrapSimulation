@@ -1,4 +1,4 @@
-## PIPELINE for HPC use##
+## PIPELINE for HPC use## -- not needed anymore though bc incorporated into pipeline_latest script
 
 rm(list = ls())
 #dev.off()

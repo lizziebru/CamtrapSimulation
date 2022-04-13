@@ -16,15 +16,16 @@ speed_parameter <- speeds[(iter - 1)%%length(speeds) + 1] # then use this as the
 step_no = 5e5
 size = 0
 xlim = c(0,40)
-speedSD = 0.5
+speedSD = 1
 pTurn = 0.5
-speedCor = 0
+speedCor = 0.9
 kTurn = 2
+kCor = TRUE
 # dz dimensions:
-x = 15
-y = 15
-r = 10
-th = 1
+x = 20
+y = 10
+r = 9
+th = 0.7
 # other:
 plot_path = TRUE
 twoCTs = FALSE
@@ -34,7 +35,7 @@ filename <- paste0(speed_parameter, "_y", y, "_r", r, "_th", th, "_run", iter) #
 
 png(file= paste0(filename, ".png"),
     width=700, height=650)
-seq_dats <- seq_dat(speed_parameter, step_no = step_no, size = size, xlim = xlim, speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, x = x, y = y, r = r, th = th, plot_path = plot_path, twoCTs = twoCTs)
+seq_dats <- seq_dat(speed_parameter, step_no = step_no, size = size, xlim = xlim, speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, kCor = kCor, x = x, y = y, r = r, th = th, plot_path = plot_path, twoCTs = twoCTs)
 dev.off()
 
 save(seq_dats, file = paste0(filename, ".RData"))

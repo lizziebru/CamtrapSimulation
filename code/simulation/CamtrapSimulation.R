@@ -537,9 +537,9 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, x, y, r, th, plot_path = TRUE, twoCTs = FALSE){
+seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedCor, kTurn, kCor, x, y, r, th, plot_path = TRUE, twoCTs = FALSE){
   xlim <- xlim
-  path <- pathgen(n=step_no, kTurn=kTurn, kCor=TRUE, pTurn=pTurn, logspeed=speed_parameter, speedSD=speedSD, speedCor=speedCor, xlim=xlim, wrap=TRUE)
+  path <- pathgen(n=step_no, kTurn=kTurn, kCor=kCor, pTurn=pTurn, logspeed=speed_parameter, speedSD=speedSD, speedCor=speedCor, xlim=xlim, wrap=TRUE)
   if (twoCTs == FALSE){
     dz <- data.frame(x=x, y=y, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
     if (size == 1){

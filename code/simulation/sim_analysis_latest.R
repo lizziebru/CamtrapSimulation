@@ -1,5 +1,7 @@
 ## SIMULATION RESULTS ANALYSIS ##
 
+# for previous format before had the HPC running 10 in parallel rather than sequentially
+
 setwd("~/Documents/Project/CamtrapSimulation/code/simulation")
 
 source("sbd_functions.R", echo=TRUE)
@@ -8,7 +10,7 @@ require(ggplot2)
 require(gridExtra)
 require(ggpubr)
 
-setwd("results1/0.05_5e5_0_0,40/1_0.5_0.5") # set which one to analyse
+setwd("results1/0.05_5e5_0_0,40/1_0.8_0.9") # set which one to analyse
 
 # load in data:
 load("seq_dats.RData")

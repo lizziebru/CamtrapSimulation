@@ -533,6 +533,7 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # dataframe containing: 
 # realised speeds
 # observed speeds (same number of observed and realised speeds)
+# lengths of observed speed sequences
 # no. of single frames (just one number but repeated to fill the length of the dataframe)
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
@@ -594,9 +595,10 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   
   df <- data.frame(realised = realised_spds, # realised speeds
                    observed = v$speed, # observed speeds
-                   n_singles = c(rep(n_singles, length(v$speed))), # no. of single frames
-                   n_zeros = c(rep(n_zeros, length(v$speed))), # no. of zero frames
-                   n_points = c(rep(nrow(posdat), length(v$speed)))) # total no. of position datapoints detected by the camera
+                   obs_lengths = c(obs_lengths, rep(NA, (length(v$speed)-length(obs_lengths)))),
+                   n_singles = c(n_singles, rep(NA, (length(v$speed) - 1))), # no. of single frames
+                   n_zeros = c(n_zeros, rep(NA, (length(v$speed) - 1))), # no. of zero frames
+                   n_points = c(nrow(posdat), rep(NA, (length(v$speed) - 1)))) # total no. of position datapoints detected by the camera
   if (plot_path == TRUE){
     plot_wrap(path, lineargs = list(col="grey"))
     plot_dzone(dz, border=2)

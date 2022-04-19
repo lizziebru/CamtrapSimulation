@@ -10,7 +10,7 @@ require(ggplot2)
 require(gridExtra)
 require(ggpubr)
 
-setwd("results1/0.05_5e5_0_0,40/1_0.8_0.9") # set which one to analyse
+setwd("results1/sp0.05_size0_r10_th1/1_0.2_0.9") # set which one to analyse
 
 # load in data:
 load("seq_dats.RData")

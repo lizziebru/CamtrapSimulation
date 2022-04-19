@@ -2,7 +2,7 @@
 
 setwd("~/Documents/Project/CamtrapSimulation/code/simulation")
 
-setwd("results1/size0_sd1_cor0.9_r9_th0.7/sp0.15_pTurn0.5_kTurn2_kCorT") # set which one to analyse
+setwd("results1/dz_dims_sp0.05_size0_sd1_pTurn0.5_Cor0.9_kTurn2_kCorT/r10_th0.8") # set which one to analyse
 
 ## compile data
 real <- c()

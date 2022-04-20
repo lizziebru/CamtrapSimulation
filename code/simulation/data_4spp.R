@@ -198,3 +198,8 @@ lc_speeds <- ggplot(lc_df, aes(x = speed, colour = species))+
 
 speeds_all <- ggarrange(sh_speeds, lh_speeds, sc_speeds, lc_speeds)
 
+png(file="4spp_speeds_all.png",
+    width=700, height=600)
+speeds_all
+dev.off()
+

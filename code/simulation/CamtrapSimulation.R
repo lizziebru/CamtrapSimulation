@@ -135,6 +135,16 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 }
 
 
+# model for small species' radius: hazard rate with logistic mix
+small_radius <- function(radius){
+  (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+}
+
+# model for large species' radius: hazard rate with logistic mix
+large_radius <- function(radius){
+  (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+}
+
 ## is_in_dz - see bottom for original function
 # Defines whether points are within detection zones
 # INPUT:
@@ -179,11 +189,6 @@ is_in_dz_large <- function(point, dzone){
   isindz_df2 <- isindz_df
   
   # now for the ones which are true: reassign them as true based on probability density
-  
-  # model for large species' radius: hazard rate with logistic mix
-  large_radius <- function(radius){
-    (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
-  }
   # model for large species' angle: normal --> get rid of this for now
   # large_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
@@ -237,10 +242,6 @@ is_in_dz_small <- function(point, dzone){
                    angle = beardif)
   isindz_df2 <- isindz_df
   # now for the ones which are true: reassign them as true based on probability density
-  # model for small species' radius: hazard rate with logistic mix
-  small_radius <- function(radius){
-    (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
-  }
   # model for small species' angle: normal 
   # small_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
@@ -450,7 +451,7 @@ outside_buffer <- function(x1, y1, x2, y2, dz, max_real){
 # posdat_all = dataframe of all points that fell into the dz
 #       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
 # OUTPUT:
-# vector of TRUE or FALSE for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
+# vector of values for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
 zero_frame <- function(paired_points, dz, posdat_all, max_real){
   x1 <- paired_points[1]
   y1 <- paired_points[2]
@@ -474,26 +475,35 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
   dz_arc <- data.frame(x = dzx1, y = dzy1, r = r, th = th) # arc of the dz
   
   if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y)){
-    zero <- FALSE # not a zero frame if one or both points fall in the dz 
+    zero <- 0 # not a zero frame if one or both points fall in the dz 
   }
   else{
     if (breaks1 != breaks2){
-      zero <- FALSE # not a zero frame if the animal looped round the back to get between the points
+      zero <- 0 # not a zero frame if the animal looped round the back to get between the points
     }
     else{
       if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
-        zero <- FALSE # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
+        zero <- 0 # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
       }
       else{ # for all remaining points:
         cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
         cross2 <- lines_cross(p_line, dz_line2) # ditto
         cross3 <- line_arc_cross(p_line, dz_arc) # ditto
         cross_sum <- sum(cross1, cross2, cross3) 
-        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame
-          zero <- TRUE
+        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame with a value given by the detection probability of the midpoint between the two points
+          mx <- (x1+x2)/2 # midpoint x coord
+          my <- (y1+y2)/2 # midpoint y coord
+          midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
+          if (size == 0){
+            prob_detect <- small_radius(midpoint_radius) * 3.340884
+          }
+          if (size == 1){
+            prob_detect <- large_radius(midpoint_radius) * 2.767429
+          }
+          zero <- prob_detect
         }
         else{
-          zero <- FALSE
+          zero <- 0
         }
       }
     }
@@ -569,9 +579,11 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   
   ### realised speeds:
   obs_lengths <- c() # lengths of the observed speed sequences
-  for (i in 1:length(unique(posdat$sequenceID))){
+  for (i in unique(posdat$sequenceID)){
     p <- posdat[posdat$sequenceID==i,]
-    obs_lengths <- c(obs_lengths, nrow(p))
+    if (nrow(p)>1){ # don't count the single-frame sequences
+      obs_lengths <- c(obs_lengths, nrow(p))
+    }
   }
   r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
   realised_spds <- replicate(length(v$speed),{
@@ -591,7 +603,8 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
   max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
   zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
-  n_zeros <- length(zeros[zeros==TRUE])
+  zeros_vals <- zeros[zeros!=0]
+  n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
   
   df <- data.frame(realised = realised_spds, # realised speeds
                    observed = v$speed, # observed speeds

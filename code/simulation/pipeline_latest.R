@@ -15,7 +15,7 @@ speed_parameter <- speeds[(iter - 1)%%length(speeds) + 1] # then use this as the
 # set parameters
 # path: 
 step_no = 5e5
-size = 0
+species = 0 # 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
 xlim = c(0,40)
 speedSD = 1
 pTurn = 0.5
@@ -35,7 +35,7 @@ filename <- paste0(speed_parameter, "_y", y, "_r", r, "_th", th, "_run", iter) #
 
 png(file= paste0(filename, ".png"),
     width=700, height=650)
-seq_dats <- seq_dat(speed_parameter, step_no = step_no, size = size, xlim = xlim, speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, kCor = kCor, x = x, y = y, r = r, th = th, plot_path = plot_path, twoCTs = twoCTs)
+seq_dats <- seq_dat(speed_parameter, species = species, step_no = step_no, xlim = xlim, speedSD = speedSD, pTurn = pTurn, speedCor = speedCor, kTurn= kTurn, kCor = kCor, x = x, y = y, r = r, th = th, plot_path = plot_path, twoCTs = twoCTs)
 dev.off()
 
 save(seq_dats, file = paste0(filename, ".RData"))

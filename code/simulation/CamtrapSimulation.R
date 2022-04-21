@@ -585,6 +585,7 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
       obs_lengths <- c(obs_lengths, nrow(p))
     }
   }
+  mean_obs_length <- mean(obs_lengths)
   r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
   realised_spds <- replicate(length(v$speed),{
     mean(extract_realised(path$speed, r_lengths)) # function to select sets of speeds of length r_lengths
@@ -608,7 +609,7 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   
   df <- data.frame(realised = realised_spds, # realised speeds
                    observed = v$speed, # observed speeds
-                   obs_lengths = c(obs_lengths, rep(NA, (length(v$speed)-length(obs_lengths)))),
+                   mean_obs_length = c(mean_obs_length, rep(NA, (length(v$speed)-1))),
                    n_singles = c(n_singles, rep(NA, (length(v$speed) - 1))), # no. of single frames
                    n_zeros = c(n_zeros, rep(NA, (length(v$speed) - 1))), # no. of zero frames
                    n_points = c(nrow(posdat), rep(NA, (length(v$speed) - 1)))) # total no. of position datapoints detected by the camera

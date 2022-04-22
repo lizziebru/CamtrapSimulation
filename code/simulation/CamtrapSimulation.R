@@ -638,6 +638,26 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   else answer
 }
 
+## decimalplaces
+# find number of decimal places in a number (from https://stackoverflow.com/questions/5173692/how-to-return-number-of-decimal-places-in-r)
+decimalplaces <- function(x) {
+  if (abs(x - round(x)) > .Machine$double.eps^0.5) {
+    nchar(strsplit(sub('0+$', '', as.character(x)), ".", fixed = TRUE)[[1]][[2]])
+  } else {
+    return(0)
+  }
+}
+
+
+## kl_div_calc
+# work out KL divergence of obs_y from real_y (y values for their PDFs)
+kl_div_calc <- function(real_y, obs_y){
+  for (i in 1:length(real_y)){
+    kl <- sum(obs_y[i]*log(real_y[i]/obs_y[i]))
+  }
+  return(kl)
+}
+
 
 
 # AIMS

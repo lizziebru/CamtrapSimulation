@@ -1,3 +1,4 @@
+# only differences are in seq_dats function:
 
 require(circular)
 
@@ -25,7 +26,7 @@ rautonorm <- function(n,mean=0,sd=1,r){
   # this is a known eqn that someone's worked out somewhere - he's lost the reference now though
   z <- rnorm(n)
   mean + sd*c(z[1], sapply(1:(n-1), ranfunc, z, r))
-  }
+}
 
 
 
@@ -57,7 +58,7 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
     deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
   } 
   else 
-      deviates <- as.numeric(rvonmises(n, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+    deviates <- as.numeric(rvonmises(n, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
   deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
   angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
   x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
@@ -135,16 +136,6 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 }
 
 
-# model for small species' radius: hazard rate with logistic mix
-small_radius <- function(radius){
-  (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
-}
-
-# model for large species' radius: hazard rate with logistic mix
-large_radius <- function(radius){
-  (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
-}
-
 ## is_in_dz - see bottom for original function
 # Defines whether points are within detection zones
 # INPUT:
@@ -184,11 +175,16 @@ is_in_dz_large <- function(point, dzone){
                 FALSE)
   # make df of distances of each point and whether they're true or false
   isindz_df <- data.frame(res = as.factor(res),
-                   radius = dist,
-                   angle = beardif) 
+                          radius = dist,
+                          angle = beardif) 
   isindz_df2 <- isindz_df
   
   # now for the ones which are true: reassign them as true based on probability density
+  
+  # model for large species' radius: hazard rate with logistic mix
+  large_radius <- function(radius){
+    (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+  }
   # model for large species' angle: normal --> get rid of this for now
   # large_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
@@ -238,10 +234,14 @@ is_in_dz_small <- function(point, dzone){
                 FALSE)
   # make df of distances of each point and whether they're true or false
   isindz_df <- data.frame(res = res,
-                   radius = dist,
-                   angle = beardif)
+                          radius = dist,
+                          angle = beardif)
   isindz_df2 <- isindz_df
   # now for the ones which are true: reassign them as true based on probability density
+  # model for small species' radius: hazard rate with logistic mix
+  small_radius <- function(radius){
+    (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+  }
   # model for small species' angle: normal 
   # small_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
@@ -314,7 +314,7 @@ sequence_data_small <- function(pth, dzone){
   dist[newseq] <- NA
   dist <- c(NA, dist)
   df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
-
+  
   # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
   isin_indz <- as.vector(isin_all$indz)
   isin_indz[1] <- FALSE
@@ -451,7 +451,7 @@ outside_buffer <- function(x1, y1, x2, y2, dz, max_real){
 # posdat_all = dataframe of all points that fell into the dz
 #       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
 # OUTPUT:
-# vector of values for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
+# vector of TRUE or FALSE for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
 zero_frame <- function(paired_points, dz, posdat_all, max_real){
   x1 <- paired_points[1]
   y1 <- paired_points[2]
@@ -475,35 +475,26 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
   dz_arc <- data.frame(x = dzx1, y = dzy1, r = r, th = th) # arc of the dz
   
   if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y)){
-    zero <- 0 # not a zero frame if one or both points fall in the dz 
+    zero <- FALSE # not a zero frame if one or both points fall in the dz 
   }
   else{
     if (breaks1 != breaks2){
-      zero <- 0 # not a zero frame if the animal looped round the back to get between the points
+      zero <- FALSE # not a zero frame if the animal looped round the back to get between the points
     }
     else{
       if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
-        zero <- 0 # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
+        zero <- FALSE # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
       }
       else{ # for all remaining points:
         cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
         cross2 <- lines_cross(p_line, dz_line2) # ditto
         cross3 <- line_arc_cross(p_line, dz_arc) # ditto
         cross_sum <- sum(cross1, cross2, cross3) 
-        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame with a value given by the detection probability of the midpoint between the two points
-          mx <- (x1+x2)/2 # midpoint x coord
-          my <- (y1+y2)/2 # midpoint y coord
-          midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-          if (size == 0){
-            prob_detect <- small_radius(midpoint_radius) * 3.340884
-          }
-          if (size == 1){
-            prob_detect <- large_radius(midpoint_radius) * 2.767429
-          }
-          zero <- prob_detect
+        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame
+          zero <- TRUE
         }
         else{
-          zero <- 0
+          zero <- FALSE
         }
       }
     }
@@ -579,13 +570,10 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   
   ### realised speeds:
   obs_lengths <- c() # lengths of the observed speed sequences
-  for (i in unique(posdat$sequenceID)){
+  for (i in 1:length(unique(posdat$sequenceID))){
     p <- posdat[posdat$sequenceID==i,]
-    if (nrow(p)>1){ # don't count the single-frame sequences
-      obs_lengths <- c(obs_lengths, nrow(p))
-    }
+    obs_lengths <- c(obs_lengths, nrow(p))
   }
-  mean_obs_length <- mean(obs_lengths)
   r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
   realised_spds <- replicate(length(v$speed),{
     mean(extract_realised(path$speed, r_lengths)) # function to select sets of speeds of length r_lengths
@@ -604,15 +592,14 @@ seq_dat <- function(speed_parameter, step_no, size, xlim, speedSD, pTurn, speedC
   colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
   max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
   zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
-  zeros_vals <- zeros[zeros!=0]
-  n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
+  n_zeros <- length(zeros[zeros==TRUE])
   
   df <- data.frame(realised = realised_spds, # realised speeds
                    observed = v$speed, # observed speeds
-                   mean_obs_length = c(mean_obs_length, rep(NA, (length(v$speed)-1))),
-                   n_singles = c(n_singles, rep(NA, (length(v$speed) - 1))), # no. of single frames
-                   n_zeros = c(n_zeros, rep(NA, (length(v$speed) - 1))), # no. of zero frames
-                   n_points = c(nrow(posdat), rep(NA, (length(v$speed) - 1)))) # total no. of position datapoints detected by the camera
+                   obs_lengths = c(obs_lengths, rep(NA, (length(v$speed)-length(obs_lengths)))), ## ADDED IN
+                   n_singles = c(n_singles, rep(NA, (length(v$speed) - 1))), # no. of single frames  ## ADDED IN
+                   n_zeros = c(n_zeros, rep(NA, (length(v$speed) - 1))), # no. of zero frames  ## ADDED IN
+                   n_points = c(nrow(posdat), rep(NA, (length(v$speed) - 1)))) # total no. of position datapoints detected by the camera  ## ADDED IN
   if (plot_path == TRUE){
     plot_wrap(path, lineargs = list(col="grey"))
     plot_dzone(dz, border=2)
@@ -638,204 +625,7 @@ mcsapply <- function (X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE) {
   else answer
 }
 
-## decimalplaces
-# find number of decimal places in a number (from https://stackoverflow.com/questions/5173692/how-to-return-number-of-decimal-places-in-r)
-decimalplaces <- function(x) {
-  if (abs(x - round(x)) > .Machine$double.eps^0.5) {
-    nchar(strsplit(sub('0+$', '', as.character(x)), ".", fixed = TRUE)[[1]][[2]])
-  } else {
-    return(0)
-  }
-}
 
-
-## kl_div_calc
-# work out KL divergence of obs_y from real_y (y values for their PDFs)
-kl_div_calc <- function(real_y, obs_y){
-  for (i in 1:length(real_y)){
-    kl <- sum(obs_y[i]*log(real_y[i]/obs_y[i]))
-  }
-  return(kl)
-}
-
-## log_pdf_calc
-# work out the log ratio of obs_y from real_y
-log_pdf_calc <- function(real_y, obs_y){
-  for (i in 1:length(real_y)){
-    log_ratio <- log(real_y[i]/obs_y[i])
-  }
-  return(log_ratio)
-}
-
-
-#https://www.geeksforgeeks.org/orientation-3-ordered-points/
-orientation <- function(p1, p2, p3){
-  sign((p2[,2]-p1[,2])*(p3[,1]-p2[,1]) - (p3[,2]-p2[,2])*(p2[,1]-p1[,1]))
-}
-
-#https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
-#INPUT
-# lines1, lines2: 4-column arrays of x,y start and end points (ordered x1,y1,x2,y2) with the same number of rows in each line
-#VALUE 
-# 1 = they intersect
-# 0 = they don't intersect
-lines_cross <- function(lines1, lines2){
-  p1 <- lines1[, 1:2]
-  q1 <- lines1[, 3:4]
-  p2 <- lines2[, 1:2]
-  q2 <- lines2[, 3:4]
-  or1 <- orientation(p1, q1, p2)
-  or2 <- orientation(p1, q1, q2)
-  or3 <- orientation(p2, q2, p1)
-  or4 <- orientation(p2, q2, q1)
-  res <- ifelse(or1!=or2 & or3!=or4, 1, 0)
-  return(res)
-}
-
-
-#Whether a point is on a line (given that orientation is colinear)
-point_on_line <- function(ln1, ln2, pt){
-  minx <- apply(cbind(ln1[,1], ln2[,1]), 1, min)
-  miny <- apply(cbind(ln1[,2], ln2[,2]), 1, min)
-  maxx <- apply(cbind(ln1[,1], ln2[,1]), 1, max)
-  maxy <- apply(cbind(ln1[,2], ln2[,2]), 1, max)
-  pt[,1]>=minx & pt[,2]>=miny & pt[,1]<=maxx & pt[,2]<=maxy
-}
-
-#https://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
-#INPUT
-# point, poly: two column arrays of co-ordinates (x,y in that order) defining points and a polygon
-#              polygon co-ordinates need not be closed (first and last the same)
-point_in_poly <- function(point, poly){
-  lns.pnt <- cbind(point, min(poly[,1]-1), point[,2])
-  lns.ply <- cbind(poly, rbind(tail(poly, -1), head(poly, 1)))
-  cross <- lines_cross(lns.pnt, lns.ply)
-  ncross <- apply(cross, 1, sum)
-  ncross %% 2 == 1
-}
-
-
-## quadratic formula:
-quad <- function(a, b, c) {
-  if ((b^2 - 4 * a * c) > 0){
-    solns <- c((-b + sqrt(b^2 - 4 * a * c)) / (2 * a),
-               (-b - sqrt(b^2 - 4 * a * c)) / (2 * a))
-    return(solns)
-  }
-  else{
-    return(NA)
-  }
-}
-
-## line_arc_cross
-# whether a line intersects an arc
-# INPUT
-# line: 4-column array of x,y start and end points (ordered x1,y1,x2,y2)
-# arc: 4-column array of x,y centre of circle, radius r, and angle from centre to edge theta
-# OUTPUT
-# 1 = they intersect
-# 0 = they don't intersect
-line_arc_cross <- function(line, arc){
-  # parametric equations for line:
-  x1 <- line[1,1]
-  y1 <- line[1,2]
-  x2 <- line[1,3]
-  y2 <- line[1,4]
-  xvec <- x2 - x1
-  yvec <- y2 - y1
-  # paramx <- x1 + t*xvec
-  # paramy <- y2 + t*yvec
-  
-  # parametric eqns for the circle which the arc is part of:
-  xc <- arc[1,1]
-  yc <- arc[1,2]
-  r <- arc[1,3]
-  th <- arc[1,4]
-  # cparamx <- xc + rcos(th)
-  # cparamy <- yc + rsin(th)
-  
-  # equate parametric equations for x and y:
-  # x1 + t*xvec = xc + rcos(th)
-  # y1 + t*yvec = yc + rsin(th)
-  # use sin^2 + cos^2 = 1 to get quadratic equation for t, where:
-  a <- xvec^2 + yvec^2
-  b <- 2*x1*xvec - 2*xc*xvec + 2*y1*yvec - 2*yc*yvec
-  c <- x1^2 + xc^2 - 2*x1*xc + y1^2 + yc^2 - 2*y1*yc - r^2
-  
-  t <- quad(a, b, c) # solve for t using quadratic formula
-  
-  if (is.na(t) == TRUE){ # if no solutions to t: they don't intersect
-    answer <- 0
-  }
-  else{
-    # use values of t to find x and y then check if the corresponding theta lies along the arc (i.e. check whether when they do intersect it's along that specific arc of the circle)
-    x_soln1 <- x1 + t[1]*xvec
-    y_soln1 <- y2 + t[1]*yvec
-    x_soln2 <- x1 + t[2]*xvec
-    y_soln2 <- y2 + t[2]*yvec
-    
-    # find value of theta for each solution:
-    th_soln1 <- atan((y_soln1 - yc)/(x_soln1 - xc))
-    th_soln2 <- atan((y_soln2 - yc)/(x_soln2 - xc))
-    
-    if ((-th <= th_soln1 & th_soln1 <= th) | (-th <= th_soln2 & th_soln2 <= th)){ # if either solution lies in the correct range of theta, the line does intersect the arc
-      answer <- 1
-    }
-    else{
-      answer <- 0
-    }
-  }
-  return(answer)
-}
-
-
-
-
-# not needed atm ----------------------------------------------------------
-## lines_cross - ORIGINAL
-#INPUT
-# lines1, lines2: 4-column arrays of x,y start and end points (ordered x1,y1,x2,y2)
-# expand: if TRUE, calculates for all combinations of lines1 and lines2, otherwise row by row
-#         If expand==FALSE, lines1 and lines2 must have the same number of rows.
-#VALUE 
-# 1 if crossed
-# 0 if not crossed
-# 0.5 if line 1 skims line 2 (ie an end point of 2 lies on 1)
-# lines_cross <- function(lines1, lines2, expand=TRUE){
-#   if(expand){
-#     nr <- nrow(lines1)
-#     ij <- expand.grid(1:nrow(lines1), 1:nrow(lines2))
-#     lines1 <- lines1[ij$Var1, ]
-#     lines2 <- lines2[ij$Var2, ]
-#   }
-#   p1 <- lines1[, 1:2]
-#   q1 <- lines1[, 3:4]
-#   p2 <- lines2[, 1:2]
-#   q2 <- lines2[, 3:4]
-#   or1 <- orientation(p1, q1, p2)
-#   or2 <- orientation(p1, q1, q2)
-#   or3 <- orientation(p2, q2, p1)
-#   or4 <- orientation(p2, q2, q1)
-#   res <- ifelse(or1!=or2 & or3!=or4, 1, 0)
-#   skim <- (or1==0 & point_on_line(p1, q1, p2)) | (or2==0 & point_on_line(p1, q1, q2))
-#   res <- res - ifelse(skim, 0.5, 0)
-#   if(expand) res <- matrix(res, nrow=nr)
-#   res
-# }
-
-
-
-
-# to test arc function:
-# line <- data.frame(x1 = 2,
-#                    y1 = 4,
-#                    x2 = 8,
-#                    y2 = 9)
-# 
-# arc <- data.frame(x = 2,
-#                   y = 4,
-#                   r = 10,
-#                   th = pi/4)
 
 # AIMS
 # we wanna simulate where we know the actual speeds
@@ -1174,6 +964,3 @@ line_arc_cross <- function(line, arc){
 #   }
 #   return(df)
 # }
-
-
-

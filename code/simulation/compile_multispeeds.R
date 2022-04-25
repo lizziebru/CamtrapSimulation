@@ -85,11 +85,9 @@ for (i in speed_parameters){ # bugs for the second one when in a loop - make it 
   real_y <- d_real$y
   obs_y <- d_obs$y
   obs_y <- obs_y[is.finite(obs_y)]
-  divided <- real_y/obs_y # check M agrees - think pints & gallons --> also makes sense given KL divergence formula
-  divided <- divided[is.finite(divided)]
-  log_pdf_ratio <- c(log_pdf_ratio, log(mean(divided))) # also check if M agrees with taking the mean here
   max_obs <- c(max_obs, d_obs$x[which.max(obs_y)])
   max_real <- c(max_real, d_real$x[which.max(real_y)])
+  log_pdf_ratio <- c(log_pdf_ratio, log_pdf_calc(real_y=real_y, obs_y=obs_y))
   kl_divergence <- c(kl_divergence, kl_div_calc(real_y=real_y, obs_y=obs_y))
 }
 
@@ -165,6 +163,53 @@ kl_div_plot
 png(file="kl_divergence.png",
     width=700, height=600)
 kl_div_plot
+dev.off()
+
+
+## combined plot for log_pdf_ratio & KL divergence to show M & C:
+# make new dataframe:
+df4 <- data.frame(speed_param = rep(df2$speed_param, times = 2),
+                  score = c(df2$log_pdf_ratio, df2$kl_divergence),
+                  method = c(rep("log ratio", times = length(df2$log_pdf_ratio)), rep("KL divergence", times = length(df2$kl_divergence))))
+
+
+combined <- ggplot(df4, aes(x = speed_param, y = score))+
+  geom_point()+
+  geom_line()+
+  facet_grid(method ~ ., scales = "free")+
+  theme_bw()+
+  labs(x = "speed parameter (m/s)")+
+  theme(axis.title = element_text(size=18),
+        axis.text = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+combined
+
+png(file="log_pdf_and_kl_div.png",
+    width=700, height=600)
+combined
+dev.off()
+
+
+# same combined plot but with positive instead of negative scores
+df5 <- data.frame(speed_param = rep(df2$speed_param, times = 2),
+                  score = c(-df2$log_pdf_ratio, -df2$kl_divergence),
+                  method = c(rep("log ratio", times = length(df2$log_pdf_ratio)), rep("KL divergence", times = length(df2$kl_divergence))))
+
+
+combined2 <- ggplot(df5, aes(x = speed_param, y = score))+
+  geom_point()+
+  geom_line()+
+  facet_grid(method ~ ., scales = "free")+
+  theme_bw()+
+  labs(x = "speed parameter (m/s)")+
+  theme(axis.title = element_text(size=18),
+        axis.text = element_text(size = 15),
+        strip.text.y = element_text(size = 15))
+combined2
+
+png(file="POSITIVE_log_pdf_and_kl_div.png",
+    width=700, height=600)
+combined2
 dev.off()
 
 

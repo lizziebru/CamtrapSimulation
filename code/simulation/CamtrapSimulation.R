@@ -1103,28 +1103,30 @@ round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k))
 # for one simulation iteration, works out estimated speeds (using hmean and 3 SBMs) and error between mean realised speed & each estimated speed
 # INPUT:
 # seq_dats: list of seq_dat outputs for each iteration
-# each iteration output is a list containing:
-# realised speeds
-# observed speeds
-# lengths of observed speed sequences 
-# number of single frames
-# number of zero frames
-# total number of position datapoints recorded
-# proportion of single frames (just divided by total no. of datapoints)
-# proportion of zero frames (ditto)
+  # each iteration output is a list containing:
+    # realised speeds
+    # observed speeds
+    # lengths of observed speed sequences 
+    # number of single frames
+    # number of zero frames
+    # total number of position datapoints recorded
+    # proportion of single frames (just divided by total no. of datapoints)
+    # proportion of zero frames (ditto)
+# n_cores = number of cores on your laptop - to parallelise sappply
 # OUTPUTS:
 # list containing:
 # mean realised speed
+# error between each observed speed and the mean realised speed
 # hmean estimated speed
 # lognormal estimated speed
 # gamma estimated speed
 # Weibull estimated speed
 # error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
-estimates_calc <- function(seq_dats){
+estimates_calc <- function(seq_dats, n_cores = 4){
   realised <- seq_dats$realised
   mean_real <- mean(realised)
   observed <- seq_dats$observed
-  obs_meanreal_errors <- obs_meanreal_error_calc() ## TO GO FROM HERE - MAKE THIS FUNCTION TO WORK OUT OBS MEAN ERRORS
+  obs_meanreal_error <- mcsapply(observed, obs_meanreal_error_calc, mc.cores = n_cores) 
   hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
   obs_df <- data.frame(speed = observed)
   mods <- sbm3(speed~1, obs_df) # fit all the models
@@ -1135,13 +1137,128 @@ estimates_calc <- function(seq_dats){
   lnorm_error <- lnorm - mean_real
   gamma_error <- gamma - mean_real
   weibull_error <- weibull - mean_real
-  output <- list(mean_real=mean_real, obs_meanreal_errors=obs_meanreal_errors, hmean=hmean, lnorm=lnorm, gamma=gamma, weibull=weibull, hmean_error=hmean_error, lnorm_error=lnorm_error, gamma_error=gamma_error, weibull_error=weibull_error) 
+  output <- list(mean_real=mean_real, obs_meanreal_error=obs_meanreal_error, hmean=hmean, lnorm=lnorm, gamma=gamma, weibull=weibull, hmean_error=hmean_error, lnorm_error=lnorm_error, gamma_error=gamma_error, weibull_error=weibull_error) 
   return(output)
+}
+
+## obs_meanreal_error_calc
+# work out error between an observed speed and the mean realised speed for that simulation run
+# INPUTS:
+# observed = an observed speed
+# mean_real = mean realised speed for the corresponding simulation run
+# OUTPUT:
+# error between the observed speed and mean realised speed (positive = observed speed is greater than mean realised speed)
+obs_meanreal_error_calc <- function(observed, mean_real){
+  error <- observed - mean_real
+  return(error)
 }
 
 
 
-
+## run_and_analyse
+# runs the simulation on pre-generated paths in the path_results folder (iter repeats of the same path)
+# if plot_path = TRUE, plots the simulation plot for each run and stores in the same folder as the paths
+# plots analysis plots and stores them in separate path_results/PLOTS folder
+# INPUTS:
+# which_path = which set of paths to analyse (each set contains iter reps of the same speed & parameters)
+# species = currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
+# x,y = CT coords
+# r = radius of CT detection zone
+# th = angle of CT detection zone
+# plot_path = logical - whether to plot the simulation for each iteration
+# twoCTs = logical - whether to set up two CTs next to each other
+# n_cores = number of cores of your laptop - to parallelise sapply
+# OUTPUTs:
+# simulation plots for each iteration if plot_path = TRUE - saved into the same folder as the paths
+# analysis plots - saved into the PLOTS folder
+run_and_analyse <- function(which_path, iter, species, x, y, r, th, plot_path, twoCTs, n_cores=4){
+  ## load in the paths
+  paths <- c()
+  for (i in 1:iter){
+    load(which_path)
+    paths <- c(paths, path)
+    if (i == 1){ # store the metadata only for the first one bc they're all the same
+      meta <- metadata
+    }
+  }
+  
+  # make filename for storing plots:
+  filename <- paste0("sp", meta$speed_parameter, 
+                     "_speedSD", meta$speedSD,
+                     "_pTurn", meta$pTurn,
+                     "_speedCor", meta$speedCor,
+                     "_kTurn", meta$kTurn,
+                     "_kCor", meta$kCor)
+  
+  # run the simulation on each of the paths
+  seq_dats <- mcsapply(paths, run_simulation, mc.cores = n_cores, species=species, x=x, y=y, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs)
+  
+  ## for each iteration: work out estimated speeds and the error between mean realised and each estimated speed
+  estimates <- mcsapply(seq_dats, estimates_calc, mc.cores = n_cores) 
+  # concatenate results into a dataframe:
+  mean_reals <- c()
+  obs_meanreal_errors <- c()
+  hmeans <- c()
+  lnorms <- c()
+  gammas <- c()
+  weibulls <- c()
+  hmean_errors <- c()
+  lnorm_errors <- c()
+  gamma_errors <- c()
+  weibull_errors <- c()
+  for (i in 1:length(estimates)){
+    e <- estimates[i] # might need to change this depending on format of estimates
+    mean_reals <- c(mean_reals, e$mean_real)
+    obs_meanreal_errors <- c(obs_meanreal_errors, e$obs_meanreal_error)
+    hmeans <- c(hmeans, e$hmean)
+    lnorms <- c(lnorms, e$lnorm)
+    gammas <- c(gammas, e$gamma)
+    weibulls <- c(weibulls, e$weibull)
+    hmean_errors <- c(hmean_errors, e$hmean_error)
+    lnorm_errors <- c(lnorm_errors, e$lnorm_error)
+    gamma_errors <- c(gamma_errors, e$gamma_error)
+    weibull_errors <- c(weibull_errors, e$weibull_error)
+  }
+  estimates_df <- data.frame(iter = c(1:iter), mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
+  
+  # realised versus observed speeds plot:
+  real_obs_df <- data.frame(error = obs_meanreal_errors)
+  real_obs_plot <- ggplot(real_obs_df, aes(x = error))+
+    geom_density(size = 1)+
+    theme_minimal()+
+    labs(x = "error (m/s)",
+         title = "Errors between observed speeds and the mean realised speed for that simulation run")+
+    geom_vline(xintercept = 0, linetype = "dashed")+
+    geom_text(x = -1, y = 0.1, label = "real > obs", size = 3)+
+    geom_text(x = 1, y = 0.1, label = "obs > real", size = 3)+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15))
+  
+  png(file=paste0("path_results/PLOTS/", filename, "_obs.png"),
+      width=700, height=600)
+  real_obs_plot
+  dev.off()
+  
+  
+  # realised vs estimates plot:
+  real_est_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
+                            method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
+  
+  real_est_plot <- ggplot(real_est_df, aes(x = method, y = error))+
+    geom_boxplot()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15))+
+    geom_vline(xintercept = 0, linetype = "dashed")+
+    geom_text(x = -1, y = 0.1, label = "real > est", size = 3)+
+    geom_text(x = 1, y = 0.1, label = "est > real", size = 3)+
+    coord_flip() ## TO DO: JUST NEED TO EDIT THIS TO MAKE IT LOOK NICE ONCE IT'S DONE
+  
+  png(file=paste0("path_results/PLOTS/", filename, "_est.png"),
+      width=700, height=600)
+  real_est_plot
+  dev.off()
+  
+}
 
 
 # not needed atm ----------------------------------------------------------

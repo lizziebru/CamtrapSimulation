@@ -1,4 +1,4 @@
-## Calculating average speed ##
+## Calculating average speeds ##
 
 require(bbmle)
 require(MASS)
@@ -13,13 +13,11 @@ setClass("sbm", representation("list"))
 # Harmonic mean and standard error
 # non-parametric
 # (not fitting a distribution - just taking an average)
-hmean <- function(x){
+hmean_calc <- function(x){
   mn <- 1/mean(1/x)
   se <- mn^2 * sqrt(var(1/x)/length(x))
   c(mean=mn, se=se)
 }
-
-
 
 
 # Size biased log normal probability density

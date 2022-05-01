@@ -4,6 +4,8 @@
 *.log
 *.blg
 *.Rhistory
-
+*.RData
+*.tgz
+*.png
 .idea/
 .Rproj.user

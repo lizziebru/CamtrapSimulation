@@ -1,5 +1,7 @@
 
 require(circular)
+require(parallel)
+require(rlist)
 
 # to test things:
 # path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
@@ -8,8 +10,6 @@ require(circular)
 # point <- path$path[,1:2]
 # 
 # dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-
-
 
 
 ## rautonorm
@@ -26,7 +26,6 @@ rautonorm <- function(n,mean=0,sd=1,r){
   z <- rnorm(n)
   mean + sd*c(z[1], sapply(1:(n-1), ranfunc, z, r))
   }
-
 
 
 ## pathgen
@@ -70,7 +69,6 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
   if(wrap) res <- wrap(res, xlim, ylim)
   res
 }
-
 
 
 ## wrap
@@ -154,10 +152,10 @@ large_radius <- function(radius){
 #           x,y: x,y coordinates of camera
 #           r, th: detection zone radius and angle
 #           dir: radian direction in which the camera is facing
+# species = size of the animal (1 = large, 0 = small)
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-# for large species:
-is_in_dz_large <- function(point, dzone){
+is_in_dz <- function(point, dzone, species){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -196,74 +194,31 @@ is_in_dz_large <- function(point, dzone){
   for (i in 1:nrow(isindz_df2)) {
     d <- isindz_df2[i,]
     if (d$res==TRUE) { # select those which are TRUE
-      prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
-      if (prob_radius>1){
-        prob_radius <- 1
+      if (species == 0){
+        prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+        if (prob_radius>1){
+          prob_radius <- 1
+        }
+        #prob_angle <- large_angle(d$angle)
+        #total_prob <- prob_radius * prob_angle # total probability = multiply both
+        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+        
       }
-      #prob_angle <- large_angle(d$angle)
-      #total_prob <- prob_radius * prob_angle # total probability = multiply both
-      isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      if (species == 1){
+        prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
+        if (prob_radius>1){
+          prob_radius <- 1
+        }
+        #prob_angle <- large_angle(d$angle)
+        #total_prob <- prob_radius * prob_angle # total probability = multiply both
+        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      }
     }
   }
   isindz_all <- data.frame(indz = isindz_df$res,
                            detected = isindz_df2$res)
   return(isindz_all)
 }
-
-# for small species:
-is_in_dz_small <- function(point, dzone){
-  ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-  pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-  dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-  dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-  bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-    ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
-           # if yes, bear = pi:
-           pi,
-           # if no:
-           ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
-                  # if yes, bear = 2 pi
-                  2*pi,
-                  # if no, bear = 0:
-                  0))
-  beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-  beardif <- ifelse(beardif>pi,
-                    2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
-                    beardif) # if not: just keep as it was
-  # conditions for it to be in the dz:
-  # beardif is less than half the detection zone angle
-  # dist is less than the detection zone radius
-  res <- ifelse(beardif < dz$th/2 & dist < dz$r,
-                TRUE,
-                FALSE)
-  # make df of distances of each point and whether they're true or false
-  isindz_df <- data.frame(res = res,
-                   radius = dist,
-                   angle = beardif)
-  isindz_df2 <- isindz_df
-  # now for the ones which are true: reassign them as true based on probability density
-  # model for small species' angle: normal 
-  # small_angle <- function(angle){
-  #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
-  # }
-  for (i in 1:nrow(isindz_df2)) {
-    d <- isindz_df2[i,]
-    if (d$res==TRUE) { # select those which are TRUE
-      prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
-      if (prob_radius>1){
-        prob_radius <- 1
-      }
-      # prob_angle <- small_angle(d$angle)
-      # total_prob <- prob_radius * prob_angle # total probability = multiply both
-      isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-    }
-  }
-  isindz_all <- data.frame(indz = isindz_df$res,
-                           detected = isindz_df2$res)
-  return(isindz_all)
-}
-
-
 
 
 # plot_dzone
@@ -292,15 +247,16 @@ plot_dzone <- function(dzone, ...){
 # INPUT
 # path: a path object
 # a detection zone array
+# species = size of the animal (1 = large, 0 = small)
 # OUTPUT
 # A data frame with columns:
 # x,y: x,y co-ordinates of sequence points in detection zones
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
 # for small species:
-sequence_data_small <- function(pth, dzone){
+sequence_data <- function(pth, dzone, species){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz_small(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
+  isin_all <- is_in_dz(pth, dzone, species) # returns true or false for whether each position in the path is in the detection zone
   
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
@@ -342,52 +298,6 @@ sequence_data_small <- function(pth, dzone){
   return(df2)
 }
 
-# for large species:
-sequence_data_large <- function(pth, dzone){
-  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz_large(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
-  
-  # to get xy, seqID, and dist for those that actually do get detected
-  isin_detected <- as.vector(isin_all$detected)
-  isin_detected[1] <- FALSE
-  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
-  seqid <- c(0, cumsum(newseq))[isin_detected]
-  xy <- pth[isin_detected, ]
-  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-  newseq <- tail(seqid, -1) > head(seqid, -1)
-  dist[newseq] <- NA
-  dist <- c(NA, dist)
-  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
-  
-  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
-  isin_indz <- as.vector(isin_all$indz)
-  isin_indz[1] <- FALSE
-  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
-  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
-  xy2 <- pth2[isin_indz, ]
-  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
-  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
-  dist2[newseq2] <- NA
-  dist2 <- c(NA, dist2)
-  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
-  
-  df2["detected"] <- NA
-  for (i in 1:nrow(df2)){
-    d <- df2[i,]
-    if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
-      df2[i,]$detected <- TRUE
-    }
-    else{
-      df2[i,]$detected <- FALSE
-    }
-  }
-  
-  return(df2)
-}
-
-
 
 ## calc_speed
 # Summarises speeds for a dataframe of position sequences
@@ -405,7 +315,6 @@ calc_speed <- function(dat){
   speed <- dist/(points-1)
   data.frame(sequenceID=unique(dat$sequenceID), distance=dist, points=points, speed=speed)
 }
-
 
 
 ## outside_buffer
@@ -494,10 +403,10 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
           mx <- (x1+x2)/2 # midpoint x coord
           my <- (y1+y2)/2 # midpoint y coord
           midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-          if (size == 0){
+          if (species == 0){
             prob_detect <- small_radius(midpoint_radius) * 3.340884
           }
-          if (size == 1){
+          if (species == 1){
             prob_detect <- large_radius(midpoint_radius) * 2.767429
           }
           zero <- prob_detect
@@ -525,11 +434,11 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 }
 
 
-# simulation_run
+# run_simulation
 # runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
 # INPUTS:
 # path = path generated by pathgen function using the HPC
-# size = size of the animal (1 = large, 0 = small)
+# species = size of the animal (1 = large, 0 = small)
 # r = radius of detection zone
 # th = angle of detection zone
 # plot_path = TRUE or FALSE - if TRUE, plots the path & dz
@@ -543,31 +452,24 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-simulation_run <- function(path, species, x, y, r, th, plot_path = TRUE, twoCTs = FALSE){
+run_simulation <- function(path, species, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
 
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
-    dz <- data.frame(x=x, y=y, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    if (species == 1){
-      posdat_all <- sequence_data_large(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    }
-    if (species == 0){
-      posdat_all <- sequence_data_small(path, dz)
-    }
+    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
+    posdat_all <- sequence_data(path, dz, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
-    dz1 <- data.frame(x=x, y=y, r=r, th=th, dir=0)
-    dz2 <- data.frame(x = (x + r*sin(th)), y = (y + r*cos(th)), r = r, th = th, dir = 1)
-    if (size == 1){
-      posdat_all1 <- sequence_data_large(path, dz1) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-      posdat_all2 <- sequence_data_large(path, dz2)
-      posdat_all <- rbind(posdat_all1, posdat_all2)
+    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+    if (connectedCTs == TRUE){
+      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
     }
-    if (size == 0){
-      posdat_all1 <- sequence_data_small(path, dz1)
-      posdat_all2 <- sequence_data_small(path, dz2)
-      posdat_all <- rbind(posdat_all1, posdat_all2)
+    if (connectedCTs == FALSE){ 
+      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
+    posdat_all1 <- sequence_data(path, dz1, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, species)
+    posdat_all <- rbind(posdat_all1, posdat_all2)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
   v <- calc_speed(posdat) # speeds of sequences
@@ -613,8 +515,8 @@ simulation_run <- function(path, species, x, y, r, th, plot_path = TRUE, twoCTs 
                       n_singles = n_singles,
                       n_zeros = n_zeros,
                       n_points = nrow(posdat), # total number of position datapoints detected by the CT
-                      singles_prop = n_singles/n_points,
-                      zeros_prop = n_zeros/n_points)
+                      singles_prop = n_singles/nrow(posdat),
+                      zeros_prop = n_zeros/nrow(posdat))
   
   # plot path
   if (plot_path == TRUE){
@@ -798,6 +700,205 @@ line_arc_cross <- function(line, arc){
 
 
 
+## estimates_calc
+# for one simulation iteration, works out estimated speeds (using hmean and 3 SBMs) and error between mean realised speed & each estimated speed
+# INPUT:
+# seq_dats: list of seq_dat outputs for each iteration
+  # each iteration output is a list containing:
+    # realised speeds
+    # observed speeds
+    # lengths of observed speed sequences 
+    # number of single frames
+    # number of zero frames
+    # total number of position datapoints recorded
+    # proportion of single frames (just divided by total no. of datapoints)
+    # proportion of zero frames (ditto)
+# n_cores = number of cores on your laptop - to parallelise sappply
+# OUTPUTS:
+# list containing:
+# mean realised speed
+# error between each observed speed and the mean realised speed
+# hmean estimated speed
+# lognormal estimated speed
+# gamma estimated speed
+# Weibull estimated speed
+# error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
+estimates_calc <- function(seq_dats, n_cores = 4){
+  realised <- seq_dats$realised
+  mean_real <- mean(realised)
+  observed <- seq_dats$observed
+  obs_meanreal_error <- mcsapply(observed, obs_meanreal_error_calc, mc.cores = n_cores) 
+  hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
+  obs_df <- data.frame(speed = observed)
+  mods <- sbm3(speed~1, obs_df) # fit all the models
+  lnorm <- predict.sbm(mods[[1]]$lnorm)[1,1] # lnorm estimate
+  gamma <- predict.sbm(mods[[1]]$gamma)[1,1] # gamma estimate
+  weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
+  hmean_error <- hmean - mean_real
+  lnorm_error <- lnorm - mean_real
+  gamma_error <- gamma - mean_real
+  weibull_error <- weibull - mean_real
+  output <- list(mean_real=mean_real, obs_meanreal_error=obs_meanreal_error, hmean=hmean, lnorm=lnorm, gamma=gamma, weibull=weibull, hmean_error=hmean_error, lnorm_error=lnorm_error, gamma_error=gamma_error, weibull_error=weibull_error) 
+  return(output)
+}
+
+## obs_meanreal_error_calc
+# work out error between an observed speed and the mean realised speed for that simulation run
+# INPUTS:
+# observed = an observed speed
+# mean_real = mean realised speed for the corresponding simulation run
+# OUTPUT:
+# error between the observed speed and mean realised speed (positive = observed speed is greater than mean realised speed)
+obs_meanreal_error_calc <- function(observed, mean_real){
+  error <- observed - mean_real
+  return(error)
+}
+
+
+## run_and_analyse
+# runs the simulation on pre-generated paths in the path_results folder (iter repeats of the same path)
+# if plot_path = TRUE, plots the simulation plot for each run and stores in the same folder as the paths
+# plots analysis plots and stores them in separate path_results/PLOTS folder
+# INPUTS:
+# folder = folder containing the set of paths to analyse (each set contains iter reps of the same speed & parameters)
+# iter = number of paths
+# species = currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
+# x,y = CT coords
+# r = radius of CT detection zone
+# th = angle of CT detection zone
+# plot_path = logical - whether to plot the simulation for each iteration
+# twoCTs = logical - whether to set up two CTs next to each other
+# n_cores = number of cores of your laptop - to parallelise sapply
+# OUTPUTs:
+# simulation plots for each iteration if plot_path = TRUE - saved into the same folder as the paths
+# analysis plots - saved into the PLOTS folder
+run_and_analyse <- function(folder, iter, species, x, y, r, th, plot_path, twoCTs, n_cores=4){
+
+  # load in the paths & metadata
+  paths <- vector(mode = "list", length = 100)
+  meta <- c()
+  for (i in 1:iter){
+    load(paste0(folder, "/iter", i, ".RData"))
+    paths[[i]] <- path
+    if (i == 1){ # store the metadata only for the first one bc they're all the same
+      meta <- metadata
+    }
+  }
+  
+  # make filename for storing plots:
+  filename <- paste0("sp", meta$speed_parameter, 
+                     "_speedSD", meta$speedSD,
+                     "_pTurn", meta$pTurn,
+                     "_speedCor", meta$speedCor,
+                     "_kTurn", meta$kTurn,
+                     "_kCor", meta$kCor)
+  
+  # run the simulation on each of the paths
+  seq_dats <- mcsapply(paths, run_simulation, mc.cores = n_cores, species=species, x=x, y=y, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs)
+  
+  ## for each iteration: work out estimated speeds and the error between mean realised and each estimated speed
+  estimates <- sapply(seq_dats, estimates_calc) 
+  # concatenate results into a dataframe:
+  mean_reals <- c()
+  obs_meanreal_errors <- c()
+  hmeans <- c()
+  lnorms <- c()
+  gammas <- c()
+  weibulls <- c()
+  hmean_errors <- c()
+  lnorm_errors <- c()
+  gamma_errors <- c()
+  weibull_errors <- c()
+  for (i in 1:length(estimates)){
+    e <- estimates[i] # might need to change this depending on format of estimates
+    mean_reals <- c(mean_reals, e$mean_real)
+    obs_meanreal_errors <- c(obs_meanreal_errors, e$obs_meanreal_error)
+    hmeans <- c(hmeans, e$hmean)
+    lnorms <- c(lnorms, e$lnorm)
+    gammas <- c(gammas, e$gamma)
+    weibulls <- c(weibulls, e$weibull)
+    hmean_errors <- c(hmean_errors, e$hmean_error)
+    lnorm_errors <- c(lnorm_errors, e$lnorm_error)
+    gamma_errors <- c(gamma_errors, e$gamma_error)
+    weibull_errors <- c(weibull_errors, e$weibull_error)
+  }
+  estimates_df <- data.frame(iter = c(1:iter), mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
+  
+  # realised versus observed speeds plot:
+  real_obs_df <- data.frame(error = obs_meanreal_errors)
+  real_obs_plot <- ggplot(real_obs_df, aes(x = error))+
+    geom_density(size = 1)+
+    theme_minimal()+
+    labs(x = "error (m/s)",
+         title = "Errors between observed speeds and the mean realised speed for that simulation run")+
+    geom_vline(xintercept = 0, linetype = "dashed")+
+    geom_text(x = -1, y = 0.1, label = "real > obs", size = 3)+
+    geom_text(x = 1, y = 0.1, label = "obs > real", size = 3)+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15))
+  
+  png(file=paste0("path_results/PLOTS/", filename, "_obs.png"),
+      width=700, height=600)
+  real_obs_plot
+  dev.off()
+  
+  
+  # realised vs estimates plot:
+  real_est_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
+                            method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
+  
+  real_est_plot <- ggplot(real_est_df, aes(x = method, y = error))+
+    geom_boxplot()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15))+
+    geom_vline(xintercept = 0, linetype = "dashed")+
+    geom_text(x = -1, y = 0.1, label = "real > est", size = 3)+
+    geom_text(x = 1, y = 0.1, label = "est > real", size = 3)+
+    coord_flip() ## TO DO: JUST NEED TO EDIT THIS TO MAKE IT LOOK NICE ONCE IT'S DONE
+  
+  png(file=paste0("path_results/PLOTS/", filename, "_est.png"),
+      width=700, height=600)
+  real_est_plot
+  dev.off()
+  
+}
+
+## path_list
+# combined 100 path repeats into two lists and save back into the same folder (2 lists needed bc teh cluster can't run all 100 at once)
+# INPUTS:
+# folder = folder containing the set of paths to analyse (each set contains iter reps of the same speed & parameters)
+# iter = number of paths
+# OUTPUT:
+# paths.RData == contains list called 'paths' containing all the paths
+path_list <- function(folder, iter){
+  
+  # store metadata
+  load(paste0(folder, "/iter", 1, ".RData"))
+  meta <- metadata
+  
+  # load in first 1/2 of the paths
+  paths1 <- vector(mode = "list", length = 50)
+  for (i in 1:(iter/2)){
+    load(paste0(folder, "/iter", i, ".RData"))
+    paths1[[i]] <- path
+  }
+  
+  # load in second 1/2 of the paths
+  paths2 <- vector(mode = "list", length = 50)
+  for (i in ((iter/2)+1):iter){
+    load(paste0(folder, "/iter", i, ".RData"))
+    paths2[[i]] <- path
+  }
+  
+  # make filename for storing plots:
+  filename <- paste0("sp", meta$speed_parameter, "_", format(meta$datetime, "%d%b%y_%H%M"))
+  
+  save(paths1, paths2, file = paste0(folder, "/", filename, ".RData"))
+}
+
+
+
+
 
 ## Calculating average speeds ##
 
@@ -809,7 +910,6 @@ setClass("sbm", representation("list"))
 # how max likelihood works: 
 # look for parameter values (mean & sd) that maximise the likelihood of the data given the model 
 # (i.e. find the parameters to be put in the model to make it fit the best)
-
 
 # Harmonic mean and standard error
 # non-parametric
@@ -1096,169 +1196,6 @@ weibull_error_real_calc <- function(speed_no){
 # function for rounding to specific number of decimal places (messes everything up otherwise for some reason)
 round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k)) 
 
-
-
-
-## estimates_calc
-# for one simulation iteration, works out estimated speeds (using hmean and 3 SBMs) and error between mean realised speed & each estimated speed
-# INPUT:
-# seq_dats: list of seq_dat outputs for each iteration
-  # each iteration output is a list containing:
-    # realised speeds
-    # observed speeds
-    # lengths of observed speed sequences 
-    # number of single frames
-    # number of zero frames
-    # total number of position datapoints recorded
-    # proportion of single frames (just divided by total no. of datapoints)
-    # proportion of zero frames (ditto)
-# n_cores = number of cores on your laptop - to parallelise sappply
-# OUTPUTS:
-# list containing:
-# mean realised speed
-# error between each observed speed and the mean realised speed
-# hmean estimated speed
-# lognormal estimated speed
-# gamma estimated speed
-# Weibull estimated speed
-# error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
-estimates_calc <- function(seq_dats, n_cores = 4){
-  realised <- seq_dats$realised
-  mean_real <- mean(realised)
-  observed <- seq_dats$observed
-  obs_meanreal_error <- mcsapply(observed, obs_meanreal_error_calc, mc.cores = n_cores) 
-  hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
-  obs_df <- data.frame(speed = observed)
-  mods <- sbm3(speed~1, obs_df) # fit all the models
-  lnorm <- predict.sbm(mods[[1]]$lnorm)[1,1] # lnorm estimate
-  gamma <- predict.sbm(mods[[1]]$gamma)[1,1] # gamma estimate
-  weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
-  hmean_error <- hmean - mean_real
-  lnorm_error <- lnorm - mean_real
-  gamma_error <- gamma - mean_real
-  weibull_error <- weibull - mean_real
-  output <- list(mean_real=mean_real, obs_meanreal_error=obs_meanreal_error, hmean=hmean, lnorm=lnorm, gamma=gamma, weibull=weibull, hmean_error=hmean_error, lnorm_error=lnorm_error, gamma_error=gamma_error, weibull_error=weibull_error) 
-  return(output)
-}
-
-## obs_meanreal_error_calc
-# work out error between an observed speed and the mean realised speed for that simulation run
-# INPUTS:
-# observed = an observed speed
-# mean_real = mean realised speed for the corresponding simulation run
-# OUTPUT:
-# error between the observed speed and mean realised speed (positive = observed speed is greater than mean realised speed)
-obs_meanreal_error_calc <- function(observed, mean_real){
-  error <- observed - mean_real
-  return(error)
-}
-
-
-
-## run_and_analyse
-# runs the simulation on pre-generated paths in the path_results folder (iter repeats of the same path)
-# if plot_path = TRUE, plots the simulation plot for each run and stores in the same folder as the paths
-# plots analysis plots and stores them in separate path_results/PLOTS folder
-# INPUTS:
-# which_path = which set of paths to analyse (each set contains iter reps of the same speed & parameters)
-# species = currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
-# x,y = CT coords
-# r = radius of CT detection zone
-# th = angle of CT detection zone
-# plot_path = logical - whether to plot the simulation for each iteration
-# twoCTs = logical - whether to set up two CTs next to each other
-# n_cores = number of cores of your laptop - to parallelise sapply
-# OUTPUTs:
-# simulation plots for each iteration if plot_path = TRUE - saved into the same folder as the paths
-# analysis plots - saved into the PLOTS folder
-run_and_analyse <- function(which_path, iter, species, x, y, r, th, plot_path, twoCTs, n_cores=4){
-  ## load in the paths
-  paths <- c()
-  for (i in 1:iter){
-    load(which_path)
-    paths <- c(paths, path)
-    if (i == 1){ # store the metadata only for the first one bc they're all the same
-      meta <- metadata
-    }
-  }
-  
-  # make filename for storing plots:
-  filename <- paste0("sp", meta$speed_parameter, 
-                     "_speedSD", meta$speedSD,
-                     "_pTurn", meta$pTurn,
-                     "_speedCor", meta$speedCor,
-                     "_kTurn", meta$kTurn,
-                     "_kCor", meta$kCor)
-  
-  # run the simulation on each of the paths
-  seq_dats <- mcsapply(paths, run_simulation, mc.cores = n_cores, species=species, x=x, y=y, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs)
-  
-  ## for each iteration: work out estimated speeds and the error between mean realised and each estimated speed
-  estimates <- mcsapply(seq_dats, estimates_calc, mc.cores = n_cores) 
-  # concatenate results into a dataframe:
-  mean_reals <- c()
-  obs_meanreal_errors <- c()
-  hmeans <- c()
-  lnorms <- c()
-  gammas <- c()
-  weibulls <- c()
-  hmean_errors <- c()
-  lnorm_errors <- c()
-  gamma_errors <- c()
-  weibull_errors <- c()
-  for (i in 1:length(estimates)){
-    e <- estimates[i] # might need to change this depending on format of estimates
-    mean_reals <- c(mean_reals, e$mean_real)
-    obs_meanreal_errors <- c(obs_meanreal_errors, e$obs_meanreal_error)
-    hmeans <- c(hmeans, e$hmean)
-    lnorms <- c(lnorms, e$lnorm)
-    gammas <- c(gammas, e$gamma)
-    weibulls <- c(weibulls, e$weibull)
-    hmean_errors <- c(hmean_errors, e$hmean_error)
-    lnorm_errors <- c(lnorm_errors, e$lnorm_error)
-    gamma_errors <- c(gamma_errors, e$gamma_error)
-    weibull_errors <- c(weibull_errors, e$weibull_error)
-  }
-  estimates_df <- data.frame(iter = c(1:iter), mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
-  
-  # realised versus observed speeds plot:
-  real_obs_df <- data.frame(error = obs_meanreal_errors)
-  real_obs_plot <- ggplot(real_obs_df, aes(x = error))+
-    geom_density(size = 1)+
-    theme_minimal()+
-    labs(x = "error (m/s)",
-         title = "Errors between observed speeds and the mean realised speed for that simulation run")+
-    geom_vline(xintercept = 0, linetype = "dashed")+
-    geom_text(x = -1, y = 0.1, label = "real > obs", size = 3)+
-    geom_text(x = 1, y = 0.1, label = "obs > real", size = 3)+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15))
-  
-  png(file=paste0("path_results/PLOTS/", filename, "_obs.png"),
-      width=700, height=600)
-  real_obs_plot
-  dev.off()
-  
-  
-  # realised vs estimates plot:
-  real_est_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
-                            method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
-  
-  real_est_plot <- ggplot(real_est_df, aes(x = method, y = error))+
-    geom_boxplot()+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15))+
-    geom_vline(xintercept = 0, linetype = "dashed")+
-    geom_text(x = -1, y = 0.1, label = "real > est", size = 3)+
-    geom_text(x = 1, y = 0.1, label = "est > real", size = 3)+
-    coord_flip() ## TO DO: JUST NEED TO EDIT THIS TO MAKE IT LOOK NICE ONCE IT'S DONE
-  
-  png(file=paste0("path_results/PLOTS/", filename, "_est.png"),
-      width=700, height=600)
-  real_est_plot
-  dev.off()
-  
-}
 
 
 # not needed atm ----------------------------------------------------------

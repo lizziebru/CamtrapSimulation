@@ -7,7 +7,7 @@ rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
 # set which paths to analyse (will always be iter repeats of the same speed)
-which_path <- paste0("path_results/26Apr22_1645") 
+folder <- paste0("path_results/sp0.05_28Apr22_1724/") 
 
 # set number of iterations of the path
 iter <- 100 
@@ -16,11 +16,10 @@ iter <- 100
 species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
 r = 9
 th = 0.7
-plot_path = TRUE
 twoCTs = TRUE
 connectedCTs = FALSE
 
 
 # run the simulation and analyse the results:
-run_and_analyse(which_path, iter, species, r, th, plot_path, twoCTs, connectedCTs, n_cores=4)
+run_and_analyse(folder, iter, species, r, th, twoCTs, connectedCTs, n_cores=4)
 

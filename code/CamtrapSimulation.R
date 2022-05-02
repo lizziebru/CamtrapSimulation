@@ -143,82 +143,6 @@ large_radius <- function(radius){
   (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
 }
 
-## is_in_dz - see bottom for original function
-# Defines whether points are within detection zones
-# INPUT:
-# point: a two column x,y array of point positions
-# dzone: four column array of parameters defining a sector-shaped detection zone
-#        required column headings:
-#           x,y: x,y coordinates of camera
-#           r, th: detection zone radius and angle
-#           dir: radian direction in which the camera is facing
-# species = size of the animal (1 = large, 0 = small)
-# OUTPUT
-# A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone, species){
-  ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
-  pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
-  dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
-  dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
-  bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
-    ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
-           # if yes, bear = pi:
-           pi,
-           # if no:
-           ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
-                  # if yes, bear = 2 pi
-                  2*pi,
-                  # if no, bear = 0:
-                  0))
-  beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
-  beardif <- ifelse(beardif>pi,
-                    2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
-                    beardif) # if not: just keep as it was
-  # conditions for it to be in the dz:
-  # beardif is less than half the detection zone angle
-  # dist is less than the detection zone radius
-  res <- ifelse(beardif < dz$th/2 & dist < dz$r,
-                TRUE,
-                FALSE)
-  # make df of distances of each point and whether they're true or false
-  isindz_df <- data.frame(res = as.factor(res),
-                   radius = dist,
-                   angle = beardif) 
-  isindz_df2 <- isindz_df
-  
-  # now for the ones which are true: reassign them as true based on probability density
-  # model for large species' angle: normal --> get rid of this for now
-  # large_angle <- function(angle){
-  #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
-  # }
-  for (i in 1:nrow(isindz_df2)) {
-    d <- isindz_df2[i,]
-    if (d$res==TRUE) { # select those which are TRUE
-      if (species == 0){
-        prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
-        if (prob_radius>1){
-          prob_radius <- 1
-        }
-        #prob_angle <- large_angle(d$angle)
-        #total_prob <- prob_radius * prob_angle # total probability = multiply both
-        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-        
-      }
-      if (species == 1){
-        prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
-        if (prob_radius>1){
-          prob_radius <- 1
-        }
-        #prob_angle <- large_angle(d$angle)
-        #total_prob <- prob_radius * prob_angle # total probability = multiply both
-        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      }
-    }
-  }
-  isindz_all <- data.frame(indz = isindz_df$res,
-                           detected = isindz_df2$res)
-  return(isindz_all)
-}
 
 
 # plot_dzone
@@ -236,67 +160,6 @@ plot_dzone <- function(dzone, ...){
 
 # simulation happens between pathgen (simulates a path) and sequence data (simulating detection process)
 
-## sequence_data
-# 1. Takes dataframes defining a path and a detection zone (as defined above)
-# 2. Filters the path points falling within the detection zone
-# 3. Assigns each contiguous sequence of points a unique sequence identifier
-# 4. calculates the distances between points with sequences
-# finds which points on the path are in the detection zone
-# and assigns sequence identifiers to each snippet (so there are multiple within one path)
-# returns parts of a path that are in the detection zone
-# INPUT
-# path: a path object
-# a detection zone array
-# species = size of the animal (1 = large, 0 = small)
-# OUTPUT
-# A data frame with columns:
-# x,y: x,y co-ordinates of sequence points in detection zones
-# sequenceID: integer sequence identifier
-# distance: distance traveled for each step between points
-# for small species:
-sequence_data <- function(pth, dzone, species){
-  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone, species) # returns true or false for whether each position in the path is in the detection zone
-  
-  # to get xy, seqID, and dist for those that actually do get detected
-  isin_detected <- as.vector(isin_all$detected)
-  isin_detected[1] <- FALSE
-  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
-  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
-  seqid <- c(0, cumsum(newseq))[isin_detected]
-  xy <- pth[isin_detected, ]
-  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-  newseq <- tail(seqid, -1) > head(seqid, -1)
-  dist[newseq] <- NA
-  dist <- c(NA, dist)
-  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
-
-  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
-  isin_indz <- as.vector(isin_all$indz)
-  isin_indz[1] <- FALSE
-  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
-  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
-  xy2 <- pth2[isin_indz, ]
-  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
-  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
-  dist2[newseq2] <- NA
-  dist2 <- c(NA, dist2)
-  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
-  
-  df2["detected"] <- NA
-  for (i in 1:nrow(df2)){
-    d <- df2[i,]
-    if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
-      df2[i,]$detected <- TRUE
-    }
-    else{
-      df2[i,]$detected <- FALSE
-    }
-  }
-  
-  return(df2)
-}
 
 
 ## calc_speed
@@ -433,103 +296,6 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
   realised_speeds[firstIndex:(firstIndex + r_lengths -1)]
 }
 
-
-# run_simulation
-# runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
-# INPUTS:
-# path = path generated by pathgen function using the HPC
-# species = size of the animal (1 = large, 0 = small)
-# r = radius of detection zone
-# th = angle of detection zone
-# plot_path = TRUE or FALSE - if TRUE, plots the path & dz
-# twoCTs = TRUE or FALSE - if TRUE, sets up 2 CTs next to each other
-# OUTPUT:
-# dataframe containing: 
-# realised speeds
-# observed speeds (same number of observed and realised speeds)
-# lengths of observed speed sequences
-# no. of single frames (just one number but repeated to fill the length of the dataframe)
-# no. of zero frames (ditto)
-# no. of points detected by the camera (ditto)
-# + also a plot if plot_path = TRUE
-run_simulation <- function(path, species, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
-
-  ##### generate speed sequences ################################################################################################################################################
-  if (twoCTs == FALSE){
-    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-  }
-  if (twoCTs == TRUE){
-    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-    if (connectedCTs == TRUE){
-      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-    }
-    if (connectedCTs == FALSE){ 
-      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-    }
-    posdat_all1 <- sequence_data(path, dz1, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2, species)
-    posdat_all <- rbind(posdat_all1, posdat_all2)
-  }
-  posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
-  v <- calc_speed(posdat) # speeds of sequences
-  
-  
-  ##### work out things to store in the output list #############################################################################################################
-  
-  ### observed speed sequence lengths:
-  obs_lengths <- c()
-  for (i in unique(posdat$sequenceID)){
-    p <- posdat[posdat$sequenceID==i,]
-    if (nrow(p)>1){ # don't count the single-frame sequences
-      obs_lengths <- c(obs_lengths, nrow(p))
-    }
-  }
-  
-  ### realised speeds:
-  r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
-  realised_spds <- replicate(length(v$speed),{
-    mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
-  })
-  
-  ### number of single-frame sequences:
-  t <- data.frame(table(posdat$sequenceID))
-  n_singles <- nrow(t[t$Freq==1,]) # count the number of single-occurring numbers in the sequenceID column of posdat
-  
-  ### number of zero-frame sequences:
-  path_df <- path$path
-  path_df2 <- path_df
-  path_df <- path_df[-nrow(path_df),] # remove last row
-  path_df2 <- path_df2[-1,] # remove first row
-  path_df_paired <- cbind(path_df, path_df2) # paired points
-  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-  max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
-  zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
-  zeros_vals <- zeros[zeros!=0]
-  n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
-  
-  # make output list
-  output_list <- list(realised = realised_spds,
-                      observed = v$speed,
-                      obs_lengths = obs_lengths,
-                      n_singles = n_singles,
-                      n_zeros = n_zeros,
-                      n_points = nrow(posdat), # total number of position datapoints detected by the CT
-                      singles_prop = n_singles/nrow(posdat),
-                      zeros_prop = n_zeros/nrow(posdat))
-  
-  # plot path
-  if (plot_path == TRUE){
-    png(file= paste0(filename, ".png"),
-        width=700, height=650)
-    plot_wrap(path, lineargs = list(col="grey"))
-    plot_dzone(dz, border=2)
-    points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
-    dev.off()
-  }
-  
-  return(output_list)
-}
 
 
 # mcsapply
@@ -755,6 +521,250 @@ obs_meanreal_error_calc <- function(observed, mean_real){
 }
 
 
+## is_in_dz - see bottom for original function
+# Defines whether points are within detection zones
+# INPUT:
+# point: a two column x,y array of point positions
+# dzone: four column array of parameters defining a sector-shaped detection zone
+#        required column headings:
+#           x,y: x,y coordinates of camera
+#           r, th: detection zone radius and angle
+#           dir: radian direction in which the camera is facing
+# species = size of the animal (1 = large, 0 = small)
+# OUTPUT
+# A logical array defining whether each point (rows) is in each detection zone (columns)
+is_in_dz <- function(point, dzone, species){
+  ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
+  pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
+  dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
+  dist <- sqrt((pt[, 1]-dz$x)^2 + (pt[, 2]-dz$y)^2) # distance from camera to each point
+  bear <- atan((pt[, 1]-dz$x) / (pt[, 2]-dz$y)) + # bearing from camera to each point (from the horizontal line)
+    ifelse(pt[, 2]<dz$y, # test: is y-coord is less than the d-zone y coord?
+           # if yes, bear = pi:
+           pi,
+           # if no:
+           ifelse(pt[, 1]< dz$x, # test: if x-coord less than the d-zone x coord?
+                  # if yes, bear = 2 pi
+                  2*pi,
+                  # if no, bear = 0:
+                  0))
+  beardif <- (bear-dz$dir) %% (2*pi) # abs angle between bear and dzone centre line
+  beardif <- ifelse(beardif>pi,
+                    2*pi-beardif, # if beardif > pi: set beardif to be 2pi - beardif
+                    beardif) # if not: just keep as it was
+  # conditions for it to be in the dz:
+  # beardif is less than half the detection zone angle
+  # dist is less than the detection zone radius
+  res <- ifelse(beardif < dz$th/2 & dist < dz$r,
+                TRUE,
+                FALSE)
+  # make df of distances of each point and whether they're true or false
+  isindz_df <- data.frame(res = as.factor(res),
+                          radius = dist,
+                          angle = beardif) 
+  isindz_df2 <- isindz_df
+  
+  # now for the ones which are true: reassign them as true based on probability density
+  # model for large species' angle: normal --> get rid of this for now
+  # large_angle <- function(angle){
+  #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
+  # }
+  for (i in 1:nrow(isindz_df2)) {
+    d <- isindz_df2[i,]
+    if (d$res==TRUE) { # select those which are TRUE
+      if (species == 0){
+        prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+        if (prob_radius>1){
+          prob_radius <- 1
+        }
+        #prob_angle <- large_angle(d$angle)
+        #total_prob <- prob_radius * prob_angle # total probability = multiply both
+        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+        
+      }
+      if (species == 1){
+        prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
+        if (prob_radius>1){
+          prob_radius <- 1
+        }
+        #prob_angle <- large_angle(d$angle)
+        #total_prob <- prob_radius * prob_angle # total probability = multiply both
+        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      }
+    }
+  }
+  isindz_all <- data.frame(indz = isindz_df$res,
+                           detected = isindz_df2$res)
+  return(isindz_all)
+}
+
+
+
+## sequence_data
+# 1. Takes dataframes defining a path and a detection zone (as defined above)
+# 2. Filters the path points falling within the detection zone
+# 3. Assigns each contiguous sequence of points a unique sequence identifier
+# 4. calculates the distances between points with sequences
+# finds which points on the path are in the detection zone
+# and assigns sequence identifiers to each snippet (so there are multiple within one path)
+# returns parts of a path that are in the detection zone
+# INPUT
+# path: a path object
+# a detection zone array
+# species = size of the animal (1 = large, 0 = small)
+# OUTPUT
+# A data frame with columns:
+# x,y: x,y co-ordinates of sequence points in detection zones
+# sequenceID: integer sequence identifier
+# distance: distance traveled for each step between points
+# for small species:
+sequence_data <- function(pth, dzone, species){
+  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+  isin_all <- is_in_dz(pth, dzone, species) # returns true or false for whether each position in the path is in the detection zone
+  
+  # to get xy, seqID, and dist for those that actually do get detected
+  isin_detected <- as.vector(isin_all$detected)
+  isin_detected[1] <- FALSE
+  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
+  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
+  seqid <- c(0, cumsum(newseq))[isin_detected]
+  xy <- pth[isin_detected, ]
+  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+  newseq <- tail(seqid, -1) > head(seqid, -1)
+  dist[newseq] <- NA
+  dist <- c(NA, dist)
+  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
+  
+  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
+  isin_indz <- as.vector(isin_all$indz)
+  isin_indz[1] <- FALSE
+  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
+  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
+  xy2 <- pth2[isin_indz, ]
+  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
+  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
+  dist2[newseq2] <- NA
+  dist2 <- c(NA, dist2)
+  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
+  
+  df2["detected"] <- NA
+  for (i in 1:nrow(df2)){
+    d <- df2[i,]
+    if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
+      df2[i,]$detected <- TRUE
+    }
+    else{
+      df2[i,]$detected <- FALSE
+    }
+  }
+  
+  return(df2)
+}
+
+
+
+
+# run_simulation
+# runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
+# INPUTS:
+# path = path generated by pathgen function using the HPC
+# folder = where to save the path to
+# species = size of the animal (1 = large, 0 = small)
+# r = radius of detection zone
+# th = angle of detection zone
+# plot_path = TRUE or FALSE - if TRUE, plots the path & dz
+# twoCTs = TRUE or FALSE - if TRUE, sets up 2 CTs next to each other
+# OUTPUT:
+# dataframe containing: 
+# realised speeds
+# observed speeds (same number of observed and realised speeds)
+# lengths of observed speed sequences
+# no. of single frames (just one number but repeated to fill the length of the dataframe)
+# no. of zero frames (ditto)
+# no. of points detected by the camera (ditto)
+# + also a plot if plot_path = TRUE
+run_simulation <- function(path, folder, species, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+  
+  ##### generate speed sequences ################################################################################################################################################
+  if (twoCTs == FALSE){
+    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
+    posdat_all <- sequence_data(path, dz, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+  }
+  if (twoCTs == TRUE){
+    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+    if (connectedCTs == TRUE){
+      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+    }
+    if (connectedCTs == FALSE){ 
+      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+    }
+    posdat_all1 <- sequence_data(path, dz1, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, species)
+    posdat_all <- rbind(posdat_all1, posdat_all2)
+  }
+  posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
+  v <- calc_speed(posdat) # speeds of sequences
+  
+  
+  ##### work out things to store in the output list #############################################################################################################
+  
+  ### observed speed sequence lengths:
+  obs_lengths <- c()
+  for (i in unique(posdat$sequenceID)){
+    p <- posdat[posdat$sequenceID==i,]
+    if (nrow(p)>1){ # don't count the single-frame sequences
+      obs_lengths <- c(obs_lengths, nrow(p))
+    }
+  }
+  
+  ### realised speeds:
+  r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
+  realised_spds <- replicate(length(v$speed),{
+    mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
+  })
+  
+  ### number of single-frame sequences:
+  t <- data.frame(table(posdat$sequenceID))
+  n_singles <- nrow(t[t$Freq==1,]) # count the number of single-occurring numbers in the sequenceID column of posdat
+  
+  ### number of zero-frame sequences:
+  path_df <- path$path
+  path_df2 <- path_df
+  path_df <- path_df[-nrow(path_df),] # remove last row
+  path_df2 <- path_df2[-1,] # remove first row
+  path_df_paired <- cbind(path_df, path_df2) # paired points
+  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
+  zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+  zeros_vals <- zeros[zeros!=0]
+  n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
+  
+  # make output list
+  output_list <- list(realised = realised_spds,
+                      observed = v$speed,
+                      obs_lengths = obs_lengths,
+                      n_singles = n_singles,
+                      n_zeros = n_zeros,
+                      n_points = nrow(posdat), # total number of position datapoints detected by the CT
+                      singles_prop = n_singles/nrow(posdat),
+                      zeros_prop = n_zeros/nrow(posdat))
+  
+  # plot path
+  if (plot_path == TRUE){
+    png(file= paste0(folder, "plot.png"),
+        width=700, height=650)
+    plot_wrap(path, lineargs = list(col="grey"))
+    plot_dzone(dz, border=2)
+    points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+    dev.off()
+  }
+  
+  return(output_list)
+}
+
+
+
 ## run_and_analyse
 # runs the simulation on pre-generated paths in the path_results folder (iter repeats of the same path)
 # if plot_path = TRUE, plots the simulation plot for each run and stores in the same folder as the paths
@@ -770,20 +780,30 @@ obs_meanreal_error_calc <- function(observed, mean_real){
 # twoCTs = logical - whether to set up two CTs next to each other
 # n_cores = number of cores of your laptop - to parallelise sapply
 # OUTPUTs:
-# simulation plots for each iteration if plot_path = TRUE - saved into the same folder as the paths
+# simulation plots for the first iteration of each set of 100 - saved into the same folder as the paths
+# seq_dats.RData - list of lists containing simulation results for each path iteration - saved into the same folder as the paths
 # analysis plots - saved into the PLOTS folder
-run_and_analyse <- function(folder, iter, species, r, th, plot_path, twoCTs, connectedCTs, n_cores=4){
+run_and_analyse <- function(folder, iter, species, r, th, twoCTs, connectedCTs=FALSE, n_cores=4){
 
-  # load in the paths & metadata
-  paths <- vector(mode = "list", length = 100)
+  # loop through each path iteration and run the simulation on it
+  seq_dats <- vector(mode = "list", length = 100) # save the results from each path simulation into one big list
   meta <- c() # store the metadata from one of them to use in plot names
   for (i in 1:iter){
-    load(paste0(folder, "/iter", i, ".RData"))
-    
+    load(paste0(folder, "iter", i, ".RData"))
+    if (i == 1){
+      plot_path <- TRUE # only plot for the first one to save some time
+    }
+    else {
+      plot_path <- FALSE
+    }
+    seq_dats[[i]] <- run_simulation(path, folder=folder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     if (i == 1){ # store the metadata only for the first one bc they're all the same
       meta <- metadata
     }
   }
+  
+  # save seq_dats for future use (esp when comparing multiple speeds)
+  save(seq_dats, file = paste0(folder, "seq_dats.RData")) # to do: store the path and metadata too along with date as well
   
   # make filename for storing plots:
   filename <- paste0("sp", meta$speed_parameter, 
@@ -793,11 +813,8 @@ run_and_analyse <- function(folder, iter, species, r, th, plot_path, twoCTs, con
                      "_kTurn", meta$kTurn,
                      "_kCor", meta$kCor)
   
-  # run the simulation on each of the paths
-  seq_dats <- mcsapply(paths, run_simulation, mc.cores = n_cores, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-  
   ## for each iteration: work out estimated speeds and the error between mean realised and each estimated speed
-  estimates <- sapply(seq_dats, estimates_calc) 
+  estimates <- mcsapply(seq_dats, estimates_calc, mc.cores = n_cores) 
   # concatenate results into a dataframe:
   mean_reals <- c()
   obs_meanreal_errors <- c()

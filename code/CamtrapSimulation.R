@@ -783,13 +783,13 @@ run_simulation <- function(path, folder, species, r, th, plot_path = TRUE, twoCT
 # simulation plots for the first iteration of each set of 100 - saved into the same folder as the paths
 # seq_dats.RData - list of lists containing simulation results for each path iteration - saved into the same folder as the paths
 # analysis plots - saved into the PLOTS folder
-run_and_analyse <- function(folder, iter, species, r, th, twoCTs, connectedCTs=FALSE, n_cores=4){
+run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoCTs, connectedCTs=FALSE, n_cores=4){
 
   # loop through each path iteration and run the simulation on it
   seq_dats <- vector(mode = "list", length = 100) # save the results from each path simulation into one big list
   meta <- c() # store the metadata from one of them to use in plot names
   for (i in 1:iter){
-    load(paste0(folder, "iter", i, ".RData"))
+    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
     if (i == 1){
       plot_path <- TRUE # only plot for the first one to save some time
     }
@@ -803,7 +803,7 @@ run_and_analyse <- function(folder, iter, species, r, th, twoCTs, connectedCTs=F
   }
   
   # save seq_dats for future use (esp when comparing multiple speeds)
-  save(seq_dats, file = paste0(folder, "seq_dats.RData")) # to do: store the path and metadata too along with date as well
+  save(seq_dats, file = paste0(parentfolder, "seq_dats/sp", meta$speed_parameter, ".RData"))
   
   # make filename for storing plots:
   filename <- paste0("sp", meta$speed_parameter, 
@@ -841,6 +841,8 @@ run_and_analyse <- function(folder, iter, species, r, th, twoCTs, connectedCTs=F
   }
   estimates_df <- data.frame(iter = c(1:iter), mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
   
+  save(estimates_df, file = paste0(parentfolder, "estimates_errors/sp", meta$speed_parameter, ".RData"))
+  
   # realised versus observed speeds plot:
   real_obs_df <- data.frame(error = obs_meanreal_errors)
   real_obs_plot <- ggplot(real_obs_df, aes(x = error))+
@@ -854,7 +856,7 @@ run_and_analyse <- function(folder, iter, species, r, th, twoCTs, connectedCTs=F
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15))
   
-  png(file=paste0("path_results/PLOTS/", filename, "_obs.png"),
+  png(file=paste0(parentfolder, "PLOTS/sp", meta$speed_parameter, "_obs.png"),
       width=700, height=600)
   real_obs_plot
   dev.off()
@@ -873,12 +875,41 @@ run_and_analyse <- function(folder, iter, species, r, th, twoCTs, connectedCTs=F
     geom_text(x = 1, y = 0.1, label = "est > real", size = 3)+
     coord_flip() ## TO DO: JUST NEED TO EDIT THIS TO MAKE IT LOOK NICE ONCE IT'S DONE
   
-  png(file=paste0("path_results/PLOTS/", filename, "_est.png"),
+  png(file=paste0(parentfolder, "PLOTS/sp", meta$speed_parameter, "_est.png"),
       width=700, height=600)
   real_est_plot
   dev.off()
   
 }
+
+
+## multi_analyse_est_errors
+# analyse simulation results across different speeds (but same parameters)
+# INPUT
+# parentfolder = folder containing multiple simulation repeats of different speeds for the same parameters - will read in data from the estimates_errors folder
+# speeds = range of speeds to analyse
+# OUTPUTS
+multi_analyse_est_errors <- function(parentfolder, speeds){
+  # load in each estimates_df and combine into one big one
+  mean_reals <- c()
+  hmeans <- c()
+  lnorms <- c()
+  gammas <- c()
+  weibulls <- c()
+  hmean_errors <- c()
+  lnorm_errors <- c()
+  gamma_errors <- c()
+  weibull_errors <- c()
+  
+  for (i in speeds){
+    load()
+  } 
+  
+  estimates_df <- data.frame(mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
+}
+
+
+
 
 ## path_list
 # combined 100 path repeats into two lists and save back into the same folder (2 lists needed bc teh cluster can't run all 100 at once)

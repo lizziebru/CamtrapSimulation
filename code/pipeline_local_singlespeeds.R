@@ -6,8 +6,11 @@
 rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
-# set which paths to analyse (will always be iter repeats of the same speed)
-folder <- paste0("path_results/sp0.05_28Apr22_1724/") 
+# set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
+parentfolder <- paste0("path_results/") 
+
+# set which speed to analyse paths in:
+pathfolder <- paste0("sp0.05_28Apr22_1724/")
 
 # set number of iterations of the path
 iter <- 100 
@@ -21,5 +24,5 @@ connectedCTs = FALSE
 
 
 # run the simulation and analyse the results:
-run_and_analyse(folder, iter, species, r, th, twoCTs, connectedCTs, n_cores=4)
+run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, n_cores=4)
 

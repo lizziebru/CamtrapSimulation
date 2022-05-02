@@ -7,5 +7,6 @@
 *.RData
 *.tgz
 *.png
+*.jpeg
 .idea/
 .Rproj.user

@@ -7,11 +7,12 @@ source("CamtrapSimulation.R", echo=TRUE)
 # set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
 parentfolder <- paste0("path_results/")
 
-# set the range of speeds to analyse
-speeds <- seq(0.05, 0.2, by = 0.005) # TO GO FROM HERE: NEED TO MAKE SURE AVOID ROUNDING ERRORS AND FINISH MAKING FUNCTION
+# set the range of speed parameters to analyse
+speed_parameters <- seq(0.05, 0.2, by = 0.005)
+speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
 
 # analyse errors between mean realised speeds and estimated speeds
-multi_analyse_est_errors(parentfolder=parentfolder, speeds=speeds)
+multi_analyse_est_errors(parentfolder=parentfolder, speed_parameters=speed_parameters)
 
 
 

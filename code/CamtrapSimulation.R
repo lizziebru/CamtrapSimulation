@@ -887,9 +887,10 @@ run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoC
 # analyse simulation results across different speeds (but same parameters)
 # INPUT
 # parentfolder = folder containing multiple simulation repeats of different speeds for the same parameters - will read in data from the estimates_errors folder
-# speeds = range of speeds to analyse
+# speed_parameters = range of speeds to analyse
 # OUTPUTS
-multi_analyse_est_errors <- function(parentfolder, speeds){
+# plot of errors between mean realised speed and estimated speed for different mean realised speeds and different methods of estimated average speed - saved to the PLOTS folder within the parent folder
+multi_analyse_est_errors <- function(parentfolder, speed_parameters){
   # load in each estimates_df and combine into one big one
   mean_reals <- c()
   hmeans <- c()
@@ -902,10 +903,38 @@ multi_analyse_est_errors <- function(parentfolder, speeds){
   weibull_errors <- c()
   
   for (i in speeds){
-    load()
+    load(paste0(parentfolder, "estimates_errors/sp", i, ".RData"))
+    mean_reals <- c(mean_reals, estimates_df$mean_real)
+    hmeans <- c(hmeans, estimates_df$hmean)
+    lnorms <- c(lnorms, estimates_df$lnorm)
+    gammas <- c(gammas, estimates_df$gamma)
+    weibulls <- c(weibulls, estimates_df$weibull)
+    hmean_errors <- c(hmean_errors, estimates_df$hmean_error)
+    lnorm_errors <- c(lnorm_errors, estimates_df$lnorm_error)
+    gamma_errors <- c(gamma_errors, estimates_df$gamma_error)
+    weibull_errors <- c(weibull_errors, estimates_df$weibull_error)
   } 
   
-  estimates_df <- data.frame(mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
+  estimates_df <- data.frame(mean_real=mean_reals, 
+                             error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
+                             Method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
+                    
+  real_est_error_multispeeds <- ggplot(estimates_df, aes(x = mean_real, y = error, colour = method))+
+    geom_point()+
+    geom_line()+
+    theme_minimal()+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error between mean realised speed and estimated speed (m/s)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15))
+  
+  png(file=paste0(parentfolder, "PLOTS/real_est_errors_multi.png"),
+      width=700, height=600)
+  real_est_error_multispeeds
+  dev.off()
+  
 }
 
 

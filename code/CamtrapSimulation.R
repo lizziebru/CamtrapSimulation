@@ -9,7 +9,7 @@ require(rlist)
 #                 xlim=c(0,40), wrap=TRUE)
 # point <- path$path[,1:2]
 # 
-dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
 
 
 ## rautonorm

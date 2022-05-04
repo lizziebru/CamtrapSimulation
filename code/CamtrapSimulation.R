@@ -507,7 +507,8 @@ estimates_calc <- function(seq_dats, n_cores = 4){
   realised <- seq_dats$realised
   mean_real <- mean(realised)
   observed <- seq_dats$observed
-  obs_meanreal_error <- mcsapply(observed, obs_meanreal_error_calc, mc.cores = n_cores) 
+  #obs_meanreal_error <- mcsapply(observed, obs_meanreal_error_calc, mc.cores = n_cores) 
+  obs_meanreal_error <- sapply(observed, obs_meanreal_error_calc)
   hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
   obs_df <- data.frame(speed = observed)
   mods <- sbm3(speed~1, obs_df) # fit all the models
@@ -841,7 +842,8 @@ run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoC
                      "_kCor", meta$kCor)
   
   ## for each iteration: work out estimated speeds and the error between mean realised and each estimated speed
-  estimates <- mcsapply(seq_dats, estimates_calc, mc.cores = n_cores) 
+  #estimates <- mcsapply(seq_dats, estimates_calc, mc.cores = n_cores) 
+  estimates <- sapply(seq_dats, estimates_calc)
   # concatenate results into a dataframe:
   mean_reals <- c()
   obs_meanreal_errors <- c()

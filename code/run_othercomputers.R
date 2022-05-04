@@ -8,8 +8,8 @@ require(ggplot2)
 install.packages("circular")
 require(circular)
 
-install.packages("parallel")
-require(parallel)
+# install.packages("parallel")
+# require(parallel)
 
 source("CamtrapSimulation.R", echo=TRUE)
 

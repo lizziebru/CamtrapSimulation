@@ -14,5 +14,3 @@ speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating poin
 # analyse errors between mean realised speeds and estimated speeds
 multi_analyse_est_errors(parentfolder=parentfolder, speed_parameters=speed_parameters)
 
-
-

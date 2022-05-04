@@ -19,7 +19,7 @@ iter <- 100
 species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
 r = 9
 th = 0.7
-twoCTs = TRUE
+twoCTs = FALSE
 connectedCTs = FALSE
 
 

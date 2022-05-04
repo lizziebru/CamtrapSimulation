@@ -4,12 +4,12 @@ require(parallel)
 require(rlist)
 
 # to test things:
-# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1,
-#                 logspeed=-2, speedSD=1, speedCor=0,
-#                 xlim=c(0,10), wrap=TRUE)
+# path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
+#                 logspeed=-2, speedSD=1, speedCor=0.9,
+#                 xlim=c(0,40), wrap=TRUE)
 # point <- path$path[,1:2]
 # 
-# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
 
 
 ## rautonorm
@@ -135,12 +135,26 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 
 # model for small species' radius: hazard rate with logistic mix
 small_radius <- function(radius){
-  (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+  prob <- (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+  if (prob > 1){
+    prob <- 1
+  }
+  if (prob < 0){
+    prob <- 0
+  }
+  return(prob)
 }
 
 # model for large species' radius: hazard rate with logistic mix
 large_radius <- function(radius){
-  (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+  prob <- (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+  if (prob > 1){
+    prob <- 1
+  }
+  if (prob < 0){
+    prob <- 0
+  }
+  return(prob)
 }
 
 
@@ -520,6 +534,35 @@ obs_meanreal_error_calc <- function(observed, mean_real){
   return(error)
 }
 
+## reassign_prob
+# for all the points that cross the dz, reassign them as TRUE or FALSE based on probability of getting detected at that distance from the CT
+# INPUTS
+# a row in isindz_df2 dataframe from isindz function
+# OUTPUT
+# vector of TRUE or FALSE for whether that point got detected
+reassign_prob <- function(isindz_row){
+  if (isindz_row[[1]]==FALSE){
+    return(FALSE)
+  }
+  else {
+    if (species == 0){
+      prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+      if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
+        prob_radius <- 1
+      }
+      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      return(new_res)
+    }
+    if (species == 1){
+      prob_radius <- large_radius(as.numeric(isindz_row[[2]])) * 2.767429 # probability of being detected based on the estimated probability density for the radius
+      if (prob_radius > 1){
+        prob_radius <- 1
+      }
+      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      return(new_res)
+    }
+  }
+}
 
 ## is_in_dz - see bottom for original function
 # Defines whether points are within detection zones
@@ -562,39 +605,17 @@ is_in_dz <- function(point, dzone, species){
   isindz_df <- data.frame(res = as.factor(res),
                           radius = dist,
                           angle = beardif) 
-  isindz_df2 <- isindz_df
   
   # now for the ones which are true: reassign them as true based on probability density
   # model for large species' angle: normal --> get rid of this for now
   # large_angle <- function(angle){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
-  for (i in 1:nrow(isindz_df2)) {
-    d <- isindz_df2[i,]
-    if (d$res==TRUE) { # select those which are TRUE
-      if (species == 0){
-        prob_radius <- small_radius(d$radius) * 3.340884 # probability of being detected based on the estimated probability density for the radius
-        if (prob_radius>1){
-          prob_radius <- 1
-        }
-        #prob_angle <- large_angle(d$angle)
-        #total_prob <- prob_radius * prob_angle # total probability = multiply both
-        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-        
-      }
-      if (species == 1){
-        prob_radius <- large_radius(d$radius) * 2.767429 # probability of being detected based on the estimated probability density for the radius
-        if (prob_radius>1){
-          prob_radius <- 1
-        }
-        #prob_angle <- large_angle(d$angle)
-        #total_prob <- prob_radius * prob_angle # total probability = multiply both
-        isindz_df2[i,]$res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      }
-    }
-  }
+  
+  new_reses <- apply(isindz_df, 1, reassign_prob)
+  
   isindz_all <- data.frame(indz = isindz_df$res,
-                           detected = isindz_df2$res)
+                           detected = new_reses)
   return(isindz_all)
 }
 
@@ -625,10 +646,11 @@ sequence_data <- function(pth, dzone, species){
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
   isin_detected[1] <- FALSE
+  isin_detected <- as.logical(isin_detected)
   pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
   newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
-  seqid <- c(0, cumsum(newseq))[isin_detected]
-  xy <- pth[isin_detected, ]
+  seqid <- c(0, cumsum(newseq))[isin_detected] ## this is the problem
+  xy <- pth[isin_detected, ] ## THIS LINE TAKES A WHILE
   dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
   newseq <- tail(seqid, -1) > head(seqid, -1)
   dist[newseq] <- NA
@@ -638,26 +660,31 @@ sequence_data <- function(pth, dzone, species){
   # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
   isin_indz <- as.vector(isin_all$indz)
   isin_indz[1] <- FALSE
+  isin_indz <- as.logical(isin_indz)
   pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
   newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
   seqid2 <- c(0, cumsum(newseq2))[isin_indz]
-  xy2 <- pth2[isin_indz, ]
+  xy2 <- pth2[isin_indz, ] # THIS ONE TOO
   dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
   newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
   dist2[newseq2] <- NA
   dist2 <- c(NA, dist2)
   df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
   
-  df2["detected"] <- NA
-  for (i in 1:nrow(df2)){
-    d <- df2[i,]
-    if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
-      df2[i,]$detected <- TRUE
-    }
-    else{
-      df2[i,]$detected <- FALSE
-    }
-  }
+  # df2["detected"] <- NA
+  # for (i in 1:nrow(df2)){ # THIS TAKES THE LONGEST
+  #   d <- df2[i,]
+  #   if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
+  #     df2[i,]$detected <- TRUE
+  #   }
+  #   else{
+  #     df2[i,]$detected <- FALSE
+  #   }
+  # }
+  
+  df2["detected"] <- FALSE
+  df2$detected[which(df2$x %in% df1$x & df2$y %in% df1$y)] <- TRUE
+  
   
   return(df2)
 }
@@ -684,7 +711,7 @@ sequence_data <- function(pth, dzone, species){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, folder, species, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
   
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
@@ -752,7 +779,7 @@ run_simulation <- function(path, folder, species, r, th, plot_path = TRUE, twoCT
   
   # plot path
   if (plot_path == TRUE){
-    png(file= paste0(folder, "plot.png"),
+    png(file= paste0(parentfolder, pathfolder, "plot.png"),
         width=700, height=650)
     plot_wrap(path, lineargs = list(col="grey"))
     plot_dzone(dz, border=2)
@@ -784,7 +811,7 @@ run_simulation <- function(path, folder, species, r, th, plot_path = TRUE, twoCT
 # seq_dats.RData - list of lists containing simulation results for each path iteration - saved into the same folder as the paths
 # analysis plots - saved into the PLOTS folder
 run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoCTs, connectedCTs=FALSE, n_cores=4){
-
+  
   # loop through each path iteration and run the simulation on it
   seq_dats <- vector(mode = "list", length = 100) # save the results from each path simulation into one big list
   meta <- c() # store the metadata from one of them to use in plot names
@@ -796,7 +823,7 @@ run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoC
     else {
       plot_path <- FALSE
     }
-    seq_dats[[i]] <- run_simulation(path, folder=folder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+    seq_dats[[i]] <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     if (i == 1){ # store the metadata only for the first one bc they're all the same
       meta <- metadata
     }

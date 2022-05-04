@@ -764,7 +764,22 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
   path_df_paired <- cbind(path_df, path_df2) # paired points
   colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
   max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
-  zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+  if (twoCTs == FALSE){
+    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+    zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+  }
+  if (twoCTs == TRUE){
+    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+    if (connectedCTs == TRUE){
+      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+    }
+    if (connectedCTs == FALSE){ 
+      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+    }
+    zeros1 <- apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
+    zeros2 <- apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+    zeros <- c(zeros1, zeros2)
+  }
   zeros_vals <- zeros[zeros!=0]
   n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
   

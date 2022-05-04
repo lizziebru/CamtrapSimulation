@@ -806,12 +806,14 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
 # th = angle of CT detection zone
 # plot_path = logical - whether to plot the simulation for each iteration
 # twoCTs = logical - whether to set up two CTs next to each other
+# connectedCTs = logical - whether to put the two CTs right next to eachother
+# path_cutby = range 0-1 - what fraction of the path to use
 # n_cores = number of cores of your laptop - to parallelise sapply
 # OUTPUTs:
 # simulation plots for the first iteration of each set of 100 - saved into the same folder as the paths
 # seq_dats.RData - list of lists containing simulation results for each path iteration - saved into the same folder as the paths
 # analysis plots - saved into the PLOTS folder
-run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoCTs, connectedCTs=FALSE, n_cores=4){
+run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, n_cores=4){
   
   # loop through each path iteration and run the simulation on it
   seq_dats <- vector(mode = "list", length = 100) # save the results from each path simulation into one big list
@@ -824,7 +826,13 @@ run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoC
     else {
       plot_path <- FALSE
     }
-    seq_dats[[i]] <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+    if (path_cutby == 1){
+      seq_dats[[i]] <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+    }
+    else {
+      path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
+      seq_dats[[i]] <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+    }
     if (i == 1){ # store the metadata only for the first one bc they're all the same
       meta <- metadata
     }

@@ -21,7 +21,8 @@ iter <- 100
 species = 0 
 r = 9
 th = 0.7
-twoCTs = FALSE
+path_cutby = 0.5
+twoCTs = TRUE
 connectedCTs = FALSE
 
-run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, n_cores=4)
+run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby = path_cutby, n_cores=4)

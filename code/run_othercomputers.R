@@ -2,10 +2,10 @@
 
 # required packages and functions
 
-install.packages("ggplot2")
+#install.packages("ggplot2")
 require(ggplot2)
 
-install.packages("circular")
+#install.packages("circular")
 require(circular)
 
 # install.packages("parallel")

@@ -807,8 +807,50 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
 }
 
 
+## generate_seqdats
+# run the simulation on each of the 100 paths for each repeat and save the seq_dats outputs to the seq_dats folder
+# INPUTS
+# path_nos: range of iter numbers to run the simulation on (vary depending on computational ability of local machine) - e.g. course laptop can take about 10 at once max
+# OUTPUT
+# saved seq_dats.RData files in seq_dats folder
+generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
+  for (i in path_nos){
+    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
+    if (i == 1){
+      plot_path <- TRUE # only plot for the first one to save some time
+    }
+    else {
+      plot_path <- FALSE
+    }
+    if (path_cutby == 1){
+      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+    }
+    else {
+      path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
+      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+    }
+    metadata_sim <- list(datetime = metadata$datetime,
+                         iter = metadata$iter,
+                         speed_parameter = metadata$speed_parameter,
+                         xlim = metadata$xlim,
+                         step_no = metadata$step_no,
+                         speedSD = metadata$speedSD,
+                         pTurn = metadata$pTurn,
+                         speedCor = metadata$speedCor,
+                         kTurn = metadata$kTurn,
+                         kCor = metadata$kCor,
+                         species = species,
+                         r = r,
+                         th = th,
+                         twoCTs = twoCTs,
+                         connectedCTs = connectedCTs)
+    
+    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/sp", metadata_sim$speed_parameter, "iter", i, ".RData"))
+    rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
+  }
+}
 
-## run_and_analyse
+## run_and_analyse - NEEDS CHANGING DEPENDING ON WHETHER GENERATE_SEQDATS IS SUCCESSFUL
 # runs the simulation on pre-generated paths in the path_results folder (iter repeats of the same path)
 # if plot_path = TRUE, plots the simulation plot for each run and stores in the same folder as the paths
 # plots analysis plots and stores them in separate path_results/PLOTS folder
@@ -842,15 +884,17 @@ run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoC
       plot_path <- FALSE
     }
     if (path_cutby == 1){
-      seq_dats[[i]] <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     }
     else {
       path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-      seq_dats[[i]] <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     }
     if (i == 1){ # store the metadata only for the first one bc they're all the same
       meta <- metadata
     }
+    save(seq_dats, file = paste0(parentfolder, "seq_dats/sp", meta$speed_parameter, "iter", iter, ".RData"))
+    rm(list = "path")
   }
   
   # save seq_dats for future use (esp when comparing multiple speeds)

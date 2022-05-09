@@ -503,12 +503,12 @@ line_arc_cross <- function(line, arc){
 # gamma estimated speed
 # Weibull estimated speed
 # error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
-estimates_calc <- function(seq_dats, n_cores = 4){
+estimates_calc <- function(seq_dats){
   realised <- seq_dats$realised
   mean_real <- mean(realised)
   observed <- seq_dats$observed
-  #obs_meanreal_error <- mcsapply(observed, obs_meanreal_error_calc, mc.cores = n_cores) 
-  obs_meanreal_error <- sapply(observed, obs_meanreal_error_calc)
+  observed <- observed[is.finite(observed)]
+  obs_meanreal_error <- sapply(observed, obs_meanreal_error_calc, mean_real = mean_real)
   hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
   obs_df <- data.frame(speed = observed)
   mods <- sbm3(speed~1, obs_df) # fit all the models
@@ -850,94 +850,42 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
   }
 }
 
-## run_and_analyse - NEEDS CHANGING DEPENDING ON WHETHER GENERATE_SEQDATS IS SUCCESSFUL
-# runs the simulation on pre-generated paths in the path_results folder (iter repeats of the same path)
-# if plot_path = TRUE, plots the simulation plot for each run and stores in the same folder as the paths
-# plots analysis plots and stores them in separate path_results/PLOTS folder
-# INPUTS:
-# folder = folder containing the set of paths to analyse (each set contains iter reps of the same speed & parameters)
-# iter = number of paths
-# species = currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
-# x,y = CT coords
-# r = radius of CT detection zone
-# th = angle of CT detection zone
-# plot_path = logical - whether to plot the simulation for each iteration
-# twoCTs = logical - whether to set up two CTs next to each other
-# connectedCTs = logical - whether to put the two CTs right next to eachother
-# path_cutby = range 0-1 - what fraction of the path to use
-# n_cores = number of cores of your laptop - to parallelise sapply
-# OUTPUTs:
-# simulation plots for the first iteration of each set of 100 - saved into the same folder as the paths
-# seq_dats.RData - list of lists containing simulation results for each path iteration - saved into the same folder as the paths
-# analysis plots - saved into the PLOTS folder
-run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, n_cores=4){
-  
-  # loop through each path iteration and run the simulation on it
-  seq_dats <- vector(mode = "list", length = 100) # save the results from each path simulation into one big list
-  meta <- c() # store the metadata from one of them to use in plot names
-  for (i in 1:iter){
-    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
-    if (i == 1){
-      plot_path <- TRUE # only plot for the first one to save some time
-    }
-    else {
-      plot_path <- FALSE
-    }
-    if (path_cutby == 1){
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-    }
-    else {
-      path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-    }
-    if (i == 1){ # store the metadata only for the first one bc they're all the same
-      meta <- metadata
-    }
-    save(seq_dats, file = paste0(parentfolder, "seq_dats/sp", meta$speed_parameter, "iter", iter, ".RData"))
-    rm(list = "path")
-  }
-  
-  # save seq_dats for future use (esp when comparing multiple speeds)
-  save(seq_dats, file = paste0(parentfolder, "seq_dats/sp", meta$speed_parameter, ".RData"))
-  
-  # make filename for storing plots:
-  filename <- paste0("sp", meta$speed_parameter, 
-                     "_speedSD", meta$speedSD,
-                     "_pTurn", meta$pTurn,
-                     "_speedCor", meta$speedCor,
-                     "_kTurn", meta$kTurn,
-                     "_kCor", meta$kCor)
-  
-  ## for each iteration: work out estimated speeds and the error between mean realised and each estimated speed
-  #estimates <- mcsapply(seq_dats, estimates_calc, mc.cores = n_cores) 
-  estimates <- sapply(seq_dats, estimates_calc)
-  # concatenate results into a dataframe:
+## singlespeed_analyse
+# analyse simulation results from one speed parameter and generate plots stored in PLOTS folder
+# INPUTS
+# speed_parameter - which speed parameter to run the analysis for
+# iter - range of seqdats to analyse
+# OUTPUTS
+# 2 plots stored in PLOTS folder
+singlespeed_analyse <- function(speed_parameter, iter){
+  # concatenate results into a df:
   mean_reals <- c()
-  obs_meanreal_errors <- c()
-  hmeans <- c()
-  lnorms <- c()
-  gammas <- c()
-  weibulls <- c()
+  obs_meanreal_errors <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
   hmean_errors <- c()
   lnorm_errors <- c()
   gamma_errors <- c()
   weibull_errors <- c()
-  for (i in 1:length(estimates)){
-    e <- estimates[i] # might need to change this depending on format of estimates
-    mean_reals <- c(mean_reals, e$mean_real)
-    obs_meanreal_errors <- c(obs_meanreal_errors, e$obs_meanreal_error)
-    hmeans <- c(hmeans, e$hmean)
-    lnorms <- c(lnorms, e$lnorm)
-    gammas <- c(gammas, e$gamma)
-    weibulls <- c(weibulls, e$weibull)
-    hmean_errors <- c(hmean_errors, e$hmean_error)
-    lnorm_errors <- c(lnorm_errors, e$lnorm_error)
-    gamma_errors <- c(gamma_errors, e$gamma_error)
-    weibull_errors <- c(weibull_errors, e$weibull_error)
+  for (i in iter){
+    load(paste0("path_results/seq_dats/sp", speed_parameter, "iter", i, ".RData"))
+    estimates <- estimates_calc(seq_dats)
+    filename <- paste0("sp", metadata_sim$speed_parameter, # filename for storing plots
+                       "_speedSD", metadata_sim$speedSD,
+                       "_pTurn", metadata_sim$pTurn,
+                       "_speedCor", metadata_sim$speedCor,
+                       "_kTurn", metadata_sim$kTurn,
+                       "_kCor", metadata_sim$kCor,
+                       "_species", metadata_sim$species,
+                       "_twoCTs", metadata_sim$twoCTs,
+                       "_connectedCTs", metadata_sim$connectedCTs)
+    mean_reals <- c(mean_reals, estimates$mean_real)
+    obs_meanreal_errors <- c(obs_meanreal_errors, estimates$obs_meanreal_error)
+    hmean_errors <- c(hmean_errors, estimates$hmean_error)
+    lnorm_errors <- c(lnorm_errors, estimates$lnorm_error)
+    gamma_errors <- c(gamma_errors, estimates$gamma_error)
+    weibull_errors <- c(weibull_errors, estimates$weibull_error)
+    rm(list = c("seq_dats", "metadata_sim"))
   }
-  estimates_df <- data.frame(iter = c(1:iter), mean_real=mean_reals, hmean=hmeans, lnorm=lnorms, gamma=gammas, weibull=weibulls, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
-  
-  save(estimates_df, file = paste0(parentfolder, "estimates_errors/sp", meta$speed_parameter, ".RData"))
+  estimates_df <- data.frame(iter = c(iter), mean_real=mean_reals, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
   
   # realised versus observed speeds plot:
   real_obs_df <- data.frame(error = obs_meanreal_errors)
@@ -945,37 +893,43 @@ run_and_analyse <- function(parentfolder, pathfolder, iter, species, r, th, twoC
     geom_density(size = 1)+
     theme_minimal()+
     labs(x = "error (m/s)",
-         title = "Errors between observed speeds and the mean realised speed for that simulation run")+
+         title = paste0("Errors between each observed speed and mean realised speed\n", filename))+
     geom_vline(xintercept = 0, linetype = "dashed")+
-    geom_text(x = -1, y = 0.1, label = "real > obs", size = 3)+
-    geom_text(x = 1, y = 0.1, label = "obs > real", size = 3)+
+    geom_text(x = -1, y = 0.1, label = "real > obs", size = 5, colour = "red")+
+    geom_text(x = 1, y = 0.1, label = "obs > real", size = 5, colour = "red")+
     theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15))
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
   
-  png(file=paste0(parentfolder, "PLOTS/sp", meta$speed_parameter, "_obs.png"),
+  png(file=paste0("path_results/PLOTS/sp", speed_parameter, "_obs.png"),
       width=700, height=600)
   real_obs_plot
   dev.off()
-  
   
   # realised vs estimates plot:
   real_est_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
                             method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
   
-  real_est_plot <- ggplot(real_est_df, aes(x = method, y = error))+
+  real_est_plot <- ggplot(real_est_df, aes(x = method, y = error, colour = method))+
     geom_boxplot()+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15))+
+    guides(colour = "none")+
     geom_vline(xintercept = 0, linetype = "dashed")+
     geom_text(x = -1, y = 0.1, label = "real > est", size = 3)+
     geom_text(x = 1, y = 0.1, label = "est > real", size = 3)+
-    coord_flip() ## TO DO: JUST NEED TO EDIT THIS TO MAKE IT LOOK NICE ONCE IT'S DONE
+    coord_flip()+
+    theme_minimal()+
+    labs(y = "error (m/s)",
+         title = paste0("Errors between estimated speeds and mean realised speed\n", filename))+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
   
-  png(file=paste0(parentfolder, "PLOTS/sp", meta$speed_parameter, "_est.png"),
+  png(file=paste0("path_results/PLOTS/sp", speed_parameter, "_est.png"),
       width=700, height=600)
   real_est_plot
   dev.off()
-  
 }
 
 
@@ -1132,7 +1086,7 @@ sbm <- function(formula, data, pdf=c("lnorm", "gamma", "weibull"),
                 var.range=c(-4,4), trace=FALSE){
   dstrbn=match.arg(pdf)
   y <- model.response(model.frame(formula, data))
-  lmn <- log(hmean(y)[1])
+  lmn <- log(hmean_calc(y)[1])
   lv <- switch(dstrbn,
                lnorm = log(sd(log(y))),
                gamma = log(exp(lmn)/var(y)),

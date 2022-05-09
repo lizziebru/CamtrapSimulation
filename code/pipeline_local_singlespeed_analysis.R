@@ -15,4 +15,3 @@ iter <- c(1:45)
 
 # analyse the results and store plots in PLOTS folder:
 singlespeed_analyse(speed_parameter, iter)
-# --> why does this not run??

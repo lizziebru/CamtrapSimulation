@@ -15,7 +15,7 @@ pathfolder <- paste0("sp0.13_30Apr22_1053/")
 # iter <- 100 
 
 # set range of paths to run the simulation on:
-path_nos <- c(1:45)
+path_nos <- c(14:60)
 
 # set additional parameters:
 species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores

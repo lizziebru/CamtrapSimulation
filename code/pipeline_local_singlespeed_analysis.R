@@ -5,6 +5,7 @@ rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
 require(ggplot2)
+require(ggpubr)
 
 # set which speed parameter to analyse results for
 speed_parameter <- 0.2

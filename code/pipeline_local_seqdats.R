@@ -2,6 +2,8 @@
 # runs the simulation using the pre-generated paths from the path_results folder
 # stores plot of the first simulation run in the same folder as the paths
 
+setwd("~/Documents/Project/CamtrapSimulation/code")
+
 rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
@@ -9,13 +11,13 @@ source("CamtrapSimulation.R", echo=TRUE)
 parentfolder <- paste0("path_results/") 
 
 # set which speed to analyse paths in:
-pathfolder <- paste0("sp0.13_30Apr22_1053/")
+pathfolder <- paste0("sp0.09_29Apr22_1609/")
 
 # # set number of iterations of the path
 # iter <- 100 
 
 # set range of paths to run the simulation on:
-path_nos <- c(14:60)
+path_nos <- c(16:40)
 
 # set additional parameters:
 species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores

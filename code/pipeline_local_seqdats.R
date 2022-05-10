@@ -8,7 +8,7 @@ rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
 # set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("path_results/") 
+parentfolder <- paste0("../results/") 
 
 # set which speed to analyse paths in:
 pathfolder <- paste0("sp0.09_29Apr22_1609/")

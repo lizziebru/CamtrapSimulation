@@ -866,7 +866,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
   gamma_errors <- c()
   weibull_errors <- c()
   for (i in iter){
-    load(paste0("path_results/seq_dats/sp", speed_parameter, "iter", i, ".RData"))
+    load(paste0("../results/seq_dats/sp", speed_parameter, "iter", i, ".RData"))
     estimates <- estimates_calc(seq_dats)
     filename <- paste0("sp", metadata_sim$speed_parameter, # filename for storing plots
                        "_speedSD", metadata_sim$speedSD,
@@ -924,7 +924,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
   
   arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
   
-  png(file=paste0("path_results/PLOTS/sp", speed_parameter, ".png"),
+  png(file=paste0("../results/PLOTS/sp", speed_parameter, ".png"),
       width=900, height=700)
   annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), 
                                         color = "red", face = "bold", size = 14))
@@ -950,7 +950,7 @@ multispeed_analyse <- function(sp_and_iters){
   for (i in sp_and_iters$speed_parameter){
     iter_range <- c(1:sp_and_iters[sp_and_iters$speed_parameter==i,]$iter)
     for (j in iter_range){
-      load(paste0("path_results/seq_dats/sp", i, "iter", j, ".RData"))
+      load(paste0("../results/seq_dats/sp", i, "iter", j, ".RData"))
       estimates <- estimates_calc(seq_dats)
       filename <- paste0("speedSD", metadata_sim$speedSD, # filename for storing plots
                          "_pTurn", metadata_sim$pTurn,
@@ -1029,7 +1029,7 @@ multispeed_analyse <- function(sp_and_iters){
   
   arranged <- ggarrange(real_obs_plot_means, real_est_plot, nrow = 2)
   
-  png(file=paste0("path_results/PLOTS/multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+  png(file=paste0("../results/PLOTS/multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
       width=700, height=500)
   annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), 
                                             color = "red", face = "bold", size = 14))

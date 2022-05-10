@@ -893,7 +893,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
     geom_density(size = 1)+
     theme_minimal()+
     labs(x = "error (m/s)",
-         title = "Errors between each observed speed and mean realised speed")+
+         title = "Errors between MRS and each observed speed")+
     geom_vline(xintercept = 0, linetype = "dashed")+
     geom_text(x = -1, y = 0.1, label = "real > obs", size = 5, colour = "blue")+
     geom_text(x = 1, y = 0.1, label = "obs > real", size = 5, colour = "blue")+
@@ -916,7 +916,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
     coord_flip()+
     theme_minimal()+
     labs(y = "error (m/s)",
-         title = "Errors between estimated speeds and mean realised speed")+
+         title = "Errors between MRS and estimated speeds")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))+
@@ -924,7 +924,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
   
   arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
   
-  pdf(file=paste0("path_results/PLOTS/sp", speed_parameter, ".pdf"),
+  png(file=paste0("path_results/PLOTS/sp", speed_parameter, ".png"),
       width=900, height=700)
   annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), 
                                         color = "red", face = "bold", size = 14))
@@ -932,7 +932,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
   dev.off()
 }
 
-## multispeed_analyse - TO DO: FINISH MAKING THIS FUNCTION - NEED TO FIX REALISED-OBS PLOT AND GGARRANGE THEM
+## multispeed_analyse
 # analyses simulation results from multiple different speed parameters and combines them into one plot saved to PLOTS folder
 # INPUT
 # sp_and_iters - dataframe of speed parameters to analyse and number of iters of each to use
@@ -982,8 +982,33 @@ multispeed_analyse <- function(sp_and_iters){
   
   real_obs_plot <- ggplot(real_obs_df, aes(x = mean_real, y = error))+
     geom_point()+
-    geom_smooth()
-  real_obs_plot
+    geom_smooth()+
+    labs(x = "Mean realised speed (m/s)",
+         y = "error (m/s)")+
+    theme_minimal()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
+  
+  # using mean of each MRS set of errors:
+  obs_meanreal_errors_mean <- c()
+  for (i in unique(real_obs_df$mean_real)){
+    d <- real_obs_df[real_obs_df$mean_real==i,]
+    obs_meanreal_errors_mean <- c(obs_meanreal_errors_mean, mean(d$error))
+  }
+  real_obs_df_means <- data.frame(mean_real = mean_reals,
+                                  error = obs_meanreal_errors_mean)
+  real_obs_plot_means <- ggplot(real_obs_df_means, aes(x = mean_real, y = error))+
+    geom_point()+
+    geom_smooth()+
+    labs(x = "Mean realised speed (m/s)",
+         y = "error (m/s)",
+         title = "Mean errors between MRS and observed speeds")+
+    theme_minimal()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
+  
   # estimated speeds plot
   real_est_df <- data.frame(mean_real=mean_reals, 
                              error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
@@ -995,78 +1020,22 @@ multispeed_analyse <- function(sp_and_iters){
     theme_minimal()+
     labs(x = "Mean realised speed (m/s)",
          y = "Error (m/s)",
-         title = "Error between mean realised speed and estimated speeds across different mean realised speeds")+
+         title = "Errors between MRS and estimated speeds")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           legend.title = element_text(size = 18),
           legend.text = element_text(size = 15),
           title = element_text(size = 13))
   
-  arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
+  arranged <- ggarrange(real_obs_plot_means, real_est_plot, nrow = 2)
   
   png(file=paste0("path_results/PLOTS/multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=700)
-  annotate_figure(arranged, top = text_grob(paste0(filename), 
+      width=700, height=500)
+  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), 
                                             color = "red", face = "bold", size = 14))
+  print(annotated)
   dev.off()
 }
-
-
-## multi_analyse_est_errors
-# analyse simulation results across different speeds (but same parameters)
-# INPUT
-# parentfolder = folder containing multiple simulation repeats of different speeds for the same parameters - will read in data from the estimates_errors folder
-# speed_parameters = range of speeds to analyse
-# OUTPUTS
-# plot of errors between mean realised speed and estimated speed for different mean realised speeds and different methods of estimated average speed - saved to the PLOTS folder within the parent folder
-multi_analyse_est_errors <- function(parentfolder, speed_parameters){
-  # load in each estimates_df and combine into one big one
-  mean_reals <- c()
-  hmeans <- c()
-  lnorms <- c()
-  gammas <- c()
-  weibulls <- c()
-  hmean_errors <- c()
-  lnorm_errors <- c()
-  gamma_errors <- c()
-  weibull_errors <- c()
-  
-  for (i in speeds){
-    load(paste0(parentfolder, "estimates_errors/sp", i, ".RData"))
-    mean_reals <- c(mean_reals, estimates_df$mean_real)
-    hmeans <- c(hmeans, estimates_df$hmean)
-    lnorms <- c(lnorms, estimates_df$lnorm)
-    gammas <- c(gammas, estimates_df$gamma)
-    weibulls <- c(weibulls, estimates_df$weibull)
-    hmean_errors <- c(hmean_errors, estimates_df$hmean_error)
-    lnorm_errors <- c(lnorm_errors, estimates_df$lnorm_error)
-    gamma_errors <- c(gamma_errors, estimates_df$gamma_error)
-    weibull_errors <- c(weibull_errors, estimates_df$weibull_error)
-  } 
-  
-  estimates_df <- data.frame(mean_real=mean_reals, 
-                             error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
-                             Method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
-                    
-  real_est_error_multispeeds <- ggplot(estimates_df, aes(x = mean_real, y = error, colour = method))+
-    geom_point()+
-    geom_line()+
-    theme_minimal()+
-    labs(x = "Mean realised speed (m/s)",
-         y = "Error between mean realised speed and estimated speed (m/s)")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15))
-  
-  png(file=paste0(parentfolder, "PLOTS/real_est_errors_multi.png"),
-      width=700, height=600)
-  real_est_error_multispeeds
-  dev.off()
-  
-}
-
-
 
 
 ## path_list

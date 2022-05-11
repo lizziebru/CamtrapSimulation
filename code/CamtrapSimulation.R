@@ -39,13 +39,13 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # speedCor: autocorrelation in speed
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
-# wrap: whether to wrap the path
+# wrapped: whether to wrap the path
 # OUTPUT:
 # A list with elements:
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
-pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrap=FALSE){
+pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
   spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
   # so you're generating a normal distribution of variates on the log scale (using logspeed)
@@ -66,7 +66,7 @@ pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pT
   absdevs[i] <- 2*pi-absdevs[i]
   absdevs <- abs(absdevs)
   res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
-  if(wrap) res <- wrap(res, xlim, ylim)
+  if(wrapped) res <- wrap(res, xlim, ylim)
   res
 }
 

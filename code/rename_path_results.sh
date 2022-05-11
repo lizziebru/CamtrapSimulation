@@ -3,7 +3,7 @@
 
 # arguments: name of folder containing the set of 100 path runs
 
-cd path_results
+cd ../results
 
 mkdir $1
 
@@ -13,7 +13,7 @@ cd $1
 
 tar xzvf *.tgz
 
-for i in {1..100..1}
+for i in {1..50..1}
 do
 	mv *iter${i}.RData iter${i}.RData
 done

@@ -732,8 +732,10 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
     posdat_all <- rbind(posdat_all1, posdat_all2)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
-  v <- calc_speed(posdat) # speeds of sequences
+  v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
   
+  observed <- v$speed
+  observed <- observed[is.finite(observed)]
   
   ##### work out things to store in the output list #############################################################################################################
   
@@ -748,7 +750,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
   
   ### realised speeds:
   r_lengths <- round(mean(obs_lengths)) # use mean of lengths of observed speed sequences as the number of position data points to use in realised speed segments
-  realised_spds <- replicate(length(v$speed),{
+  realised_spds <- replicate(length(observed),{ # set number of realised speeds to select as the number of observed speeds (having removed NaNs and Inf)
     mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
   })
   
@@ -785,7 +787,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
   
   # make output list
   output_list <- list(realised = realised_spds,
-                      observed = v$speed,
+                      observed = observed,
                       obs_lengths = obs_lengths,
                       n_singles = n_singles,
                       n_zeros = n_zeros,
@@ -815,7 +817,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
 # saved seq_dats.RData files in seq_dats folder
 generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
   for (i in path_nos){
-    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
+    # load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
     if (i == 1){
       plot_path <- TRUE # only plot for the first one to save some time
     }
@@ -859,14 +861,35 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
 # combined plot saved to PLOTS folder
 singlespeed_analyse <- function(speed_parameter, iter){
   # concatenate results into a df:
+  
+  # concatenate the following from all the repeats:
   mean_reals <- c()
   obs_meanreal_errors <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
   hmean_errors <- c()
   lnorm_errors <- c()
   gamma_errors <- c()
   weibull_errors <- c()
+  
+  # concatenate the following from just the first rep:
+  reals <- c()
+  obs <- c() 
+  hmean <- c() 
+  lnorm <- c() 
+  gamma <- c()
+  weibull <- c()
+  
   for (i in iter){
     load(paste0("../results/seq_dats/sp", speed_parameter, "iter", i, ".RData"))
+    if (i == 1){
+      reals <- c(reals, seq_dats$realised)
+      obs <- c(obs, seq_dats$observed)
+      obs <- obs[is.finite(obs)]
+      estimates_1 <- estimates_calc(seq_dats)
+      hmean <- estimates_1$hmean
+      lnorm <- estimates_1$lnorm
+      gamma <- estimates_1$gamma
+      weibull <- estimates_1$weibull
+    }
     estimates <- estimates_calc(seq_dats)
     filename <- paste0("sp", metadata_sim$speed_parameter, # filename for storing plots
                        "_speedSD", metadata_sim$speedSD,
@@ -887,48 +910,113 @@ singlespeed_analyse <- function(speed_parameter, iter){
   }
   estimates_df <- data.frame(iter = c(iter), mean_real=mean_reals, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
   
-  # realised versus observed speeds plot:
-  real_obs_df <- data.frame(error = obs_meanreal_errors)
-  real_obs_plot <- ggplot(real_obs_df, aes(x = error))+
+  # realised vs observed speeds plot:
+  real_obs_df <- data.frame(realised = reals,
+                            observed = obs)
+  
+  
+  
+  # realised vs observed speeds errors plot:
+  real_obs_errors_df <- data.frame(error = obs_meanreal_errors)
+  real_obs_errors_plot <- ggplot(real_obs_errors_df, aes(x = error))+
     geom_density(size = 1)+
     theme_minimal()+
     labs(x = "error (m/s)",
-         title = "Errors between MRS and each observed speed")+
+         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)"))+
     geom_vline(xintercept = 0, linetype = "dashed")+
     geom_text(x = -1, y = 0.1, label = "real > obs", size = 5, colour = "blue")+
     geom_text(x = 1, y = 0.1, label = "obs > real", size = 5, colour = "blue")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))
+  real_obs_errors_plot
   
-  # realised vs estimates plot:
-  real_est_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
+  
+  # realised vs estimates plot: - go from here: might need to faff about to get a nice plot working - make it just for the first repeat btw!
+  real_est_df <- data.frame(speed = c(reals, obs),
+                            type = c(rep("realised", length(reals)), rep("observed", length(obs))))
+  real_est_plot <- ggplot(real_est_df, aes(x = speed, colour = type))+
+    geom_boxplot()+
+    theme_minimal()+
+    geom_hline(xintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
+    geom_hline(xintercept = )
+    theme(axis.title = element_text(size = 18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "speed (m/s)",
+         title = "Distribution of speeds with MRS, MOS, and estimated speeds")
+  real_est_plot
+  
+
+  
+  # list_all <- list(reals, harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), SBM_weibull = as.numeric(mods_predict_weibull))
+  # len <- max(lengths(list_all))
+  # cols <- lapply(list_all, function(l) c(l, rep(NA, len - length(l))))
+  # boxplot_df <- as.data.frame(Reduce(cbind, cols, init = NULL))
+  # colnames(boxplot_df) <- c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull")
+  # 
+  # # make it in a different format - better for plotting
+  # box_df <- data.frame(measure = c(rep("measured", length(measured_speeds)), 
+  #                                  rep("hmean", length(harmonics[1,])), 
+  #                                  rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), 
+  #                                  rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), 
+  #                                  rep("SBM_weibull", length(as.numeric(mods_predict_weibull)))),
+  #                      speed = c(measured_speeds, 
+  #                                harmonics[1,], 
+  #                                as.numeric(mods_predict_lnorm), 
+  #                                as.numeric(mods_predict_gamma), 
+  #                                as.numeric(mods_predict_weibull)))
+  # 
+  # 
+  # # set specific order to make plot clearer
+  # box_df$measure <- factor(box_df$measure , levels=c("SBM_weibull", "SBM_gamma", "SBM_lnorm","hmean", "measured"))
+  # 
+  # # plot:
+  # box <- ggplot(box_df, aes(x = measure, y = speed, fill = measure))+ 
+  #   geom_boxplot(notch = TRUE)+
+  #   coord_flip()+
+  #   theme_minimal()+
+  #   theme(legend.position="none")+
+  #   labs(y = "speed (m/s)")
+  #   
+  
+  
+  
+  
+  real_est_errors_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
                             method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
   
-  real_est_plot <- ggplot(real_est_df, aes(x = method, y = error, colour = method))+
+  real_est_errors_plot <- ggplot(real_est_errors_df, aes(x = method, y = error, colour = method))+
     geom_boxplot()+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15))+
     guides(colour = "none")+
     geom_hline(yintercept = 0, linetype = "dashed")+
-    geom_text(x = "hmean", y = -0.1, label = "real > est", size = 5, colour = "blue")+
+    geom_text(x = "hmean", y = -0.2, label = "real > est", size = 5, colour = "blue")+
     #geom_text(y = 0.01, label = "est > real", size = 3)+
     coord_flip()+
     theme_minimal()+
     labs(y = "error (m/s)",
-         title = "Errors between MRS and estimated speeds")+
+         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)"))+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))+
-    ylim((min(real_est_df$error)-0.2), 0.01)
+    ylim((min(real_est_errors_df$error)-0.2), 0.01)
+  real_est_errors_plot
   
   arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
+  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), colour = "red", face = "bold", size = 14))
+  errors_arranged <- ggarrange(real_obs_errors_plot, real_est_errors_plot, nrow = 2)
+  errors_annotated <- annotate_figure(errors_arranged, top = text_grob(paste0(filename), colour = "red", face = "bold", size = 14))
   
   png(file=paste0("../results/PLOTS/sp", speed_parameter, ".png"),
       width=900, height=700)
-  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), 
-                                        color = "red", face = "bold", size = 14))
   print(annotated)
+  dev.off()
+  
+  png(file=paste0("../results/PLOTS/sp", speed_parameter, "_errors.png"),
+      width=900, height=700)
+  print(errors_annotated)
   dev.off()
 }
 

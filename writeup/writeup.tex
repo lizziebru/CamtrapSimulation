@@ -11,7 +11,8 @@
 \usepackage{booktabs}
 \bibliographystyle{unsrtnat}
 \usepackage{graphicx}
-
+\usepackage[textwidth=2.5cm, textsize=small]{todonotes} % Add option "disable" to disable todo notes
+\newcommand{\tocite}{\todo[color=red!40]{cite}}
 
 \title{\textbf{Estimating average speed of movement from camera trap data}}
 \author[1]{Lizzie Bru}
@@ -34,13 +35,13 @@
 	
 	intro of diff methods for working out animal density using CTs:
 	- see Rovero et al. 2013 for a nice summary
-	- plus also Li et al. 2022
+	- plus also Li et al. 2022 \tocite
 	
 	introduce REM
 	- first put forward in Rowcliffe et al. 2008
 	- then improved in Rowcliffe et al. 2011 (distance detection probability paper)
 	- then again in Rowcliffe et al. 2016
-	- first field test by Rovero et al. 2009
+	- first field test by Rovero et al. 2009\todo[color=yellow!40, inline]{help me}
 	
 	to do REM well, need to be able to work out animal average speed of movement
 	

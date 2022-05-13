@@ -228,75 +228,6 @@ outside_buffer <- function(x1, y1, x2, y2, dz, max_real){
 }
 
 
-## zero_frame
-# INPUT:
-# paired points = 6-column dataframe containing paired points and whether they break the loop
-#       required column headings: x1, y2, breaks1, x2, y2, breaks2
-# dz = four column array of parameters defining a sector-shaped detection zone
-#       required column headings: x, y (xy coords of the camera), r (radius), th (angle)
-# posdat_all = dataframe of all points that fell into the dz
-#       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
-# OUTPUT:
-# vector of values for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
-zero_frame <- function(paired_points, dz, posdat_all, max_real){
-  x1 <- paired_points[1]
-  y1 <- paired_points[2]
-  breaks1 <- paired_points[3]
-  x2 <- paired_points[4]
-  y2 <- paired_points[5]
-  breaks2 <- paired_points[6]
-  p_line <- data.frame(x1 = x1, y1 = y1, x2 = x2, y2 = y2) # line between the two points
-  dzx1 <- dz[1,1] # x coord of the camera
-  dzy1 <- dz[1,2] # y coord of the camera
-  r <- dz[1,3] # radius of dz
-  th <- dz[1,4] # angle of dz
-  xdiff <- r*sin(th)
-  ydiff <- r*cos(th)
-  dzx2 <- dzx1 - xdiff # x coord of left tip of dz
-  dzy2 <- dzy1 + ydiff # y coord of left tip of dz
-  dzx3 <- dzx1 + xdiff # x coord of right tip of dz
-  dzy3 <- dzy2 # y coord of right tip of dz
-  dz_line1 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx2, y2 = dzy2) # LHS line of dz
-  dz_line2 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx3, y3 = dzy3) # RHS line of dz
-  dz_arc <- data.frame(x = dzx1, y = dzy1, r = r, th = th) # arc of the dz
-  
-  if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y)){
-    zero <- 0 # not a zero frame if one or both points fall in the dz 
-  }
-  else{
-    if (breaks1 != breaks2){
-      zero <- 0 # not a zero frame if the animal looped round the back to get between the points
-    }
-    else{
-      if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
-        zero <- 0 # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
-      }
-      else{ # for all remaining points:
-        cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
-        cross2 <- lines_cross(p_line, dz_line2) # ditto
-        cross3 <- line_arc_cross(p_line, dz_arc) # ditto
-        cross_sum <- sum(cross1, cross2, cross3) 
-        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame with a value given by the detection probability of the midpoint between the two points
-          mx <- (x1+x2)/2 # midpoint x coord
-          my <- (y1+y2)/2 # midpoint y coord
-          midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-          if (species == 0){
-            prob_detect <- small_radius(midpoint_radius) * 3.340884
-          }
-          if (species == 1){
-            prob_detect <- large_radius(midpoint_radius) * 2.767429
-          }
-          zero <- prob_detect
-        }
-        else{
-          zero <- 0
-        }
-      }
-    }
-  }
-  return(zero)
-}
-
 
 ## extract_realised
 # extract sets of speeds of length r_lengths
@@ -691,6 +622,73 @@ sequence_data <- function(pth, dzone, species){
 }
 
 
+## zero_frame
+# INPUT:
+# paired points = 6-column dataframe containing paired points and whether they break the loop
+#       required column headings: x1, y2, breaks1, x2, y2, breaks2
+# dz = four column array of parameters defining a sector-shaped detection zone
+#       required column headings: x, y (xy coords of the camera), r (radius), th (angle)
+# posdat_all = dataframe of all points that fell into the dz
+#       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
+# OUTPUT:
+# vector of values for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
+zero_frame <- function(paired_points, dz, posdat_all, max_real){
+  x1 <- paired_points[1]
+  y1 <- paired_points[2]
+  breaks1 <- paired_points[3]
+  x2 <- paired_points[4]
+  y2 <- paired_points[5]
+  breaks2 <- paired_points[6]
+  p_line <- data.frame(x1 = x1, y1 = y1, x2 = x2, y2 = y2) # line between the two points
+  dzx1 <- dz[1,1] # x coord of the camera
+  dzy1 <- dz[1,2] # y coord of the camera
+  r <- dz[1,3] # radius of dz
+  th <- dz[1,4] # angle of dz
+  xdiff <- r*sin(th)
+  ydiff <- r*cos(th)
+  dzx2 <- dzx1 - xdiff # x coord of left tip of dz
+  dzy2 <- dzy1 + ydiff # y coord of left tip of dz
+  dzx3 <- dzx1 + xdiff # x coord of right tip of dz
+  dzy3 <- dzy2 # y coord of right tip of dz
+  dz_line1 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx2, y2 = dzy2) # LHS line of dz
+  dz_line2 <- data.frame(x1 = dzx1, y1 = dzy1, x2 = dzx3, y3 = dzy3) # RHS line of dz
+  dz_arc <- data.frame(x = dzx1, y = dzy1, r = r, th = th) # arc of the dz
+  
+  if ((x1 %in% posdat_all$x & y1 %in% posdat_all$y) | (x2 %in% posdat_all$x & y2 %in% posdat_all$y)){
+    zero <- 0 # not a zero frame if one or both points fall in the dz 
+  }
+  else if (breaks1 != breaks2){
+      zero <- 0 # not a zero frame if the animal looped round the back to get between the points
+    }
+    else if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
+        zero <- 0 # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
+      }
+      else { # for all remaining points:
+        cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
+        cross2 <- lines_cross(p_line, dz_line2) # ditto
+        cross3 <- line_arc_cross(p_line, dz_arc) # ditto
+        cross_sum <- sum(cross1, cross2, cross3) 
+        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame with a value given by the detection probability of the midpoint between the two points
+          mx <- (x1+x2)/2 # midpoint x coord
+          my <- (y1+y2)/2 # midpoint y coord
+          midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
+          if (species == 0){
+            prob_detect <- small_radius(midpoint_radius) * 3.340884
+          }
+          if (species == 1){
+            prob_detect <- large_radius(midpoint_radius) * 2.767429
+          }
+          zero <- prob_detect
+        }
+        else{
+          zero <- 0
+        }
+      }
+  return(zero)
+}
+
+
+
 
 
 # run_simulation
@@ -817,7 +815,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
 # saved seq_dats.RData files in seq_dats folder
 generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
   for (i in path_nos){
-    # load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
+    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
     if (i == 1){
       plot_path <- TRUE # only plot for the first one to save some time
     }
@@ -847,7 +845,7 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
                          twoCTs = twoCTs,
                          connectedCTs = connectedCTs)
     
-    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/sp", metadata_sim$speed_parameter, "iter", i, ".RData"))
+    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/sp", exp(metadata_sim$speed_parameter), "iter", i, ".RData"))
     rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
   }
 }

@@ -453,8 +453,10 @@ line_arc_cross <- function(line, arc){
   
   t <- quad(a, b, c) # solve for t using quadratic formula
   
-  if (is.na(t) == TRUE){ # if no solutions to t: they don't intersect
+  if (length(t) < 2) {
+    if (is.na(t)) { # if no solutions to t: they don't intersect
     answer <- 0
+    }
   }
   else{
     # use values of t to find x and y then check if the corresponding theta lies along the arc (i.e. check whether when they do intersect it's along that specific arc of the circle)
@@ -817,7 +819,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
 # saved seq_dats.RData files in seq_dats folder
 generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
   for (i in path_nos){
-    # load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
+    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
     if (i == 1){
       plot_path <- TRUE # only plot for the first one to save some time
     }
@@ -883,7 +885,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
     if (i == 1){
       reals <- c(reals, seq_dats$realised)
       obs <- c(obs, seq_dats$observed)
-      obs <- obs[is.finite(obs)] # will be able to comment this out when start analysing new sets of results
+      obs <- obs[is.finite(obs)]
       estimates_1 <- estimates_calc(seq_dats)
       hmean <- estimates_1$hmean
       lnorm <- estimates_1$lnorm
@@ -912,9 +914,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
   
   # realised vs observed speeds plot:
   real_obs_df <- data.frame(realised = reals,
-                            observed = obs) ## TO DO: GO FROM HERE - MAKE THIS PLOT AND THE OTHER ONE TOO
-  
-  
+                            observed = obs)
   
   # realised vs observed speeds errors plot:
   real_obs_errors_df <- data.frame(error = obs_meanreal_errors)

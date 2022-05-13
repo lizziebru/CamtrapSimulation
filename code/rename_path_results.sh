@@ -18,7 +18,7 @@ do
 	mv *iter${i}.RData iter${i}.RData
 done
 
-rm *.tgz
+#rm *.tgz   # learnt from mistakes: don't do this until you've checked that the untarred files are ok
 
 #counter=0
 #for file in *.RData; do

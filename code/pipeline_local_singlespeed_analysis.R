@@ -8,10 +8,10 @@ require(ggplot2)
 require(ggpubr)
 
 # set which speed parameter to analyse results for
-speed_parameter <- 0.13
+speed_parameter <- 0.08
 
 # set range of seq_dats to analyse
-iter <- c(1:52)
+iter <- c(1:16)
 
 # analyse the results and store plots in PLOTS folder:
 singlespeed_analyse(speed_parameter, iter)

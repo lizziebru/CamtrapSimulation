@@ -891,7 +891,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
       weibull <- estimates_1$weibull
     }
     estimates <- estimates_calc(seq_dats)
-    filename <- paste0("sp", metadata_sim$speed_parameter, # filename for storing plots
+    filename <- paste0("sp", exp(metadata_sim$speed_parameter), # filename for storing plots
                        "_speedSD", metadata_sim$speedSD,
                        "_pTurn", metadata_sim$pTurn,
                        "_speedCor", metadata_sim$speedCor,
@@ -911,8 +911,24 @@ singlespeed_analyse <- function(speed_parameter, iter){
   estimates_df <- data.frame(iter = c(iter), mean_real=mean_reals, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
   
   # realised vs observed speeds plot:
-  real_obs_df <- data.frame(realised = reals,
-                            observed = obs)
+  # diff_in_length <- length(reals)-length(obs) # sometimes they're not the same length (bc of NaNs and Inf in obs)
+  # real_obs_df <- data.frame(realised = reals,
+  #                           observed = c(obs, rep(NA, times = diff_in_length)))
+  real_obs_df <- data.frame(speed = c(reals, obs),
+                            type = c(rep("realised", length(reals)), rep("observed", length(obs))))
+  
+  real_obs_plot <- ggplot(real_obs_df, aes(x = speed, colour = type))+
+    geom_density(size = 0.8)+
+    scale_colour_manual(values = c("red", "blue"))+
+    theme_minimal()+
+    labs(x = "speed (m/s)",
+         title = "Distributions of realised and observed speeds\n(for one simulation run)")+
+    theme(legend.title = element_blank(),
+          axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13),
+          legend.text = element_text(size = 15))
+  
   
   # realised vs observed speeds errors plot:
   real_obs_errors_df <- data.frame(error = obs_meanreal_errors)
@@ -922,64 +938,42 @@ singlespeed_analyse <- function(speed_parameter, iter){
     labs(x = "error (m/s)",
          title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)"))+
     geom_vline(xintercept = 0, linetype = "dashed")+
-    geom_text(x = -1, y = 0.1, label = "real > obs", size = 5, colour = "blue")+
-    geom_text(x = 1, y = 0.1, label = "obs > real", size = 5, colour = "blue")+
+    geom_text(x = -1, y = 1, label = "real > obs", size = 5, colour = "blue")+
+    geom_text(x = 1, y = 1, label = "obs > real", size = 5, colour = "blue")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))
-  real_obs_errors_plot
   
   
   # realised vs estimates plot: - go from here: might need to faff about to get a nice plot working - make it just for the first repeat btw!
   real_est_df <- data.frame(speed = c(reals, obs),
                             type = c(rep("realised", length(reals)), rep("observed", length(obs))))
-  real_est_plot <- ggplot(real_est_df, aes(x = speed, colour = type))+
+  # for the purposes of plotting: remove long tail of realised speeds:
+  reals1 <- reals[reals<3]
+  obs1 <- obs[obs<3]
+  real_est_df1 <- data.frame(speed = c(reals1, obs1),
+                            type = c(rep("realised", length(reals1)), rep("observed", length(obs1))))
+  
+  hline_df <- data.frame(value = c(speed_parameter, mean(reals), mean(obs), hmean, lnorm, gamma, weibull),
+                         valtype = c("speed parameter", "MRS", "MOS", "hmean", "lnorm", "gamma", "weibull"))
+  
+  real_est_plot <- ggplot(real_est_df1, aes(x = speed, y = type))+
     geom_boxplot()+
     theme_minimal()+
-    geom_hline(xintercept = exp(speed_parameter), colour = "blue", linetype = "dashed")+
-    geom_hline(xintercept = )
+    geom_vline(data = hline_df,
+               aes(xintercept = value, colour = valtype, linetype = valtype))+
+    #scale_colour_manual(values = c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7"))+
+    scale_colour_manual(values = c("red", "blue", "green", "black", "purple", "orange", "cyan"))+
     theme(axis.title = element_text(size = 18),
           axis.text = element_text(size = 15),
-          title = element_text(size = 13))+
+          title = element_text(size = 13),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = "bottom",
+          legend.key.size = unit(1, "cm"))+
     labs(x = "speed (m/s)",
-         title = "Distribution of speeds with MRS, MOS, and estimated speeds")
-  real_est_plot
-  
-
-  
-  # list_all <- list(reals, harmonics[1,], as.numeric(mods_predict_lnorm), as.numeric(mods_predict_gamma), SBM_weibull = as.numeric(mods_predict_weibull))
-  # len <- max(lengths(list_all))
-  # cols <- lapply(list_all, function(l) c(l, rep(NA, len - length(l))))
-  # boxplot_df <- as.data.frame(Reduce(cbind, cols, init = NULL))
-  # colnames(boxplot_df) <- c("measured", "hmean", "SBM_lnorm", "SBM_gamma", "SBM_weibull")
-  # 
-  # # make it in a different format - better for plotting
-  # box_df <- data.frame(measure = c(rep("measured", length(measured_speeds)), 
-  #                                  rep("hmean", length(harmonics[1,])), 
-  #                                  rep("SBM_lnorm", length(as.numeric(mods_predict_lnorm))), 
-  #                                  rep("SBM_gamma", length(as.numeric(mods_predict_gamma))), 
-  #                                  rep("SBM_weibull", length(as.numeric(mods_predict_weibull)))),
-  #                      speed = c(measured_speeds, 
-  #                                harmonics[1,], 
-  #                                as.numeric(mods_predict_lnorm), 
-  #                                as.numeric(mods_predict_gamma), 
-  #                                as.numeric(mods_predict_weibull)))
-  # 
-  # 
-  # # set specific order to make plot clearer
-  # box_df$measure <- factor(box_df$measure , levels=c("SBM_weibull", "SBM_gamma", "SBM_lnorm","hmean", "measured"))
-  # 
-  # # plot:
-  # box <- ggplot(box_df, aes(x = measure, y = speed, fill = measure))+ 
-  #   geom_boxplot(notch = TRUE)+
-  #   coord_flip()+
-  #   theme_minimal()+
-  #   theme(legend.position="none")+
-  #   labs(y = "speed (m/s)")
-  #   
-  
-  
-  
+         y = "",
+         title = "Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run)")
   
   real_est_errors_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
                             method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
@@ -1000,12 +994,11 @@ singlespeed_analyse <- function(speed_parameter, iter){
           axis.text = element_text(size = 15),
           title = element_text(size = 13))+
     ylim((min(real_est_errors_df$error)-0.2), 0.01)
-  real_est_errors_plot
   
   arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
-  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), colour = "red", face = "bold", size = 14))
+  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
   errors_arranged <- ggarrange(real_obs_errors_plot, real_est_errors_plot, nrow = 2)
-  errors_annotated <- annotate_figure(errors_arranged, top = text_grob(paste0(filename), colour = "red", face = "bold", size = 14))
+  errors_annotated <- annotate_figure(errors_arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
   
   png(file=paste0("../results/PLOTS/sp", speed_parameter, ".png"),
       width=900, height=700)

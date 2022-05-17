@@ -13,24 +13,25 @@ panama_data <- read.csv("../data/panama_data.csv")
 
 # make df of parameter estimates (mean, CV, and logcv) from fitting log normal distributions to each species
 
-data_all <- data.frame(species = c(as.character(regentspark_mov_data$species), as.character(india_mov_data$species), as.character(panama_data$species)),
-                       speed = c(regentspark_mov_data$speed, india_mov_data$speed, panama_data$speed))
-
-data_all$species <- as.character(data_all$species)
+data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 species <- c()
+size <- c()
 mean <- c()
+SD <- c()
 CV <- c()
 logCV <- c()
-for (i in unique(data_all$species)){
-  spds <- data_all[data_all$species==i,]$speed
+for (i in unique(data_all_cats$species)){
+  spds <- data_all_cats[data_all_cats$species==i,]$speed
   species <- c(species, i)
+  size <- c(size, as.character(data_all_cats[data_all_cats$species==i,]$size[1]))
   mean <- c(mean, mean(spds)) 
+  SD <- c(SD, sd(spds))
   CV <- c(CV, (sd(spds)/mean(spds))) # CV = sd/mean
   logCV <- c(logCV, log(sd(spds)/mean(spds)))
 }
 
-parameter_est_df <- data.frame(species = species, mean = mean, CV = CV, logCV = logCV)
+parameter_est_df <- data.frame(species = species, size = size, mean = mean, SD = SD, CV = CV, logCV = logCV)
 
 # write.csv(parameter_est_df, file = "../data/parameter_est_df.csv")
 
@@ -56,6 +57,14 @@ ggarrange(rp_speeds, india_speeds, panama_speeds, nrow = 3)
 
 
 # 2. All together ---------------------------------------------------------
+
+
+data_all <- data.frame(species = c(as.character(regentspark_mov_data$species), as.character(india_mov_data$species), as.character(panama_data$species)),
+                       speed = c(regentspark_mov_data$speed, india_mov_data$speed, panama_data$speed))
+
+data_all$species <- as.character(data_all$species)
+
+
 
 # # make them all lower case:
 # for (i in 1:nrow(data_all[data_all$species=="Fox",])){

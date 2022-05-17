@@ -81,6 +81,7 @@ CV_large <- mean(parameter_est_df[parameter_est_df$size=="large",]$CV_log)
 
 # CV_small = -0.5337202
 # CV_large = -0.6842889
+#--> but use the absolute of both
 
 ### explore distributions of speeds...
 

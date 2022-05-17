@@ -32,10 +32,10 @@ rautonorm <- function(n,mean=0,sd=1,r){
 ## generates a path of x, y positions using a correlated random walk
 # INPUTS:
 # n: number of steps
+# size: size of animal to be generated: 0 = small, 1 = large
 # pTurn: probability of turning at each step
 # kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
-# logspeed: mean log speed
-# speedSD: standard deviation of log speed
+# logspeed: mean log speed - use this to then work out appropriate speedSD (standard deviation of log speed)
 # speedCor: autocorrelation in speed
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
@@ -45,7 +45,14 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
-pathgen <- function(n, kTurn=0, logspeed=0, speedSD=0, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
+pathgen <- function(n, kTurn=0, logspeed=0, size, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
+  # work out speedSD using coefficients of variation worked out using the data for small & large species
+  if (size == 0){
+    speedSD <- 0.5337202 * logspeed # calculated from the data
+  }
+  if (size == 1){
+    speedSD <- 0.6842889 * logspeed
+  }
   spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
   # so you're generating a normal distribution of variates on the log scale (using logspeed)
@@ -938,8 +945,8 @@ singlespeed_analyse <- function(speed_parameter, iter){
     labs(x = "error (m/s)",
          title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)"))+
     geom_vline(xintercept = 0, linetype = "dashed")+
-    geom_text(x = -1, y = 1, label = "real > obs", size = 5, colour = "blue")+
-    geom_text(x = 1, y = 1, label = "obs > real", size = 5, colour = "blue")+
+    #geom_text(x = -0.1, y = 1, label = "real > obs", size = 5, colour = "blue")+
+    geom_text(x = 0.1, y = 10, label = "obs > real", size = 5, colour = "blue")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))
@@ -949,8 +956,9 @@ singlespeed_analyse <- function(speed_parameter, iter){
   real_est_df <- data.frame(speed = c(reals, obs),
                             type = c(rep("realised", length(reals)), rep("observed", length(obs))))
   # for the purposes of plotting: remove long tail of realised speeds:
-  reals1 <- reals[reals<3]
-  obs1 <- obs[obs<3]
+  capped <- 0.1
+  reals1 <- reals[reals<capped]
+  obs1 <- obs[obs<capped]
   real_est_df1 <- data.frame(speed = c(reals1, obs1),
                             type = c(rep("realised", length(reals1)), rep("observed", length(obs1))))
   
@@ -973,7 +981,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
           legend.key.size = unit(1, "cm"))+
     labs(x = "speed (m/s)",
          y = "",
-         title = "Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run)")
+         title = paste0("Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run - capped at ", capped, "m/s)"))
   
   real_est_errors_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
                             method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
@@ -984,7 +992,8 @@ singlespeed_analyse <- function(speed_parameter, iter){
           axis.text = element_text(size = 15))+
     guides(colour = "none")+
     geom_hline(yintercept = 0, linetype = "dashed")+
-    geom_text(x = "hmean", y = -0.2, label = "real > est", size = 5, colour = "blue")+
+    #ylim(-0.05, 0.01)+
+    geom_text(x = "hmean", y = -0.02, label = "real > est", size = 5, colour = "blue")+
     #geom_text(y = 0.01, label = "est > real", size = 3)+
     coord_flip()+
     theme_minimal()+
@@ -992,8 +1001,8 @@ singlespeed_analyse <- function(speed_parameter, iter){
          title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)"))+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    ylim((min(real_est_errors_df$error)-0.2), 0.01)
+          title = element_text(size = 13))
+    #ylim((min(real_est_errors_df$error)-0.2), 0.01)
   
   arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
   annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
@@ -1062,6 +1071,7 @@ multispeed_analyse <- function(sp_and_iters){
   real_obs_plot <- ggplot(real_obs_df, aes(x = mean_real, y = error))+
     geom_point()+
     geom_smooth()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
     labs(x = "Mean realised speed (m/s)",
          y = "error (m/s)")+
     theme_minimal()+
@@ -1083,6 +1093,7 @@ multispeed_analyse <- function(sp_and_iters){
     labs(x = "Mean realised speed (m/s)",
          y = "error (m/s)",
          title = "Mean errors between MRS and observed speeds")+
+    geom_hline(yintercept = 0, linetype = "dashed")+
     theme_minimal()+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),

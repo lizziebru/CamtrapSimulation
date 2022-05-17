@@ -31,7 +31,7 @@ wrapped = TRUE # default in pathgen though so don't give as an argument
 # generate path
 path <- pathgen(n=step_no, kTurn=kTurn, kCor=kCor, pTurn=pTurn, logspeed=speed_parameter, size=size, speedCor=speedCor, xlim=xlim)
 
-metadata <- list(datetime=date, iter=iter, speed_parameter=speed_parameter, xlim=xlim, step_no=step_no, speedSD=speedSD, pTurn=pTurn, speedCor=speedCor, kTurn=kTurn, kCor=kCor, wrap=wrapped)
+metadata <- list(datetime=date, iter=iter, speed_parameter=speed_parameter, size=size, xlim=xlim, step_no=step_no, speedSD=speedSD, pTurn=pTurn, speedCor=speedCor, kTurn=kTurn, kCor=kCor, wrap=wrapped)
 
 # save path
 filename <- paste0("sp", exp(speed_parameter), "_", format(date, "%d%b%y_%H%M_iter"), iter) # format datetime object 

@@ -34,9 +34,6 @@ path <- pathgen(n=step_no, kTurn=kTurn, kCor=kCor, pTurn=pTurn, logspeed=speed_p
 metadata <- list(datetime=date, iter=iter, speed_parameter=speed_parameter, xlim=xlim, step_no=step_no, speedSD=speedSD, pTurn=pTurn, speedCor=speedCor, kTurn=kTurn, kCor=kCor, wrap=wrapped)
 
 # save path
-filename <- paste0(format(date, "%d%b%y_%H%M_iter"), iter) # format datetime object 
-save(path, metadata, file = paste0(filename, ".RData")) # to do: store the path and metadata too along with date as well
+filename <- paste0("sp", exp(speed_parameter), "_", format(date, "%d%b%y_%H%M_iter"), iter) # format datetime object 
+save(path, metadata, file = paste0(filename, ".RData")) 
 
-# put date & time in metadata too
-# also save iter of the job 
-# save the speed parameter & other params too

@@ -8,10 +8,9 @@ regentspark_mov_data <- read.csv("data/regentspark_mov_data.csv")
 india_mov_data <- read.csv("data/india_mov_data.csv")
 panama_data <- read.csv("data/panama_data.csv")
 
+### explore distributions of speeds...
 
-# by speed ----------------------------------------------------------------
-
-# distributions of speeds:
+# 1. By dataset --------------------------------------------------------------
 
 rp_speeds <- ggplot(regentspark_mov_data, aes(x = speed, colour = species))+
   geom_density()+
@@ -30,32 +29,33 @@ ggarrange(rp_speeds, india_speeds, panama_speeds, nrow = 3)
  
 
 
-# combine the data so that can plot things together:
+# 2. All together ---------------------------------------------------------
 
 data_all <- data.frame(species = c(as.character(regentspark_mov_data$species), as.character(india_mov_data$species), as.character(panama_data$species)),
                        speed = c(regentspark_mov_data$speed, india_mov_data$speed, panama_data$speed))
 
 data_all$species <- as.character(data_all$species)
 
-# make them all lower case:
-for (i in 1:nrow(data_all[data_all$species=="Fox",])){
-  #data_all[data_all$species=="Fox", "species"][i] <- "fox"
-  replace(data_all[data_all$species=="Fox", "species"], i, "fox")
-}
-data_all[data_all$species=="Fox", "species"]
-
-replace(data_all$species, data_all$species=="Fox", "fox")
-data_all[data_all$species=="Fox",]$species <- c(rep(as.character("fox"), length(data_all[data_all$species=="Fox",]$species)))
-
-# --> can't figure this out... to come back to
-
-
+# # make them all lower case:
+# for (i in 1:nrow(data_all[data_all$species=="Fox",])){
+#   #data_all[data_all$species=="Fox", "species"][i] <- "fox"
+#   replace(data_all[data_all$species=="Fox", "species"], i, "fox")
+# }
+# data_all[data_all$species=="Fox", "species"]
+# 
+# replace(data_all$species, data_all$species=="Fox", "fox")
+# data_all[data_all$species=="Fox",]$species <- c(rep(as.character("fox"), length(data_all[data_all$species=="Fox",]$species)))
+# 
+# # --> can't figure this out... to come back to
 
 speeds_all <- ggplot(data_all, aes(x = speed, colour = species))+
   geom_density()
 speeds_all
 
-# try separating them out and looking for patterns:
+
+
+
+# 3. By size & speed ------------------------------------------------------
 
 # e.g. small and slow, small and fast, large and slow, large and fast
 
@@ -124,8 +124,6 @@ ggplot(data_all_cats[data_all_cats$species %in% c("himalayan black bear", "Hedge
   geom_density()
 # -- makes sense that they're similar - both pretty slow
 
-
-
 # move things around between fast and slow categories based on how they look on the plots:
 
 # opossums: move from LS to LF:
@@ -164,6 +162,9 @@ ggplot(data_all_cats, aes(x = speed, colour = species))+
 
 
 
+
+# 4. By size only ---------------------------------------------------------
+
 # plot just separating small vs large:
 small_large_speeds <- ggplot(data_all_cats, aes(x = speed, colour = species))+
   geom_density(size = 0.9)+
@@ -178,22 +179,9 @@ small_large_speeds <- ggplot(data_all_cats, aes(x = speed, colour = species))+
         legend.position = "bottom")
 small_large_speeds
 
-png(file="plots/small_large_speeds.png",
-    width=1500, height=1000)
-small_large_speeds
-dev.off()
-
-
-
-
-
-## getting a good range of speeds for each one:
-# probably still simulate the same actual speeds
-
-
-
-# by variation in speed ---------------------------------------------------
-
-
+# png(file="plots/small_large_speeds.png",
+#     width=1500, height=1000)
+# small_large_speeds
+# dev.off()
 
 

@@ -1,0 +1,157 @@
+---
+title: "Fitting Normal Dists"
+author: "Francis Windram"
+date: "16/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(fitdistrplus)
+```
+
+Make a simple normal distribution vector as a dummy
+
+```{r}
+speed <- 0.25
+SD <- 0.125
+logspeed <- log(speed)
+logSD <- log(SD)
+
+rautonorm <- function(n,mean=0,sd=1,r){
+  ranfunc <- function(i,z,r) sqrt(1-r^2) * sum(z[2:(i+1)]*r^(i-(1:i))) + z[1]*r^i # for the autocorrelation
+  # this is a known eqn that someone's worked out somewhere - he's lost the reference now though
+  z <- rnorm(n)
+  mean + sd*c(z[1], sapply(1:(n-1), ranfunc, z, r))
+  }
+
+testvec <- exp(rautonorm(1000, logspeed, logSD, 0.2))
+print(mean(testvec))
+```
+
+
+```{r}
+plotdist(testvec, histo = TRUE, demp = TRUE)
+```
+
+```{r}
+plotdist(log(testvec), histo = TRUE, demp = TRUE)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+descdist(log(testvec), discrete=FALSE, boot=500)
+```
+
+None of this matters as we know our fits are normal in log space, sooooo
+
+```{r}
+testfit <- fitdist(log(testvec), "norm")
+summary(testfit)
+```
+
+```{r}
+print(paste0("Input Mean: ", exp(as.double(testfit$estimate[1]))))
+print(paste0("Input SD: ", exp(0-as.double(testfit$estimate[2])))) # NOTE this is NOT the actual SD of the data in realspace
+# print(paste0("Coefficient of Variation: ", exp(0-as.double(testfit$estimate[2])) / exp(as.double(testfit$estimate[1]))))
+print(paste0("Coefficient of Variation in log space: ", as.double(0-testfit$estimate[2]) / as.double(testfit$estimate[1])))
+```
+
+*CAREFUL HERE! The +x SD == -x SD, thus it can be confusing to backtransform the SD to realspace!!! You MAY have to negate it as I do above*
+
+Though let's just check how it deals with fitting lognormality to the og data
+
+```{r}
+testfit2 <- fitdist(testvec, "lnorm")
+summary(testfit2)
+```
+
+Right... so we don't necessarily know whether we expect the CV in log space or the CV in linear space to be the one we want to see. 
+
+One helper func would be something that derives the SD for a mean given a particular logCV.
+
+*NOTE: the logCV is the CV of the fit distribution in log space. This is NOT the same as log(CV)*
+
+```{r}
+# Find exp(logSD) in realspace from mean in realspace and desired CV in logspace
+# Note that exp(logSD) != SD, these are not the same thing!!!!! 
+find_SD_from_logCV <- function(mean, logCV){
+  return(exp(log(mean) * logCV))
+}
+
+# Find SD in realspace from mean in realspace and desired CV in realspace
+find_SD_from_CV <- function(mean, CV){
+  return(mean * CV)
+}
+```
+
+**Note: the below does NOT come up with the SD of the original data!!!!**
+
+```{r}
+print(find_SD_from_logCV(0.05, 1.2))
+```
+
+```{r}
+find_logCV_from_lognormal <- function(v, autocorrect_neg_SD = TRUE, suppress_warnings = TRUE){
+  # This function finds the CV in logspace of a lognormally distributed vector.
+  # Mathematically this isn't really a measurement, and it does not necessarily behave nicely
+  # However the geometric CV is independent of the geometric mean...so we are a bit stuck
+  # Args:
+  # v = data
+  # autocorrect_neg_SD = automatically negate SD if mu is negative
+  #
+  # Returns:
+  # logCV: Coefficient of Variation in log space
+  
+  if (suppress_warnings){
+    suppressWarnings(fit <- fitdist(v, "lnorm"))
+  } else {
+    fit <- fitdist(v, "lnorm")
+  }
+  
+  mu <- as.double(fit$estimate[1])
+  sigma <- as.double(fit$estimate[2])
+  # Note: If mu is exactly 0, this will return a Inf.
+  # It is safest to check for this using is.finite()
+  
+  if (mu < 0 & autocorrect_neg_SD){
+    # If mu is negative, then a positive sigma is unlikely to be the case
+    # as the scale in realspace would be orders of magnitude off.
+    sigma <- 0 - sigma
+  }
+  
+  return(c("meanlog"=mu, "meansd"=sigma, "logCV"=sigma / mu))
+}
+```
+
+## Final test!
+
+```{r}
+find_logCV_from_lognormal(testvec)
+find_SD_from_logCV(speed, as.double(find_logCV_from_lognormal(testvec)[3]))
+```
+
+```{r eval=FALSE, include=FALSE}
+speeds <- 10^seq(1,5)
+SDs <- speeds / 5
+CVs <- SDs / speeds
+logCVs <- log(SDs) / log(speeds)
+
+print(CVs)
+print(logCVs)
+```
+
+## Final note
+
+So after some more hefty googling, it looks like logCV is a little shakey as far as a measure of dispersion when the logged data is negative (and thus the logmean and logSD are negative). HOWEVER as a method to get a general idea for reasonable parameters to input, it might be better than calculating the CV from $e^{\sigma}$ of a $\sigma$ calculated in log space. Essentially the SD parameter we are using at the top is NOT representative of the SD in realspace, it is instead the aforementioned problematic $e^{\sigma}$. ~~Basically if we provide logSD to `pathgen()` as `log(SD)`, then that fundamental `SD` parameter does not mean anything itself, and has no biological meaning.~~
+
+EDIT: So it turns out that $e^{stdev(\ln{v})}$ is actually termed the [geometric standard deviation](https://en.wikipedia.org/wiki/Geometric_standard_deviation). This is a measure of log-normal dispersion related to the geometric mean, analogous to the relationship between mean and SD for normally distributed data. There is a geometric coefficient of variation, but frustratingly it is entirely independent of the geometric mean.
+
+Long story short, if we calculate logCVs for a bunch of original speed distributions it MIGHT be lucky enough to give us a consistent logCV that we can use to parameterise input SDs given desired speeds. It MIGHT also give us some horrible relationship that we'd need to model in order to find a consistent relationship between the two parameters (logMean and logSD). This is messy stuff, and I think we'll have to try it out on real data to see if it might work.
+
+Alternatively I found one example of someone calculating a "coefficient of variation" from the GSD/GM, but literally only one: https://www.mdpi.com/2075-163X/9/3/193/htm
+
+I really don't know if that is something that is mathematically valid or useful for our approach but hey.

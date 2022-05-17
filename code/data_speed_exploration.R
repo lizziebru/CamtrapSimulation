@@ -3,6 +3,7 @@
 require(dplyr)
 require(ggplot2)
 require(ggpubr)
+require(fitdistrplus)
 
 regentspark_mov_data <- read.csv("../data/regentspark_mov_data.csv")
 india_mov_data <- read.csv("../data/india_mov_data.csv")
@@ -11,29 +12,75 @@ panama_data <- read.csv("../data/panama_data.csv")
 
 # work out parameter estimates for speed mean & SD ------------------------
 
+# thought process:
+# take the data
+# log the speeds
+# fit a normal distribution to those
+# extract mean & sd
+# use that mean & sd in the simulation
+# simulation then generates a normal distribution of speeds from that mean & sd
+# simulation then exponentiates it
+
 # make df of parameter estimates (mean, CV, and logcv) from fitting log normal distributions to each species
 
 data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 species <- c()
 size <- c()
-mean <- c()
-SD <- c()
-CV <- c()
-logCV <- c()
+mean_log <- c()
+mean_log2 <- c()
+sd_log <- c()
+sd_log2 <- c()
+CV_log <- c() # = sdlog/meanlog
+PGCV <- c() # = pseudo-geometric coefficient of variation = exp(sdlog)/exp(meanlog)
+# logCV <- c()
 for (i in unique(data_all_cats$species)){
   spds <- data_all_cats[data_all_cats$species==i,]$speed
+  spds <- spds[spds>0] # can't fit lnorm otherwise
   species <- c(species, i)
   size <- c(size, as.character(data_all_cats[data_all_cats$species==i,]$size[1]))
-  mean <- c(mean, mean(spds)) 
-  SD <- c(SD, sd(spds))
-  CV <- c(CV, (sd(spds)/mean(spds))) # CV = sd/mean
-  logCV <- c(logCV, log(sd(spds)/mean(spds)))
+  
+  # 2 ways of doing this: log the speeds and use mean & sd from that  
+  spds_log <- log(spds) # log the speeds
+  mean_log <- c(mean_log, mean(spds_log))
+  sd_log <- c(sd_log, sd(spds_log))
+  
+  # OR: fit lnorm and use mean & sd from that
+  fit_lnorm <- fitdist(spds, "lnorm")
+  mean_log2 <- c(mean_log2, fit_lnorm$estimate[[1]])
+  sd_log2 <- c(sd_log2, fit_lnorm$estimate[[2]])
+  
+  CV_log <- c(CV_log, (sd(spds_log)/mean(spds_log)))
+  PGCV <- c(PGCV, (exp(sd(spds_log))/exp(mean(spds_log))))
 }
 
-parameter_est_df <- data.frame(species = species, size = size, mean = mean, SD = SD, CV = CV, logCV = logCV)
+# mean_log & mean_log2 are the same
+# sd_log & sd_log2 are also almost the same
+# so doesn't really matter which you use
+
+
+parameter_est_df <- data.frame(species = species, size = size, mean_log = mean_log, sd_log = sd_log, CV_log = CV_log, PGCV = PGCV)
 
 # write.csv(parameter_est_df, file = "../data/parameter_est_df.csv")
+
+
+## now need to decide between CV_log & PGCV -- choose whichever one is most consistent within a spp size category
+
+ggplot(parameter_est_df, aes(x = CV_log, colour = size))+
+  geom_density()
+
+ggplot(parameter_est_df, aes(x = PGCV, colour = size))+
+  geom_density()
+
+# CV_log seems to behave more nicely so use that
+
+# use the average for each size category and just keep that as a constant:
+
+CV_small <- mean(parameter_est_df[parameter_est_df$size=="small",]$CV_log)
+CV_large <- mean(parameter_est_df[parameter_est_df$size=="large",]$CV_log)
+
+# CV_small = -0.5337202
+# CV_large = -0.6842889
 
 ### explore distributions of speeds...
 

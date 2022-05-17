@@ -4,9 +4,35 @@ require(dplyr)
 require(ggplot2)
 require(ggpubr)
 
-regentspark_mov_data <- read.csv("data/regentspark_mov_data.csv")
-india_mov_data <- read.csv("data/india_mov_data.csv")
-panama_data <- read.csv("data/panama_data.csv")
+regentspark_mov_data <- read.csv("../data/regentspark_mov_data.csv")
+india_mov_data <- read.csv("../data/india_mov_data.csv")
+panama_data <- read.csv("../data/panama_data.csv")
+
+
+# work out parameter estimates for speed mean & SD ------------------------
+
+# make df of parameter estimates (mean, CV, and logcv) from fitting log normal distributions to each species
+
+data_all <- data.frame(species = c(as.character(regentspark_mov_data$species), as.character(india_mov_data$species), as.character(panama_data$species)),
+                       speed = c(regentspark_mov_data$speed, india_mov_data$speed, panama_data$speed))
+
+data_all$species <- as.character(data_all$species)
+
+species <- c()
+mean <- c()
+CV <- c()
+logCV <- c()
+for (i in unique(data_all$species)){
+  spds <- data_all[data_all$species==i,]$speed
+  species <- c(species, i)
+  mean <- c(mean, mean(spds)) 
+  CV <- c(CV, (sd(spds)/mean(spds))) # CV = sd/mean
+  logCV <- c(logCV, log(sd(spds)/mean(spds)))
+}
+
+parameter_est_df <- data.frame(species = species, mean = mean, CV = CV, logCV = logCV)
+
+# write.csv(parameter_est_df, file = "../data/parameter_est_df.csv")
 
 ### explore distributions of speeds...
 
@@ -30,11 +56,6 @@ ggarrange(rp_speeds, india_speeds, panama_speeds, nrow = 3)
 
 
 # 2. All together ---------------------------------------------------------
-
-data_all <- data.frame(species = c(as.character(regentspark_mov_data$species), as.character(india_mov_data$species), as.character(panama_data$species)),
-                       speed = c(regentspark_mov_data$speed, india_mov_data$speed, panama_data$speed))
-
-data_all$species <- as.character(data_all$species)
 
 # # make them all lower case:
 # for (i in 1:nrow(data_all[data_all$species=="Fox",])){

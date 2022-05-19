@@ -899,7 +899,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
     }
     estimates <- estimates_calc(seq_dats)
     filename <- paste0("sp", exp(metadata_sim$speed_parameter), # filename for storing plots
-                       "_speedSD", metadata_sim$speedSD,
+                       # "_speedSD", metadata_sim$speedSD,
                        "_pTurn", metadata_sim$pTurn,
                        "_speedCor", metadata_sim$speedCor,
                        "_kTurn", metadata_sim$kTurn,
@@ -929,13 +929,15 @@ singlespeed_analyse <- function(speed_parameter, iter){
     scale_colour_manual(values = c("red", "blue"))+
     theme_minimal()+
     labs(x = "speed (m/s)",
-         title = "Distributions of realised and observed speeds\n(for one simulation run)")+
+         title = "Distributions of realised and observed speeds\n(for one simulation run)\nvertical lines = mean")+
     theme(legend.title = element_blank(),
           axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13),
-          legend.text = element_text(size = 15))
-  
+          legend.text = element_text(size = 15))+
+    geom_vline(xintercept = mean(real_obs_df[real_obs_df$type=="realised",]$speed), colour = "blue", linetype = "dashed")+
+    geom_vline(xintercept = mean(real_obs_df[real_obs_df$type=="observed",]$speed), colour = "red", linetype = "dashed")
+  # real_obs_plot
   
   # realised vs observed speeds errors plot:
   real_obs_errors_df <- data.frame(error = obs_meanreal_errors)
@@ -943,10 +945,10 @@ singlespeed_analyse <- function(speed_parameter, iter){
     geom_density(size = 1)+
     theme_minimal()+
     labs(x = "error (m/s)",
-         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)"))+
+         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve == est > MRS, -ve == MRS > est)"))+
     geom_vline(xintercept = 0, linetype = "dashed")+
     #geom_text(x = -0.1, y = 1, label = "real > obs", size = 5, colour = "blue")+
-    geom_text(x = 0.1, y = 10, label = "obs > real", size = 5, colour = "blue")+
+    # geom_text(x = 0.1, y = 10, label = "obs > real", size = 5, colour = "blue")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))
@@ -955,23 +957,24 @@ singlespeed_analyse <- function(speed_parameter, iter){
   # realised vs estimates plot: - go from here: might need to faff about to get a nice plot working - make it just for the first repeat btw!
   real_est_df <- data.frame(speed = c(reals, obs),
                             type = c(rep("realised", length(reals)), rep("observed", length(obs))))
-  # for the purposes of plotting: remove long tail of realised speeds:
-  capped <- 0.1
-  reals1 <- reals[reals<capped]
-  obs1 <- obs[obs<capped]
-  real_est_df1 <- data.frame(speed = c(reals1, obs1),
-                            type = c(rep("realised", length(reals1)), rep("observed", length(obs1))))
+  # for the purposes of plotting: remove long tail of realised speeds: - commented out now that speeds should be naturally capped to reasonale values
+  # capped <- 0.1
+  # reals1 <- reals[reals<capped]
+  # obs1 <- obs[obs<capped]
+  # real_est_df1 <- data.frame(speed = c(reals1, obs1),
+  #                           type = c(rep("realised", length(reals1)), rep("observed", length(obs1))))
   
   hline_df <- data.frame(value = c(speed_parameter, mean(reals), mean(obs), hmean, lnorm, gamma, weibull),
-                         valtype = c("speed parameter", "MRS", "MOS", "hmean", "lnorm", "gamma", "weibull"))
+                         valtype = c("speed parameter", "MRS", "MOS", "hmean", "lnorm", "gamma", "weibull"),
+                         valtype2 = c("other", "other", "other", "estimate", "estimate", "estimate", "estimate"))
   
-  real_est_plot <- ggplot(real_est_df1, aes(x = speed, y = type))+
+  real_est_plot <- ggplot(real_est_df, aes(x = speed, y = type))+
     geom_boxplot()+
     theme_minimal()+
     geom_vline(data = hline_df,
-               aes(xintercept = value, colour = valtype, linetype = valtype))+
+               aes(xintercept = value, colour = valtype))+ # could add in linetype = valtype2 but think the dashed lines makes things harder to read
     #scale_colour_manual(values = c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7"))+
-    scale_colour_manual(values = c("red", "blue", "green", "black", "purple", "orange", "cyan"))+
+    scale_colour_manual(values = c("#0000FF", "#DB00FF", "#FF0049", "#FF9200", "#92FF00", "#00FF49", "#00DBFF"))+ # generated using wheel("blue", 7) from colortools package
     theme(axis.title = element_text(size = 18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13),
@@ -981,7 +984,8 @@ singlespeed_analyse <- function(speed_parameter, iter){
           legend.key.size = unit(1, "cm"))+
     labs(x = "speed (m/s)",
          y = "",
-         title = paste0("Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run - capped at ", capped, "m/s)"))
+         title = paste0("Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run)"))
+  # real_est_plot
   
   real_est_errors_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
                             method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
@@ -993,12 +997,12 @@ singlespeed_analyse <- function(speed_parameter, iter){
     guides(colour = "none")+
     geom_hline(yintercept = 0, linetype = "dashed")+
     #ylim(-0.05, 0.01)+
-    geom_text(x = "hmean", y = -0.02, label = "real > est", size = 5, colour = "blue")+
+    # geom_text(x = "hmean", y = -0.02, label = "real > est", size = 5, colour = "blue")+
     #geom_text(y = 0.01, label = "est > real", size = 3)+
     coord_flip()+
     theme_minimal()+
     labs(y = "error (m/s)",
-         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)"))+
+         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve == obs > MRS, -ve == MRS > obs)"))+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))

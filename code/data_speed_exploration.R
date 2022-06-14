@@ -9,6 +9,37 @@ regentspark_mov_data <- read.csv("../data/regentspark_mov_data.csv")
 india_mov_data <- read.csv("../data/india_mov_data.csv")
 panama_data <- read.csv("../data/panama_data.csv")
 
+data_all_cats <- read.csv("../data/data_all_cats.csv")
+
+# add column for herbivores vs carnivores to data_all_cats:
+
+small_herbivores <- c("mouse", "rat", "squirrel", "Hedgehog", "agouti", "coati")
+
+large_herbivores <- c("paca", "brocket", "peccary", "takin")
+
+small_carnivores <- c("armadillo", "tamandua", "opossum", "Fox", "ocelot")
+
+large_carnivores <- c("himalayan black bear")
+
+data_all_cats['CAT'] <- as.character(NA)
+
+for (i in 1:nrow(data_all_cats)){
+  d <- data_all_cats[i,]
+  if (d$species %in% small_herbivores){
+    d$CAT <- "Small herbivore"
+  }
+  if (d$species %in% large_herbivores){
+    d$CAT <- "Large herbivore"
+  }
+  if (d$species %in% small_carnivores){
+    d$CAT <- "Small carnivore"
+  }
+  if (d$species %in% large_carnivores){
+    d$CAT <- "Large carnivore"
+  }
+}
+
+# need to figure out why this isn't working
 
 # work out parameter estimates for speed mean & SD ------------------------
 

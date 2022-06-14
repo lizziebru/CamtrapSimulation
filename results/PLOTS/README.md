@@ -53,20 +53,20 @@ This shows us the error in what the camera picks up relative to what the animal 
 
 **2. Errors between estimated speeds and MRS**
 
-Each point is the error between the estimated speed (calculated using one of the four methods) and the MRS for that simulation run (estimated speed minus MRS)
+Each point is the error between the estimated speed (calculated using one of the four methods) and the MRS for that simulation run (MRS minus estimated speed)
 
 This shows us the error in the average speed we calculate using these methods relative to the true average speed of the animal
 
 **3. Sum of the above two types of error**
 
-Each point is calculated by summing the mean error between observed speeds and MRS with the error between estimated speed and MRS for that simulation run
+Each point is the negative of the sum of the mean error between observed speeds and MRS (observed speed minus MRS) with the error between estimated speed and MRS (estimated speed minus MRS) for that simulation run
 
 This shows us how well our models are compensating for the biases in the speeds we pick up using camera traps
 
 The rationale behind this is as follows:
 
 1. Errors between observed speeds and MRS are positive (oversampling faster movements) - it looks like I maybe haven't simulated high enough speeds to show the second bias of higher speeds being missed...
-2. Errors between estimated speeds and MRS are negative at low speeds (models are overcorrecting for the bias of oversampling fast speeds) then positive at slightly higher speeds (models not correcting for the bias enough as the bias increases with speed)
+2. Errors between estimated speeds and MRS are positive at low speeds (models are overcorrecting for the bias of oversampling fast speeds) then negative at slightly higher speeds (models not correcting for the bias enough as the bias increases with speed)
 3. Therefore, when we add together the errors between MRS and observed speeds and errors between MRS and estimated speeds:
     * If the models perfectly correct for the biases of what the camera trap picks up, we would expect this graph to show a flat line at y=0
     * When the line is above 0, this shows that the models are not correcting the biases enough

@@ -11,14 +11,19 @@ source("CamtrapSimulation.R", echo=TRUE)
 parentfolder <- paste0("../results/") 
 
 # set which speed to analyse paths in:
-pathfolder <- paste0("sp0.02_11May22_1008/")
+pathfolder <- paste0("sp0.70_18May22_1356/") 
+# next: 
+# sp0.02_18May22_0923 - 8-50
+# sp0.20_18May22_0932
+# sp0.25_18May22_0932
+# need to deal with sp0.02 - missing files?
 
 
 # # set number of iterations of the path
 # iter <- 100 
 
 # set range of paths to run the simulation on:
-path_nos <- c(1:50)
+path_nos <- c(20:50)
 
 # set additional parameters:
 species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores

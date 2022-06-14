@@ -945,7 +945,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
     geom_density(size = 1)+
     theme_minimal()+
     labs(x = "error (m/s)",
-         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: est > MRS, -ve: MRS > est)"))+
+         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: obs > MRS, -ve: MRS > obs)"))+
     geom_vline(xintercept = 0, linetype = "dashed")+
     #geom_text(x = -0.1, y = 1, label = "real > obs", size = 5, colour = "blue")+
     # geom_text(x = 0.1, y = 10, label = "obs > real", size = 5, colour = "blue")+
@@ -1003,7 +1003,7 @@ singlespeed_analyse <- function(speed_parameter, iter){
     coord_flip()+
     theme_minimal()+
     labs(y = "error (m/s)",
-         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: obs > MRS, -ve: MRS > obs)"))+
+         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: est > MRS, -ve: MRS > est)"))+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13))
@@ -1045,7 +1045,7 @@ multispeed_analyse <- function(sp_and_iters){
     for (j in iter_range){
       load(paste0("../results/seq_dats/sp", i, "iter", j, ".RData"))
       estimates <- estimates_calc(seq_dats)
-      filename <- paste0("_pTurn", metadata_sim$pTurn, # filename for storing plots
+      filename <- paste0("pTurn", metadata_sim$pTurn, # filename for storing plots
                          "_speedCor", metadata_sim$speedCor,
                          "_kTurn", metadata_sim$kTurn,
                          "_kCor", metadata_sim$kCor,
@@ -1160,7 +1160,7 @@ multispeed_analyse <- function(sp_and_iters){
           title = element_text(size = 13))+
     labs(x = "mean realised speed (m/s)",
          y = "error (m/s)",
-         title = "Sum of errors between observed speeds and MRS and errors between each speed estimate and MRS\n(+ve: models under-correct, -ve: models over-correct)")
+         title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MRS\n(+ve: models under-correct, -ve: models over-correct)")
   # added_plot
   
   # save all three together:
@@ -1170,13 +1170,13 @@ multispeed_analyse <- function(sp_and_iters){
   
   png(file=paste0("../results/PLOTS/multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
       width=700, height=1000)
-  print(real_obs_plot_means)
+  print(annotated)
   dev.off()
   
   # also save all three separately:
   png(file=paste0("../results/PLOTS/obs_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
       width=900, height=650)
-  print(real_est_plot)
+  print(real_obs_plot_means)
   dev.off()
   
   png(file=paste0("../results/PLOTS/est_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),

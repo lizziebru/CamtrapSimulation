@@ -1107,7 +1107,7 @@ multispeed_analyse <- function(sp_and_iters){
   
   # estimated speeds plot
   real_est_df <- data.frame(mean_real=mean_reals, 
-                             error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
+                             error = -c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
                              method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
   
   real_est_plot <- ggplot(real_est_df, aes(x = mean_real, y = error, colour = method))+
@@ -1118,7 +1118,7 @@ multispeed_analyse <- function(sp_and_iters){
     scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
     labs(x = "Mean realised speed (m/s)",
          y = "Error (m/s)",
-         title = "Errors between MRS and estimated speeds\n(+ve: est > MRS, -ve: MRS > est)")+
+         title = "Errors between MRS and estimated speeds\n(+ve: MRS > est, -ve: est > MRS)")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           legend.title = element_text(size = 18),
@@ -1144,7 +1144,7 @@ multispeed_analyse <- function(sp_and_iters){
   }
   
   added_df <- data.frame(MRS = mean_reals,
-                         error = c(hmean_added, lnorm_added, gamma_added, weibull_added),
+                         error = -c(hmean_added, lnorm_added, gamma_added, weibull_added),
                          type = c("hmean", "lnorm", "gamma", "weibull"))
   
   added_plot <- ggplot(added_df, aes(x = MRS, y = error, colour = type))+
@@ -1160,7 +1160,7 @@ multispeed_analyse <- function(sp_and_iters){
           title = element_text(size = 13))+
     labs(x = "mean realised speed (m/s)",
          y = "error (m/s)",
-         title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MRS\n(+ve: models under-correct, -ve: models over-correct)")
+         title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MRS\n(+ve: models over-correct, -ve: models under-correct)")
   # added_plot
   
   # save all three together:

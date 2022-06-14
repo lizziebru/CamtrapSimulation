@@ -194,9 +194,9 @@ plot_dzone <- function(dzone, ...){
 # points: number of points in the sequence
 # speed: overall sequence speed
 calc_speed <- function(dat){
-  dist <- with(dat, tapply(distance, sequenceID, sum, na.rm=TRUE))
-  points <- with(dat, tapply(distance, sequenceID, length))
-  speed <- dist/(points-1)
+  dist <- with(dat, tapply(distance, sequenceID, sum, na.rm=TRUE)) # for those that have the same sequence ID, sum their distances to get total distance travelled within the detection zone
+  points <- with(dat, tapply(distance, sequenceID, length)) # number of points in the sequence
+  speed <- dist/(points-1) # time = n_points-1 bc time between each point is 1s
   data.frame(sequenceID=unique(dat$sequenceID), distance=dist, points=points, speed=speed)
 }
 
@@ -793,7 +793,10 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
   n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
   
   # make output list
-  output_list <- list(realised = realised_spds,
+  output_list <- list(posdat_all = posdat_all,
+                      posdat = posdat,
+                      v = v,
+                      realised = realised_spds,
                       observed = observed,
                       obs_lengths = obs_lengths,
                       n_singles = n_singles,
@@ -826,7 +829,7 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
   for (i in path_nos){
     load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
     if (i == 1){
-      plot_path <- TRUE # only plot for the first one to save some time
+      plot_path <- TRUE # only plot the first one to save some time
     }
     else {
       plot_path <- FALSE
@@ -834,7 +837,7 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
     if (path_cutby == 1){
       seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     }
-    else {
+    else { # if want to cut the path short to make it computationally easier:
       path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
       seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     }

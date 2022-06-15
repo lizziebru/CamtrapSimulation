@@ -2,6 +2,7 @@
 require(circular)
 require(parallel)
 require(rlist)
+require(future.apply)
 
 # to test things:
 # path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
@@ -667,36 +668,34 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
     zero <- 0 # not a zero frame if one or both points fall in the dz 
   }
   else if (breaks1 != breaks2){
-      zero <- 0 # not a zero frame if the animal looped round the back to get between the points
+    zero <- 0 # not a zero frame if the animal looped round the back to get between the points
+  }
+  else if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
+    zero <- 0 # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
+  }
+  else { # for all remaining points:
+    cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
+    cross2 <- lines_cross(p_line, dz_line2) # ditto
+    cross3 <- line_arc_cross(p_line, dz_arc) # ditto
+    cross_sum <- sum(cross1, cross2, cross3) 
+    if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame with a value given by the detection probability of the midpoint between the two points
+      mx <- (x1+x2)/2 # midpoint x coord
+      my <- (y1+y2)/2 # midpoint y coord
+      midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
+      if (species == 0){
+        prob_detect <- small_radius(midpoint_radius) * 3.340884
+      }
+      if (species == 1){
+        prob_detect <- large_radius(midpoint_radius) * 2.767429
+      }
+      zero <- prob_detect
     }
-    else if (outside_buffer(x1, y1, x2, y2, dz, max_real)){
-        zero <- 0 # not a zero frame if one of the points lies outside the buffer outside which crossing the dz at that speed wouldn't be possible
-      }
-      else { # for all remaining points:
-        cross1 <- lines_cross(p_line, dz_line1) # = 1 if they intersect, = 0 if they don't
-        cross2 <- lines_cross(p_line, dz_line2) # ditto
-        cross3 <- line_arc_cross(p_line, dz_arc) # ditto
-        cross_sum <- sum(cross1, cross2, cross3) 
-        if (cross_sum > 1){ # if the line between the two points intersects 2 or more lines outlining the dz: assign as a zero frame with a value given by the detection probability of the midpoint between the two points
-          mx <- (x1+x2)/2 # midpoint x coord
-          my <- (y1+y2)/2 # midpoint y coord
-          midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-          if (species == 0){
-            prob_detect <- small_radius(midpoint_radius) * 3.340884
-          }
-          if (species == 1){
-            prob_detect <- large_radius(midpoint_radius) * 2.767429
-          }
-          zero <- prob_detect
-        }
-        else{
-          zero <- 0
-        }
-      }
+    else{
+      zero <- 0
+    }
+  }
   return(zero)
 }
-
-
 
 
 
@@ -761,9 +760,51 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
     mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
   })
   
-  ### number of single-frame sequences:
-  t <- data.frame(table(posdat$sequenceID))
-  n_singles <- nrow(t[t$Freq==1,]) # count the number of single-occurring numbers in the sequenceID column of posdat
+  ### speeds of single-frame sequences and number of single-frame sequences
+  singles_speeds <- c()
+  n_singles <- 0
+  # select rows in posdat_all which are detected but only in a single frame, as well as the two points above and below each one of those
+  # select the seqID posdats when you only have one TRUE:
+  for (i in unique(posdat_all$sequenceID)){
+    p <- posdat_all[posdat_all$sequenceID==i,] # subset by sequence ID
+    n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
+    if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
+      
+      ## work out the detection probability of that single frame:
+      single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
+      single_y <- p[p$detected==TRUE,]$y
+      single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
+      if (species == 0){
+        prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
+      }
+      if (species == 1){
+        prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
+      }
+      n_singles <- n_singles + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
+
+      ## select the row that's TRUE and the row above and below it
+      # assign row numbers to help with this
+      p["rownumber"] <- c(1:nrow(p))
+      true_rownumber <- p[p$detected==TRUE,]$rownumber # rownumber of the detected point
+      if (true_rownumber == 1){ # if the detected point is the first in that sequence, just use that point and the one after it
+        below_rownumber <- true_rownumber + 1
+        rownumbers_needed <- c(true_rownumber, below_rownumber)
+      }
+      if (true_rownumber == nrow(p)){ # if the detected point is the last in that sequence, just use that point and teh one before it
+        above_rownumber <- true_rownumber - 1
+        rownumbers_needed <- c(true_rownumber, above_rownumber)
+      }
+      else { # otherwise, use both the points below and above
+        above_rownumber <- true_rownumber - 1
+        below_rownumber <- true_rownumber + 1
+        rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
+      }
+      rows_needed <- p[rownumbers_needed,]
+      speed_single <- calc_speed(rows_needed)
+      singles_speeds <- c(singles_speeds, speed_single$speed)
+    } 
+  }
+  singles_speeds <- singles_speeds[is.finite(singles_speeds)==TRUE] # get rid of the NaNs - occur when the edge of the arena is reached
   
   ### number of zero-frame sequences:
   path_df <- path$path
@@ -775,7 +816,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
   max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-    zeros <- apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+    zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -785,12 +826,24 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    zeros1 <- apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
-    zeros2 <- apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+    zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
+    zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
     zeros <- c(zeros1, zeros2)
   }
   zeros_vals <- zeros[zeros!=0]
   n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
+  
+  
+  ## speeds of zero-frame sequences
+  # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
+  path_df_paired["ZERO"] <- zeros
+  zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+  zeros_speeds <- c()
+  for (i in 1:nrow(zeros_dat)){
+    z <- zeros_dat[i,]
+    speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+    zeros_speeds <- c(zeros_speeds, speed)
+  }
   
   # make output list
   output_list <- list(posdat_all = posdat_all,
@@ -800,7 +853,9 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
                       observed = observed,
                       obs_lengths = obs_lengths,
                       n_singles = n_singles,
+                      singles_speeds = singles_speeds,
                       n_zeros = n_zeros,
+                      zeros_speeds = zeros_speeds,
                       n_points = nrow(posdat), # total number of position datapoints detected by the CT
                       singles_prop = n_singles/nrow(posdat),
                       zeros_prop = n_zeros/nrow(posdat))

@@ -18,11 +18,8 @@ do
 	mv *iter${i}.RData iter${i}.RData
 done
 
-<<<<<<< HEAD
+
 #rm *.tgz   # learnt from mistakes: don't do this until you've checked that the untarred files are ok
-=======
-#rm *.tgz # learnt from mistakes - don't do this until you've checked the .RData files
->>>>>>> master
 
 #counter=0
 #for file in *.RData; do

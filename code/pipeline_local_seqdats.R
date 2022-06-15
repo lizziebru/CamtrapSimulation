@@ -11,12 +11,7 @@ source("CamtrapSimulation.R", echo=TRUE)
 parentfolder <- paste0("../results/") 
 
 # set which speed to analyse paths in:
-pathfolder <- paste0("sp0.70_18May22_1356/") 
-# next: 
-# sp0.02_18May22_0923 - 8-50
-# sp0.20_18May22_0932
-# sp0.25_18May22_0932
-# need to deal with sp0.02 - missing files?
+pathfolder <- paste0("sp0.06_18May22_0923/") # next: 
 
 
 # # set number of iterations of the path

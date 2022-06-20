@@ -1149,13 +1149,29 @@ multispeed_analyse <- function(sp_and_iters){
   
   # for making visualisation plot
   x_plot <- c()
-  y_plot <- c()
-  v_plot <- c()
+  y_plot <- c() ## need to make decision about whether you want to pool everything together into one plot and how best to do this... 
+  v_plot <- c()# maybe would be good to actually do a separate one for each speed parameter? - to help explain what's going on with zero and single frame sequences...?
   
-  for (i in sp_and_iters$speed_parameter){
+  for (i in sp_and_iters$speed_parameter){ ## NEEDS FIXING - GO FROM HERE -- MAYBE NEED TO MANUALLY REASSIGN WHAT i IS TO AVOID FLOATING POINT ISSUES, OR MAYBE IT'S SOMETHING TO DO WITH R VERSION?
     iter_range <- c(1:sp_and_iters[sp_and_iters$speed_parameter==i,]$iter)
     for (j in iter_range){
       load(paste0("../results/seq_dats/sp", i, "iter", j, ".RData"))
+      
+      # store the coords of each sequence and their speed
+      # need to add a column to seq_dats$posdat with speed of each sequence
+      posdat <- seq_dats$posdat
+      posdat_extra_col <- c()
+      for (i in unique(posdat$sequenceID)){
+        s <- seq_dats$v[seq_dats$v$sequenceID==i,]
+        n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
+        v_id <- s$speed # speed for that sequence ID
+        posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
+      }
+      posdat["speed"] <- posdat_extra_col
+      
+      x_plot <- c(x_plot, posdat$x)
+      y_plot <- c(y_plot, posdat$y)
+      v_plot <- c(v_plot, posdat$speed)
       
       n_singles <- c(n_singles, seq_dats$n_singles)
       n_zeros <- c(n_zeros, seq_dats$n_zeros)

@@ -1149,12 +1149,12 @@ multispeed_analyse <- function(sp_and_iters){
   
   # for making visualisation plot
   x_plot <- c()
-  y_plot <- c() ## need to make decision about whether you want to pool everything together into one plot and how best to do this... 
-  v_plot <- c()# maybe would be good to actually do a separate one for each speed parameter? - to help explain what's going on with zero and single frame sequences...?
+  y_plot <- c()
+  v_plot <- c()
   sp_plot <- c()
   iter_plot <- c()
   
-  for (n in 1:length(sp_and_iters$speed_parameter)){ ## NEEDS FIXING - GO FROM HERE -- MAYBE NEED TO MANUALLY REASSIGN WHAT i IS TO AVOID FLOATING POINT ISSUES, OR MAYBE IT'S SOMETHING TO DO WITH R VERSION?
+  for (n in 1:length(sp_and_iters$speed_parameter)){
     i <- sp_and_iters$speed_parameter[n]
     iter_range <- c(1:sp_and_iters[sp_and_iters$speed_parameter==i,]$iter)
     for (j in iter_range){
@@ -1165,8 +1165,8 @@ multispeed_analyse <- function(sp_and_iters){
       # need to add a column to seq_dats$posdat with speed of each sequence
       posdat <- seq_dats$posdat
       posdat_extra_col <- c()
-      for (i in unique(posdat$sequenceID)){
-        s <- seq_dats$v[seq_dats$v$sequenceID==i,]
+      for (u in unique(posdat$sequenceID)){
+        s <- seq_dats$v[seq_dats$v$sequenceID==u,]
         n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
         v_id <- s$speed # speed for that sequence ID
         posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
@@ -1222,6 +1222,37 @@ multispeed_analyse <- function(sp_and_iters){
       rm(list = c("seq_dats", "metadata_sim"))
     }
   }
+  
+  ## visualisation plot
+  vis_df <- data.frame(x = x_plot,
+                       y = y_plot,
+                       speed = v_plot,
+                       sp = sp_plot,
+                       iter = iter_plot)
+  
+  #add column for whether or not it's a single frame:
+  vis_df$speed[is.infinite(vis_df$speed)] <- NA
+  vis_df$speed[is.nan(vis_df$speed)] <- NA
+  single_col <- apply(vis_df, 1, make_single_col)
+  vis_df["single"] <- single_col
+  
+  vis_df2 <- vis_df[vis_df$sp==0.02 && vis_df$iter==1,]
+  vis_plot <- ggplot(vis_df2, aes(x = x, y = y))+
+    geom_point()+
+    theme_minimal()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
+  vis_plot
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   mean_reals_repped <- c()
   for (x in 1:length(mean_reals)){
@@ -1535,6 +1566,23 @@ multispeed_analyse <- function(sp_and_iters){
   print(real_obs_plot_means_combined)
   dev.off()
   
+}
+
+
+## make_single_col
+# to help making the visualisation plot in multispeed_analyse function
+# INPUT
+# dataframe of points to which in which the column needs to be filled
+# OUTPUT
+# vector of values to fill the column with that can then be attached to the df
+make_single_col <- function(df){
+  if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
+    single_col <- "single"
+  }
+  else{
+    single_col <- "multiple"
+  }
+  return(single_col)
 }
 
 

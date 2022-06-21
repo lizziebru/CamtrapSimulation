@@ -3,6 +3,7 @@ require(circular)
 require(parallel)
 require(rlist)
 require(future.apply)
+require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
 
 # to test things:
 # path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
@@ -1233,17 +1234,60 @@ multispeed_analyse <- function(sp_and_iters){
   #add column for whether or not it's a single frame:
   vis_df$speed[is.infinite(vis_df$speed)] <- NA
   vis_df$speed[is.nan(vis_df$speed)] <- NA
-  single_col <- apply(vis_df, 1, make_single_col)
-  vis_df["single"] <- single_col
+  new_cols <- apply(vis_df, 1, vis_df_newcols)
+  ## GO FROM HERE - NEED TO ADD THESE AS THE NEW COLUMNS - NEED TO FIGURE OUT HOW TO EXTRACT WHAT YOU WANT FROM THE LIST
   
-  vis_df2 <- vis_df[vis_df$sp==0.02 && vis_df$iter==1,]
-  vis_plot <- ggplot(vis_df2, aes(x = x, y = y))+
-    geom_point()+
+  
+  vis_df["single"] <- single_col
+  ## TO DO: change x and y coords so that they look like Ollie's
+  
+  ## vis_df_newcols
+  # to help making the visualisation plot in multispeed_analyse function
+  # INPUT
+  # dataframe of points to which in which the column needs to be filled
+  # OUTPUT
+  # list containing three new vectors of values for the three new columns: x_new, y_new, and single
+  vis_df_newcols <- function(df){
+    if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
+      single_col <- "single"
+    }
+    else{
+      single_col <- "multiple"
+    }
+    
+    x_new <- as.numeric(df[[1]]) - 20 # so that the centre of the x scale is 0
+    y_new <- as.numeric(df[[2]]) - 10 # so that the y scale starts at 0
+    
+    output <- list(single_col = single_col,
+                   x_new = x_new,
+                   y_new = y_new)
+    
+    return(output)
+  }
+  
+  
+  
+  
+  
+  
+  ## do it for one for now then can change it to make it for multiple
+  
+  vis_df2 <- vis_df[vis_df$sp==0.02,]
+  vis_df3 <- vis_df2[vis_df2$iter==1,]
+  
+  vis_plot <- ggplot(vis_df3, aes(x = x, y = y, colour = single))+
+    geom_point(aes(shape = single))+
+    scale_shape_manual(values=c(1, 16))+
+    scale_colour_manual(values = c("#0000FF", "#FF0000"))+ # generated using wheel("blue, 3)
     theme_minimal()+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
-          title = element_text(size = 13))
+          title = element_text(size = 13),
+          panel.grid.minor = element_blank(),
+          legend.title = element_blank())
   vis_plot
+  
+  
   
   
   
@@ -1569,21 +1613,7 @@ multispeed_analyse <- function(sp_and_iters){
 }
 
 
-## make_single_col
-# to help making the visualisation plot in multispeed_analyse function
-# INPUT
-# dataframe of points to which in which the column needs to be filled
-# OUTPUT
-# vector of values to fill the column with that can then be attached to the df
-make_single_col <- function(df){
-  if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
-    single_col <- "single"
-  }
-  else{
-    single_col <- "multiple"
-  }
-  return(single_col)
-}
+
 
 
 ## path_list

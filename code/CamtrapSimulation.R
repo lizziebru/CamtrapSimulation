@@ -423,77 +423,7 @@ line_arc_cross <- function(line, arc){
 
 
 
-## estimates_calc
-# for one simulation iteration, works out estimated speeds (using hmean and 3 SBMs) and error between mean realised speed & each estimated speed
-# INPUT:
-# seq_dats: list of seq_dat outputs for each iteration
-  # each iteration output is a list containing:
-    # realised speeds
-    # observed speeds
-    # lengths of observed speed sequences 
-    # number of single frames
-    # speeds of single frame sequences
-    # number of zero frames
-    # speeds of zero frame sequences
-    # total number of position datapoints recorded
-    # proportion of single frames (just divided by total no. of datapoints)
-    # proportion of zero frames (ditto)
-# n_cores = number of cores on your laptop - to parallelise sappply
-# OUTPUTS:
-# list containing:
-# mean realised speed
-# error between each observed speed and the mean realised speed
-# hmean estimated speed
-# lognormal estimated speed
-# gamma estimated speed
-# Weibull estimated speed
-# error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
-estimates_calc <- function(seq_dats){
-  realised <- seq_dats$realised
-  mean_real <- mean(realised)
-  observed <- seq_dats$observed
-  observed <- observed[is.finite(observed)]
-  MOS <- mean(observed)
-  observed_sz <- c(observed, seq_dats$singles_speeds, seq_dats$zeros_speeds) # observed speeds when also including single and zero frame sequences
-  MOS_sz <- mean(observed_sz)
-  obs_meanreal_error <- sapply(observed, obs_meanreal_error_calc, mean_real = mean_real)
-  obs_meanreal_error_sz <- sapply(observed_sz, obs_meanreal_error_calc, mean_real = mean_real) # for observed speeds including single & zero-frame speeds
-  hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
-  hmean_sz <- (hmean_calc(observed_sz))[1]
-  obs_df <- data.frame(speed = observed)
-  obs_df_sz <- data.frame(speed = observed_sz)
-  mods <- sbm3(speed~1, obs_df) # fit all the models
-  mods_sz <- sbm3(speed~1, obs_df_sz)
-  lnorm <- predict.sbm(mods[[1]]$lnorm)[1,1] # lnorm estimate
-  lnorm_sz <- predict.sbm(mods_sz[[1]]$lnorm)[1,1]
-  gamma <- predict.sbm(mods[[1]]$gamma)[1,1] # gamma estimate
-  gamma_sz <- predict.sbm(mods_sz[[1]]$gamma)[1,1]
-  weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
-  weibull_sz <- predict.sbm(mods_sz[[1]]$weibull)[1,1]
-  hmean_error <- hmean - mean_real
-  hmean_error_MOS <- hmean - MOS
-  hmean_error_sz <- hmean_sz - mean_real
-  hmean_error_MOS_sz <- hmean_sz - MOS
-  lnorm_error <- lnorm - mean_real
-  lnorm_error_MOS <- lnorm - MOS
-  lnorm_error_sz <- lnorm_sz - mean_real
-  lnorm_error_MOS_sz <- lnorm_sz - MOS
-  gamma_error <- gamma - mean_real
-  gamma_error_MOS <- gamma - MOS
-  gamma_error_sz <- gamma_sz - mean_real
-  gamma_error_MOS_sz <- gamma_sz - MOS
-  weibull_error <- weibull - mean_real
-  weibull_error_MOS <- weibull - MOS
-  weibull_error_sz <- weibull_sz - mean_real
-  weibull_error_MOS_sz <- weibull_sz - MOS
-  output <- list(mean_real=mean_real, obs_meanreal_error=obs_meanreal_error, obs_meanreal_error_sz=obs_meanreal_error_sz, 
-                 hmean=hmean, hmean_sz=hmean_sz, lnorm=lnorm, lnorm_sz=lnorm_sz, gamma=gamma, gamma_sz=gamma_sz, weibull=weibull, weibull_sz=weibull_sz, 
-                 hmean_error=hmean_error, hmean_error_MOS=hmean_error_MOS, hmean_error_sz=hmean_error_sz, hmean_error_MOS_sz=hmean_error_MOS_sz,
-                 lnorm_error=lnorm_error, lnorm_error_MOS=lnorm_error_MOS, lnorm_error_sz=lnorm_error_sz, lnorm_error_MOS_sz=lnorm_error_MOS_sz, 
-                 gamma_error=gamma_error, gamma_error_MOS=gamma_error_MOS, gamma_error_sz=gamma_error_sz, gamma_error_MOS_sz=gamma_error_MOS_sz,
-                 weibull_error=weibull_error, weibull_error_MOS=weibull_error_MOS, weibull_error_sz=weibull_error_sz, weibull_error_MOS_sz=weibull_error_MOS_sz) 
-  return(output)
-}
+
 
 ## obs_meanreal_error_calc
 # work out error between an observed speed and the mean realised speed for that simulation run
@@ -1114,6 +1044,93 @@ singlespeed_analyse <- function(speed_parameter, iter){
   dev.off()
 }
 
+
+
+
+
+
+
+
+## estimates_calc
+# for one simulation iteration, works out estimated speeds (using hmean and 3 SBMs) and error between mean realised speed & each estimated speed
+# INPUT:
+# seq_dats: list of seq_dat outputs for each iteration
+# each iteration output is a list containing:
+# realised speeds
+# observed speeds
+# lengths of observed speed sequences 
+# number of single frames
+# speeds of single frame sequences
+# number of zero frames
+# speeds of zero frame sequences
+# total number of position datapoints recorded
+# proportion of single frames (just divided by total no. of datapoints)
+# proportion of zero frames (ditto)
+# n_cores = number of cores on your laptop - to parallelise sappply
+# OUTPUTS:
+# list containing:
+# mean realised speed
+# error between each observed speed and the mean realised speed
+# hmean estimated speed
+# lognormal estimated speed
+# gamma estimated speed
+# Weibull estimated speed
+# error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
+estimates_calc <- function(seq_dats){
+  realised <- seq_dats$realised
+  wMRS <- mean(realised)
+  observed <- seq_dats$observed
+  observed <- observed[is.finite(observed)]
+  mMOS <- mean(observed)
+  observed_sz <- c(observed, seq_dats$singles_speeds, seq_dats$zeros_speeds) # observed speeds when also including single and zero frame sequences
+  mMOS_sz <- mean(observed_sz)
+  mMOS_wMRS_error1 <- sapply(observed, obs_meanreal_error_calc, mean_real = wMRS)
+  mMOS_wMRS_error1_sz <- sapply(observed_sz, obs_meanreal_error_calc, mean_real = wMRS) # for observed speeds including single & zero-frame speeds
+  hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
+  hmean_sz <- (hmean_calc(observed_sz))[1]
+  obs_df <- data.frame(speed = observed)
+  obs_df_sz <- data.frame(speed = observed_sz)
+  mods <- sbm3(speed~1, obs_df) # fit all the models
+  mods_sz <- sbm3(speed~1, obs_df_sz)
+  lnorm <- predict.sbm(mods[[1]]$lnorm)[1,1] # lnorm estimate
+  lnorm_sz <- predict.sbm(mods_sz[[1]]$lnorm)[1,1]
+  gamma <- predict.sbm(mods[[1]]$gamma)[1,1] # gamma estimate
+  gamma_sz <- predict.sbm(mods_sz[[1]]$gamma)[1,1]
+  weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
+  weibull_sz <- predict.sbm(mods_sz[[1]]$weibull)[1,1]
+  h_wMRS_error <- hmean - wMRS
+  h_mMOS_error <- hmean - mMOS
+  h_wMRS_error_sz <- hmean_sz - wMRS
+  h_mMOS_error_sz <- hmean_sz - mMOS
+  l_wMRS_error <- lnorm - wMRS
+  l_mMOS_error <- lnorm - mMOS
+  l_wMRS_error_sz <- lnorm_sz - wMRS
+  l_mMOS_error_sz <- lnorm_sz - mMOS
+  g_wMRS_error <- gamma - wMRS
+  g_mMOS_error <- gamma - mMOS
+  g_wMRS_error_sz <- gamma_sz - wMRS
+  g_mMOS_error_sz <- gamma_sz - mMOS
+  w_wMRS_error <- weibull - wMRS
+  w_mMOS_error <- weibull - mMOS
+  w_wMRS_error_sz <- weibull_sz - wMRS
+  w_mMOS_error_sz <- weibull_sz - mMOS
+  output <- list(wMRS=wMRS, mMOS_wMRS_error=mMOS_wMRS_error, mMOS_wMRS_error_sz=mMOS_wMRS_error_sz, 
+                 hmean=hmean, hmean_sz=hmean_sz, lnorm=lnorm, lnorm_sz=lnorm_sz, gamma=gamma, gamma_sz=gamma_sz, weibull=weibull, weibull_sz=weibull_sz, 
+                 h_wMRS_error=h_wMRS_error, h_mMOS_error=h_mMOS_error, h_wMRS_error_sz=h_wMRS_error_sz, h_mMOS_error_sz=h_mMOS_error_sz,
+                 l_wMRS_error=l_wMRS_error, l_mMOS_error=l_mMOS_error, l_wMRS_error_sz=l_wMRS_error_sz, l_mMOS_error_sz=l_mMOS_error_sz, 
+                 g_wMRS_error=g_wMRS_error, g_mMOS_error=g_mMOS_error, g_wMRS_error_sz=g_wMRS_error_sz, g_mMOS_error_sz=g_mMOS_error_sz,
+                 w_wMRS_error=w_wMRS_error, w_mMOS_error=w_mMOS_error, w_wMRS_error_sz=w_wMRS_error_sz, w_mMOS_error_sz=w_mMOS_error_sz) 
+  return(output)
+}
+
+
+
+
+
+
+
+
+
 ## multispeed_analyse
 # analyses simulation results from multiple different speed parameters and combines them into one plot saved to PLOTS folder
 # INPUT
@@ -1122,31 +1139,33 @@ singlespeed_analyse <- function(speed_parameter, iter){
 # combined plot saved into PLOTS folder
 multispeed_analyse <- function(sp_and_iters){
   # store variables from the .RData files
-  mean_reals <- c()
-  obs_meanreal_errors <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
-  obs_meanreal_errors_sz <- c() # including single & zero frames
-  hmean_errors <- c()
-  hmean_errors_sz <- c()
-  lnorm_errors <- c()
-  lnorm_errors_sz <- c()
-  gamma_errors <- c()
-  gamma_errors_sz <- c()
-  weibull_errors <- c()
-  weibull_errors_sz <- c()
-  hmean_errors_MOS <- c()
-  hmean_errors_MOS_sz <- c()
-  lnorm_errors_MOS <- c()
-  lnorm_errors_MOS_sz <- c()
-  gamma_errors_MOS <- c()
-  gamma_errors_MOS_sz <- c()
-  weibull_errors_MOS <- c()
-  weibull_errors_MOS_sz <- c()
-  obs_meanreal_errors_lengths <- c()
-  obs_meanreal_errors_lengths_sz <- c()
+  wMRS <- c() # my original (wrong) method of working out MRS
+  aMRS <- c() # arithmetic MRS
+  gMRS <- c() # geometric MRS
+  mMOS_wMRS_error1 <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
+  mMOS_wMRS_error1_sz <- c() # including single & zero frames
+  h_wMRS_error <- c()
+  h_wMRS_error_sz <- c()
+  l_wMRS_error <- c()
+  l_wMRS_error_sz <- c()
+  g_wMRS_error <- c()
+  g_wMRS_error_sz <- c()
+  w_wMRS_error <- c()
+  w_wMRS_error_sz <- c()
+  h_mMOS_error <- c()
+  h_mMOS_error_sz <- c()
+  l_mMOS_error <- c()
+  l_mMOS_error_sz <- c()
+  g_mMOS_error <- c()
+  g_mMOS_error_sz <- c()
+  w_mMOS_error <- c()
+  w_mMOS_error_sz <- c()
+  mMOS_wMRS_error1_lengths <- c()
+  mMOS_wMRS_error1_lengths_sz <- c()
   
   n_zeros <- c()
-  n_singles <- c()
-  singles_speeds_mean <- c()
+  n_singles1 <- c()
+  singles1_speeds_mean <- c()
   zeros_speeds_mean <- c()
   
   # for making visualisation plot
@@ -1162,6 +1181,15 @@ multispeed_analyse <- function(sp_and_iters){
     for (j in iter_range){
       i <- sp_and_iters$speed_parameter[n]
       load(paste0("../results/seq_dats/sp", i, "iter", j, ".RData"))
+      
+      # also need to load the correct path (need to finish putting them all in a separate folder and renaming so can access them easily)
+      # then use the original path to work out aMRS & gMRS
+      
+      load(paste0("../results/paths_copy_for_analysis/sp", i, "/iter", j, ".RData"))
+      aMRS <- c(aMRS, mean(path$speed)) # arithmetic MRS
+      gMRS <- c(gMRS, exp(mean(log(path$speed)))) # geometric mean
+      
+      
       
       # store the coords of each sequence and their speed
       # need to add a column to seq_dats$posdat with speed of each sequence
@@ -1181,9 +1209,9 @@ multispeed_analyse <- function(sp_and_iters){
       sp_plot <- c(sp_plot, rep(i, times = length(posdat$x)))
       iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
       
-      n_singles <- c(n_singles, seq_dats$n_singles)
+      n_singles1 <- c(n_singles1, seq_dats$n_singles)
       n_zeros <- c(n_zeros, seq_dats$n_zeros)
-      singles_speeds_mean <- c(singles_speeds_mean, mean(seq_dats$singles_speeds))
+      singles1_speeds_mean <- c(singles1_speeds_mean, mean(seq_dats$singles_speeds))
       zeros_speeds_mean <- c(zeros_speeds_mean, mean(seq_dats$zeros_speeds))
       
       estimates <- estimates_calc(seq_dats)
@@ -1194,35 +1222,36 @@ multispeed_analyse <- function(sp_and_iters){
                          "_species", metadata_sim$species,
                          "_twoCTs", metadata_sim$twoCTs,
                          "_connectedCTs", metadata_sim$connectedCTs)
-      mean_reals <- c(mean_reals, estimates$mean_real)
-      obs_meanreal_errors <- c(obs_meanreal_errors, estimates$obs_meanreal_error)
-      obs_meanreal_errors_sz <- c(obs_meanreal_errors_sz, estimates$obs_meanreal_error_sz)
+      wMRS <- c(wMRS, estimates$wMRS)
+      mMOS_wMRS_error1 <- c(mMOS_wMRS_error1, estimates$mMOS_wMRS_error1)
+      mMOS_wMRS_error1_sz <- c(mMOS_wMRS_error1_sz, estimates$mMOS_wMRS_error1_sz)
       
-      hmean_errors <- c(hmean_errors, estimates$hmean_error)
-      hmean_errors_sz <- c(hmean_errors_sz, estimates$hmean_error_sz)
-      lnorm_errors <- c(lnorm_errors, estimates$lnorm_error)
-      lnorm_errors_sz <- c(lnorm_errors_sz, estimates$lnorm_error_sz)
-      gamma_errors <- c(gamma_errors, estimates$gamma_error)
-      gamma_errors_sz <- c(gamma_errors_sz, estimates$gamma_error_sz)
-      weibull_errors <- c(weibull_errors, estimates$weibull_error)
-      weibull_errors_sz <- c(weibull_errors_sz, estimates$weibull_error_sz)
+      h_wMRS_error <- c(h_wMRS_error, estimates$h_wMRS_error)
+      h_wMRS_error_sz <- c(h_wMRS_error_sz, estimates$h_wMRS_error_sz)
+      l_wMRS_error <- c(l_wMRS_error, estimates$l_wMRS_error)
+      l_wMRS_error_sz <- c(l_wMRS_error_sz, estimates$l_wMRS_error_sz)
+      g_wMRS_error <- c(g_wMRS_error, estimates$g_wMRS_error)
+      g_wMRS_error_sz <- c(g_wMRS_error_sz, estimates$g_wMRS_error_sz)
+      w_wMRS_error <- c(w_wMRS_error, estimates$w_wMRS_error)
+      w_wMRS_error_sz <- c(w_wMRS_error_sz, estimates$w_wMRS_error_sz)
       
-      hmean_errors_MOS <- c(hmean_errors_MOS, estimates$hmean_error_MOS)
-      hmean_errors_MOS_sz <- c(hmean_errors_MOS_sz, estimates$hmean_error_MOS_sz)
-      lnorm_errors_MOS <- c(lnorm_errors_MOS, estimates$lnorm_error_MOS)
-      lnorm_errors_MOS_sz <- c(lnorm_errors_MOS_sz, estimates$lnorm_error_MOS_sz)
-      gamma_errors_MOS <- c(gamma_errors_MOS, estimates$gamma_error_MOS)
-      gamma_errors_MOS_sz <- c(gamma_errors_MOS_sz, estimates$gamma_error_MOS_sz)
-      weibull_errors_MOS <- c(weibull_errors_MOS, estimates$weibull_error_MOS)
-      weibull_errors_MOS_sz <- c(weibull_errors_MOS_sz, estimates$weibull_error_MOS_sz)
+      h_mMOS_error <- c(h_mMOS_error, estimates$h_mMOS_error)
+      h_mMOS_error_sz <- c(h_mMOS_error_sz, estimates$h_mMOS_error_sz)
+      l_mMOS_error <- c(l_mMOS_error, estimates$l_mMOS_error)
+      l_mMOS_error_sz <- c(l_mMOS_error_sz, estimates$l_mMOS_error_sz)
+      g_mMOS_error <- c(g_mMOS_error, estimates$g_mMOS_error)
+      g_mMOS_error_sz <- c(g_mMOS_error_sz, estimates$g_gMOS_error_sz)
+      w_mMOS_error <- c(w_mMOS_error, estimates$w_mMOS_error)
+      w_mMOS_errors_sz <- c(w_mMOS_errors_sz, estimates$w_mMOS_error_sz)
       
-      obs_meanreal_errors_lengths <- c(obs_meanreal_errors_lengths, length(estimates$obs_meanreal_error))
-      obs_meanreal_errors_lengths_sz <- c(obs_meanreal_errors_lengths_sz, length(estimates$obs_meanreal_error_sz))
-      rm(list = c("seq_dats", "metadata_sim"))
+      mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(estimates$mMOS_wMRS_error1))
+      mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(estimates$mMOS_wMRS_error1_sz))
+      rm(list = c("seq_dats", "metadata_sim", "path"))
     }
   }
   
-  ## visualisation plot
+  
+  ## visualisation plot ############################################################################################################################################################
   vis_df <- data.frame(x = x_plot,
                        y = y_plot,
                        speed = v_plot,
@@ -1274,218 +1303,283 @@ multispeed_analyse <- function(sp_and_iters){
     theme(legend.text = element_text(size = 12))
   vis_plot
   
+  png(file=paste0("../results/PLOTS/visualisation_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=900, height=650)
+  print(vis_plot)
+  dev.off()
   
-  mean_reals_repped <- c()
-  for (x in 1:length(mean_reals)){
-    mean_reals_repped <- c(mean_reals_repped, rep(mean_reals[x], obs_meanreal_errors_lengths[x]))
+  
+  ### MRS1_MOS1_s1_e1 PLOTS ###################################################################################################################################################################################
+  
+  ## for making dataframes for plots:
+  wMRS_repped <- c()
+  for (x in 1:length(wMRS)){
+    wMRS_repped <- c(wMRS_repped, rep(wMRS[x], mMOS_wMRS_error1_lengths[x]))
   }
   
-  mean_reals_repped_sz <- c()
-  for (x in 1:length(mean_reals)){
-    mean_reals_repped_sz <- c(mean_reals_repped_sz, rep(mean_reals[x], obs_meanreal_errors_lengths_sz[x]))
+  wMRS_repped_sz <- c()
+  for (x in 1:length(wMRS)){
+    wMRS_repped_sz <- c(wMRS_repped_sz, rep(wMRS[x], mMOS_wMRS_error1_lengths_sz[x]))
   }
   
-  # realised speeds plot - not using this one though
-  real_obs_df <- data.frame(mean_real = mean_reals_repped,
-                            error = obs_meanreal_errors)
-  real_obs_df_sz <- data.frame(mean_real = mean_reals_repped_sz,
-                            error = obs_meanreal_errors_sz)
+  
+  # realised speeds plot - not using it but using these dataframes later in the code
+  mMOS_wMRS_repped_df <- data.frame(wMRS = wMRS_repped,
+                            error = mMOS_wMRS_error1)
+  mMOS_wMRS_sz_repped_df <- data.frame(wMRS = wMRS_repped_sz,
+                            error = mMOS_wMRS_error1_sz)
 
-  # real_obs_plot <- ggplot(real_obs_df, aes(x = mean_real, y = error))+
+  # work out mean of each MRS set of errors:
+  mMOS_wMRS_error1_mean <- c()
+  for (i in unique(mMOS_wMRS_repped_df$wMRS)){
+    d <- mMOS_wMRS_repped_df[mMOS_wMRS_repped_df$wMRS==i,]
+    mMOS_wMRS_error1_mean <- c(mMOS_wMRS_error1_mean, mean(d$error))
+  }
+  
+  # work out mean of each MRS set of errors: - including singles and zeros
+  mMOS_wMRS_error1_mean_sz <- c()
+  for (i in unique(mMOS_wMRS_sz_repped_df$wMRS)){
+    d <- mMOS_wMRS_sz_repped_df[mMOS_wMRS_sz_repped_df$wMRS==i,]
+    mMOS_wMRS_error1_mean_sz <- c(mMOS_wMRS_error1_mean_sz, mean(d$error))
+  }
+  
+  
+  ## combined plots:
+  # real_obs:
+  mMOS_wMRS_error1_combined_df <- data.frame(wMRS = c(wMRS, wMRS),
+                                             error = c(mMOS_wMRS_error1_mean, mMOS_wMRS_error1_mean_sz),
+                                             type = c(rep("raw", times=300), rep("with_sz", times=300)))
+  mMOS_wMRS_error1_combined_plot <- ggplot(mMOS_wMRS_error1_combined_df, aes(x = wMRS, y = error, colour = type))+
+    geom_point()+
+    geom_smooth(alpha=0.3)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "error (m/s)",
+         title = "Mean errors between MRS and observed speeds\n(mean bc there are multiple observed speeds per MRS)\n(+ve: obs > MRS, -ve: MRS > obs)")+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme_minimal()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13),
+          legend.text = element_text(size = 13))
+  # mMOS_wMRS_error1_combined_plot
+  
+  # real-est:
+  est_wMRS_combined_df <- data.frame(wMRS = c(rep(wMRS, times = 8)),
+                                     error = -c(h_wMRS_error, l_wMRS_error, g_wMRS_error, w_wMRS_error, h_wMRS_error_sz, l_wMRS_error_sz, g_wMRS_error_sz, w_wMRS_error_sz),
+                                     method = c(rep("hmean", length(h_wMRS_error)), rep("lnorm", length(l_wMRS_error)), rep("gamma", length(g_wMRS_error)), rep("weibull", length(w_wMRS_error)), rep("hmean", length(h_wMRS_error_sz)), rep("lnorm", length(l_wMRS_error_sz)), rep("gamma", length(g_wMRS_error_sz)), rep("weibull", length(w_wMRS_error_sz))),
+                                     type = c(rep("raw", times=2400), rep("with_sz", times=2400)))
+  
+  est_wMRS_combined_plot <- ggplot(est_wMRS_combined_df, aes(x = wMRS, y = error, colour = method))+
+    geom_point()+
+    facet_grid(type ~ .)+
+    geom_smooth(alpha = 0.2)+
+    theme_minimal()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error (m/s)",
+         title = "Errors between MRS and estimated speeds\n(+ve: MRS > est, -ve: est > MRS)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13),
+          strip.text.x = element_text(size = 13))
+  # est_wMRS_combined_plot
+  
+  MRS1_MOS1_s1_e1_arranged <- ggarrange(mMOS_wMRS_error1_combined_plot, est_wMRS_combined_plot, nrow = 2)
+  MRS1_MOS1_s1_e1_annotated <- annotate_figure(MRS1_MOS1_s1_e1_arranged, top = text_grob(paste0(filename),
+                                                                                         color = "red", face = "bold", size = 14))
+
+  png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/combined_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=700, height=1000)
+  print(MRS1_MOS1_s1_e1_annotated)
+  dev.off()
+  
+  
+  # NON-COMBINED PLOTS: (not using atm)
+  
+  # # realised - observed speed errors plot - NOT USING ATM - USING COMBINED PLOT INSTEAD
+  # mMOS_wMRS_error1_df <- data.frame(wMRS = wMRS,
+  #                                 error = mMOS_wMRS_error1_mean)
+  # mMOS_wMRS_error1_plot <- ggplot(mMOS_wMRS_error1_df, aes(x = wMRS, y = error))+
   #   geom_point()+
-  #   geom_smooth()+
-  #   geom_hline(yintercept = 0, linetype = "dashed")+
+  #   geom_smooth(alpha=0.3)+
   #   labs(x = "Mean realised speed (m/s)",
-  #        y = "error (m/s)")+
+  #        y = "error (m/s)",
+  #        title = "Mean errors between MRS and observed speeds\n(mean bc there are multiple observed speeds per MRS)\n(+ve: obs > MRS, -ve: MRS > obs)")+
+  #   geom_hline(yintercept = 0, linetype = "dashed")+
   #   theme_minimal()+
   #   theme(axis.title = element_text(size=18),
   #         axis.text = element_text(size = 15),
   #         title = element_text(size = 13))
-  # real_obs_plot
+  # # mMOS_wMRS_error1_plot
+  # 
+  # # estimated speeds plot
+  # real_est_df <- data.frame(mean_real=wMRS, 
+  #                           error = -c(h_wMRS_error, l_wMRS_error, g_wMRS_errors, w_wMRS_errors),
+  #                           method = c(rep("hmean", length(h_wMRS_error)), rep("lnorm", length(l_wMRS_error)), rep("gamma", length(g_wMRS_error)), rep("weibull", length(w_wMRS_error))))
+  # 
+  # real_est_plot <- ggplot(real_est_df, aes(x = mean_real, y = error, colour = method))+
+  #   geom_point()+
+  #   geom_smooth(alpha = 0.2)+
+  #   theme_minimal()+
+  #   geom_hline(yintercept = 0, linetype = "dashed")+
+  #   scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
+  #   labs(x = "Mean realised speed (m/s)",
+  #        y = "Error (m/s)",
+  #        title = "Errors between MRS and estimated speeds\n(+ve: MRS > est, -ve: est > MRS)")+
+  #   theme(axis.title = element_text(size=18),
+  #         axis.text = element_text(size = 15),
+  #         legend.title = element_text(size = 18),
+  #         legend.text = element_text(size = 15),
+  #         title = element_text(size = 13))
+  # # real_est_plot
   
-  # realised - observed speed errors plot
-  # using mean of each MRS set of errors:
-  obs_meanreal_errors_mean <- c()
-  for (i in unique(real_obs_df$mean_real)){
-    d <- real_obs_df[real_obs_df$mean_real==i,]
-    obs_meanreal_errors_mean <- c(obs_meanreal_errors_mean, mean(d$error))
-  }
-  real_obs_df_means <- data.frame(mean_real = mean_reals,
-                                  error = obs_meanreal_errors_mean)
-  real_obs_plot_means <- ggplot(real_obs_df_means, aes(x = mean_real, y = error))+
-    geom_point()+
-    geom_smooth(alpha=0.3)+
-    labs(x = "Mean realised speed (m/s)",
-         y = "error (m/s)",
-         title = "Mean errors between MRS and observed speeds\n(mean bc there are multiple observed speeds per MRS)\n(+ve: obs > MRS, -ve: MRS > obs)")+
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme_minimal()+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13))
-  # real_obs_plot_means
+  # MRS1_MOS1_s1_e1_arranged <- ggarrange(mMOS_wMRS_error1_plot, real_est_plot, nrow = 2)
+  # MRS1_MOS1_s1_e1_annotated <- annotate_figure(MRS1_MOS1_s1_e1_arranged, top = text_grob(paste0(filename), 
+  #                                                                                        color = "red", face = "bold", size = 14))
+  # 
+  # png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+  #     width=700, height=1000)
+  # print(MRS1_MOS1_s1_e1_annotated)
+  # dev.off()
   
-  # realised - observed speed errors plot - WITH SINGLE & ZERO-FRAME SEQUENCES IN
-  # using mean of each MRS set of errors:
-  obs_meanreal_errors_mean_sz <- c()
-  for (i in unique(real_obs_df_sz$mean_real)){
-    d <- real_obs_df_sz[real_obs_df_sz$mean_real==i,]
-    obs_meanreal_errors_mean_sz <- c(obs_meanreal_errors_mean_sz, mean(d$error))
-  }
-  real_obs_df_means_sz <- data.frame(mean_real = mean_reals,
-                                  error = obs_meanreal_errors_mean_sz)
-  real_obs_plot_means_sz <- ggplot(real_obs_df_means_sz, aes(x = mean_real, y = error))+
-    geom_point()+
-    geom_smooth(alpha=0.3)+
-    labs(x = "Mean realised speed (m/s)",
-         y = "error (m/s)",
-         title = "Mean errors between MRS and observed speeds\n(mean bc there are multiple observed speeds per MRS)\n(+ve: obs > MRS, -ve: MRS > obs)")+
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme_minimal()+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13))
-  # real_obs_plot_means_sz
-  
-  ## combined plot:
-  real_obs_df_means_combined <- data.frame(mean_real = c(mean_reals, mean_reals),
-                                  error = c(obs_meanreal_errors_mean, obs_meanreal_errors_mean_sz),
-                                  type = c(rep("raw", times=250), rep("with_sz", times=250)))
-  real_obs_plot_means_combined <- ggplot(real_obs_df_means_combined, aes(x = mean_real, y = error, colour = type))+
-    geom_point()+
-    geom_smooth(alpha=0.3)+
-    labs(x = "Mean realised speed (m/s)",
-         y = "error (m/s)",
-         title = "Mean errors between MRS and observed speeds\n(mean bc there are multiple observed speeds per MRS)\n(+ve: obs > MRS, -ve: MRS > obs)")+
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme_minimal()+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13))
-  # real_obs_plot_means_combined
-  
-  # estimated speeds plot
-  real_est_df <- data.frame(mean_real=mean_reals, 
-                             error = -c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
-                             method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
-  
-  real_est_plot <- ggplot(real_est_df, aes(x = mean_real, y = error, colour = method))+
-    geom_point()+
-    geom_smooth(alpha = 0.2)+
-    theme_minimal()+
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
-    labs(x = "Mean realised speed (m/s)",
-         y = "Error (m/s)",
-         title = "Errors between MRS and estimated speeds\n(+ve: MRS > est, -ve: est > MRS)")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))
-  # real_est_plot
+  # # realised - observed speed errors plot - WITH SINGLE & ZERO-FRAME SEQUENCES IN
+  # real_obs_df_means_sz <- data.frame(mean_real = wMRS,
+  #                                 error = mMOS_wMRS_error1_mean_sz)
+  # real_obs_plot_means_sz <- ggplot(real_obs_df_means_sz, aes(x = mean_real, y = error))+
+  #   geom_point()+
+  #   geom_smooth(alpha=0.3)+
+  #   labs(x = "Mean realised speed (m/s)",
+  #        y = "error (m/s)",
+  #        title = "Mean errors between MRS and observed speeds\n(mean bc there are multiple observed speeds per MRS)\n(+ve: obs > MRS, -ve: MRS > obs)")+
+  #   geom_hline(yintercept = 0, linetype = "dashed")+
+  #   theme_minimal()+
+  #   theme(axis.title = element_text(size=18),
+  #         axis.text = element_text(size = 15),
+  #         title = element_text(size = 13))
+  # # real_obs_plot_means_sz
   
   # estimated speeds plot - WITH SINGLE & ZERO FRAME SEQUENCES
-  real_est_df_sz <- data.frame(mean_real=mean_reals, 
-                            error = -c(hmean_errors_sz, lnorm_errors_sz, gamma_errors_sz, weibull_errors_sz),
-                            method = c(rep("hmean", length(hmean_errors_sz)), rep("lnorm", length(lnorm_errors_sz)), rep("gamma", length(gamma_errors_sz)), rep("weibull", length(weibull_errors_sz))))
-  
-  real_est_plot_sz <- ggplot(real_est_df_sz, aes(x = mean_real, y = error, colour = method))+
-    geom_point()+
-    geom_smooth(alpha = 0.2)+
-    theme_minimal()+
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
-    labs(x = "Mean realised speed (m/s)",
-         y = "Error (m/s)",
-         title = "Errors between MRS and estimated speeds\n(+ve: MRS > est, -ve: est > MRS)")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))
-  
-  
-  # adding the errors plot: - now changed to adding real-obs errors with obs-est errors
-  hmean_added <- c()
-  lnorm_added <- c()
-  gamma_added <- c()
-  weibull_added <- c()
-  for (i in 1:length(mean_reals)){ # for each MRS
-    obsMRS <- obs_meanreal_errors_mean[i] # obs <-> MRS error
-    hmeanMOS <- hmean_errors_MOS[[i]] # hmean <-> MOS error
-    lnormMOS <- lnorm_errors_MOS[i] # lnorm <-> MOS error
-    gammaMOS <- gamma_errors_MOS[i] # gamma <-> MOS error
-    weibullMOS <- weibull_errors_MOS[i] # weibull <-> MOS error
-    hmean_added <- c(hmean_added, obsMRS+hmeanMOS)
-    lnorm_added <- c(lnorm_added, obsMRS+lnormMOS)
-    gamma_added <- c(gamma_added, obsMRS+gammaMOS)
-    weibull_added <- c(weibull_added, obsMRS+weibullMOS)
-  }
-  
-  added_df <- data.frame(MRS = mean_reals,
-                         error = -c(hmean_added, lnorm_added, gamma_added, weibull_added), # make it negative here so that +ve means models over-correct and -ve means models under-correct
-                         type = c("hmean", "lnorm", "gamma", "weibull"))
-  
-  added_plot <- ggplot(added_df, aes(x = MRS, y = error, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "error (m/s)",
-         title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MOS\n(+ve: models over-correct, -ve: models under-correct)")
-  # added_plot
+  # real_est_df_sz <- data.frame(mean_real=wMRS, 
+  #                           error = -c(h_wMRS_error_sz, l_wMRS_error_sz, g_wMRS_error_sz, w_wMRS_errors_sz),
+  #                           method = c(rep("hmean", length(h_wMRS_error_sz)), rep("lnorm", length(l_wMRS_error_sz)), rep("gamma", length(g_wMRS_error_sz)), rep("weibull", length(w_wMRS_error_sz))))
+  # 
+  # real_est_plot_sz <- ggplot(real_est_df_sz, aes(x = mean_real, y = error, colour = method))+
+  #   geom_point()+
+  #   geom_smooth(alpha = 0.2)+
+  #   theme_minimal()+
+  #   geom_hline(yintercept = 0, linetype = "dashed")+
+  #   scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
+  #   labs(x = "Mean realised speed (m/s)",
+  #        y = "Error (m/s)",
+  #        title = "Errors between MRS and estimated speeds\n(+ve: MRS > est, -ve: est > MRS)")+
+  #   theme(axis.title = element_text(size=18),
+  #         axis.text = element_text(size = 15),
+  #         legend.title = element_text(size = 18),
+  #         legend.text = element_text(size = 15),
+  #         title = element_text(size = 13))
   
   
-  # adding the errors plot: - WTH SINGLE & ZERO FRAME SEQUENCES
-  hmean_added_sz <- c()
-  lnorm_added_sz <- c()
-  gamma_added_sz <- c()
-  weibull_added_sz <- c()
-  for (i in 1:length(mean_reals)){ # for each MRS
-    obsMRS_sz <- obs_meanreal_errors_mean_sz[i] # obs <-> MRS error
-    hmeanMOS_sz <- hmean_errors_MOS_sz[[i]] # hmean <-> MOS error
-    lnormMOS_sz <- lnorm_errors_MOS_sz[i] # lnorm <-> MOS error
-    gammaMOS_sz <- gamma_errors_MOS_sz[i] # gamma <-> MOS error
-    weibullMOS_sz <- weibull_errors_MOS_sz[i] # weibull <-> MOS error
-    hmean_added_sz <- c(hmean_added_sz, obsMRS_sz+hmeanMOS_sz)
-    lnorm_added_sz <- c(lnorm_added_sz, obsMRS_sz+lnormMOS_sz)
-    gamma_added_sz <- c(gamma_added_sz, obsMRS_sz+gammaMOS_sz)
-    weibull_added_sz <- c(weibull_added_sz, obsMRS_sz+weibullMOS_sz)
-  }
+  # # adding the errors plot: - now changed to adding real-obs errors with obs-est errors -- COMMENTED OUT FOR NOW
+  # hmean_added <- c()
+  # lnorm_added <- c()
+  # gamma_added <- c()
+  # weibull_added <- c()
+  # for (i in 1:length(wMRS)){ # for each MRS
+  #   obsMRS <- mMOS_wMRS_error1_mean[i] # obs <-> MRS error
+  #   hmeanMOS <- h_mMOS_error[[i]] # hmean <-> MOS error
+  #   lnormMOS <- lnorm_errors_MOS[i] # lnorm <-> MOS error
+  #   gammaMOS <- gamma_errors_MOS[i] # gamma <-> MOS error
+  #   weibullMOS <- weibull_errors_MOS[i] # weibull <-> MOS error
+  #   hmean_added <- c(hmean_added, obsMRS+hmeanMOS)
+  #   lnorm_added <- c(lnorm_added, obsMRS+lnormMOS)
+  #   gamma_added <- c(gamma_added, obsMRS+gammaMOS)
+  #   weibull_added <- c(weibull_added, obsMRS+weibullMOS)
+  # }
+  # 
+  # added_df <- data.frame(MRS = wMRS,
+  #                        error = -c(hmean_added, lnorm_added, gamma_added, weibull_added), # make it negative here so that +ve means models over-correct and -ve means models under-correct
+  #                        type = c("hmean", "lnorm", "gamma", "weibull"))
+  # 
+  # added_plot <- ggplot(added_df, aes(x = MRS, y = error, colour = type))+
+  #   geom_point()+
+  #   geom_smooth(alpha = 0.1)+
+  #   theme_minimal()+
+  #   scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+  #   geom_hline(yintercept = 0, linetype = "dashed")+
+  #   theme(axis.title = element_text(size=18),
+  #         axis.text = element_text(size = 15),
+  #         legend.title = element_text(size = 18),
+  #         legend.text = element_text(size = 15),
+  #         title = element_text(size = 13))+
+  #   labs(x = "mean realised speed (m/s)",
+  #        y = "error (m/s)",
+  #        title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MOS\n(+ve: models over-correct, -ve: models under-correct)")
+  # # added_plot
+  # 
+  # 
+  # # adding the errors plot: - WTH SINGLE & ZERO FRAME SEQUENCES
+  # hmean_added_sz <- c()
+  # lnorm_added_sz <- c()
+  # gamma_added_sz <- c()
+  # weibull_added_sz <- c()
+  # for (i in 1:length(wMRS)){ # for each MRS
+  #   obsMRS_sz <- mMOS_wMRS_error1_mean_sz[i] # obs <-> MRS error
+  #   hmeanMOS_sz <- h_mMOS_error_sz[[i]] # hmean <-> MOS error
+  #   lnormMOS_sz <- lnorm_errors_MOS_sz[i] # lnorm <-> MOS error
+  #   gammaMOS_sz <- gamma_errors_MOS_sz[i] # gamma <-> MOS error
+  #   weibullMOS_sz <- weibull_errors_MOS_sz[i] # weibull <-> MOS error
+  #   hmean_added_sz <- c(hmean_added_sz, obsMRS_sz+hmeanMOS_sz)
+  #   lnorm_added_sz <- c(lnorm_added_sz, obsMRS_sz+lnormMOS_sz)
+  #   gamma_added_sz <- c(gamma_added_sz, obsMRS_sz+gammaMOS_sz)
+  #   weibull_added_sz <- c(weibull_added_sz, obsMRS_sz+weibullMOS_sz)
+  # }
+  # 
+  # added_df_sz <- data.frame(MRS = wMRS,
+  #                        error = -c(hmean_added_sz, lnorm_added_sz, gamma_added_sz, weibull_added_sz),
+  #                        type = c("hmean", "lnorm", "gamma", "weibull"))
+  # 
+  # added_plot_sz <- ggplot(added_df_sz, aes(x = MRS, y = error, colour = type))+
+  #   geom_point()+
+  #   geom_smooth(alpha = 0.1)+
+  #   theme_minimal()+
+  #   scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+  #   geom_hline(yintercept = 0, linetype = "dashed")+
+  #   theme(axis.title = element_text(size=18),
+  #         axis.text = element_text(size = 15),
+  #         legend.title = element_text(size = 18),
+  #         legend.text = element_text(size = 15),
+  #         title = element_text(size = 13))+
+  #   labs(x = "mean realised speed (m/s)",
+  #        y = "error (m/s)",
+  #        title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MOS\n(+ve: models over-correct, -ve: models under-correct)")
+  # 
   
-  added_df_sz <- data.frame(MRS = mean_reals,
-                         error = -c(hmean_added_sz, lnorm_added_sz, gamma_added_sz, weibull_added_sz),
-                         type = c("hmean", "lnorm", "gamma", "weibull"))
+  # # save all three together: - WTH SINGLE & ZERO FRAME SPEEDS TOO
+  # arranged_sz <- ggarrange(real_obs_plot_means_sz, real_est_plot_sz, added_plot_sz, nrow = 3)
+  # annotated_sz <- annotate_figure(arranged_sz, top = text_grob(paste0(filename), 
+  #                                                        color = "red", face = "bold", size = 14))
+  # 
+  # png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/sz_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+  #     width=700, height=1000)
+  # print(annotated_sz)
+  # dev.off()
+  # 
+  # 
+  # png(file=paste0("../results/PLOTS/combined_obs_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+  #     width=900, height=650)
+  # print(real_obs_plot_means_combined)
+  # dev.off()
   
-  added_plot_sz <- ggplot(added_df_sz, aes(x = MRS, y = error, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "error (m/s)",
-         title = "Sum of errors between observed speeds and MRS and\nerrors between each speed estimate and MOS\n(+ve: models over-correct, -ve: models under-correct)")
-  
+  # go from here - sort out singles & zeros against MRS
   
   ## no. of singles & no. of zeros against MRS
-  n_sz_df <- data.frame(MRS = mean_reals,
-                        count = c(n_singles, n_zeros),
+  n_s1z_df <- data.frame(MRS = wMRS,
+                        count = c(n_singles1, n_zeros),
                         type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_sz_plot <- ggplot(n_sz_df, aes(x = MRS, y = count, colour = type))+
+  n_s1z_plot <- ggplot(n_s1z_df, aes(x = MRS, y = count, colour = type))+
     geom_point()+
     geom_smooth(alpha = 0.1)+
     theme_minimal()+
@@ -1499,13 +1593,13 @@ multispeed_analyse <- function(sp_and_iters){
     labs(x = "mean realised speed (m/s)",
          y = "count",
          title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  n_sz_plot
+  n_s1z_plot
   
   ## mean speeds of single & zero frame sequences
-  speeds_sz_df <- data.frame(MRS = mean_reals,
-                        speed = c(singles_speeds_mean, zeros_speeds_mean),
+  speeds_s1z_df <- data.frame(MRS = wMRS,
+                        speed = c(singles1_speeds_mean, zeros_speeds_mean),
                         type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_sz_plot <- ggplot(speeds_sz_df, aes(x = MRS, y = speed, colour = type))+
+  speeds_s1z_plot <- ggplot(speeds_s1z_df, aes(x = MRS, y = speed, colour = type))+
     geom_point()+
     geom_smooth(alpha = 0.1)+
     theme_minimal()+
@@ -1519,77 +1613,13 @@ multispeed_analyse <- function(sp_and_iters){
     labs(x = "mean realised speed (m/s)",
          y = "mean speed (m/s)",
          title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  speeds_sz_plot
+  speeds_s1z_plot
   
-  sz_arranged <- ggarrange(n_sz_plot, speeds_sz_plot, nrow = 2)
+  s1z_arranged <- ggarrange(n_s1z_plot, speeds_s1z_plot, nrow = 2)
   
-  png(file=paste0("../results/PLOTS/sz_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+  png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/sz_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
       width=700, height=1000)
   print(sz_arranged)
-  dev.off()
-  
-  # save all three together:
-  arranged <- ggarrange(real_obs_plot_means, real_est_plot, added_plot, nrow = 3)
-  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), 
-                                                         color = "red", face = "bold", size = 14))
-  
-  png(file=paste0("../results/PLOTS/multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(annotated)
-  dev.off()
-  
-  # also save all three separately:
-  png(file=paste0("../results/PLOTS/obs_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(real_obs_plot_means)
-  dev.off()
-  
-  png(file=paste0("../results/PLOTS/est_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(real_est_plot)
-  dev.off()
-  
-  png(file=paste0("../results/PLOTS/added_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(added_plot)
-  dev.off()
-  
-  
-  # save all three together: - WTH SINGLE & ZERO FRAME SPEEDS TOO
-  arranged_sz <- ggarrange(real_obs_plot_means_sz, real_est_plot_sz, added_plot_sz, nrow = 3)
-  annotated_sz <- annotate_figure(arranged_sz, top = text_grob(paste0(filename), 
-                                                         color = "red", face = "bold", size = 14))
-  
-  png(file=paste0("../results/PLOTS/sz_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(annotated_sz)
-  dev.off()
-  
-  # also save all three separately:
-  png(file=paste0("../results/PLOTS/sz_obs_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(real_obs_plot_means_sz)
-  dev.off()
-  
-  png(file=paste0("../results/PLOTS/sz_est_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(real_est_plot_sz)
-  dev.off()
-  
-  png(file=paste0("../results/PLOTS/sz_added_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(added_plot_sz)
-  dev.off()
-  
-  
-  png(file=paste0("../results/PLOTS/combined_obs_multi_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(real_obs_plot_means_combined)
-  dev.off()
-  
-  png(file=paste0("../results/PLOTS/visualisation_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=900, height=650)
-  print(vis_plot)
   dev.off()
   
 }

@@ -1251,7 +1251,10 @@ multispeed_analyse <- function(sp_and_iters){
   }
   
   
-  ## visualisation plot ############################################################################################################################################################
+  ## COMMUNAL PLOTS #########################################################################################################################################################
+  
+  ## visualisation plot 
+  
   vis_df <- data.frame(x = x_plot,
                        y = y_plot,
                        speed = v_plot,
@@ -1309,9 +1312,14 @@ multispeed_analyse <- function(sp_and_iters){
   dev.off()
   
   
+  ## comparing different means/medians plot:
+  
+  
+  
+  
+  
   ### MRS1_MOS1_s1_e1 PLOTS ###################################################################################################################################################################################
   
-  ## for making dataframes for plots:
   wMRS_repped <- c()
   for (x in 1:length(wMRS)){
     wMRS_repped <- c(wMRS_repped, rep(wMRS[x], mMOS_wMRS_error1_lengths[x]))
@@ -1322,22 +1330,18 @@ multispeed_analyse <- function(sp_and_iters){
     wMRS_repped_sz <- c(wMRS_repped_sz, rep(wMRS[x], mMOS_wMRS_error1_lengths_sz[x]))
   }
   
-  
-  # realised speeds plot - not using it but using these dataframes later in the code
-  mMOS_wMRS_repped_df <- data.frame(wMRS = wMRS_repped,
+  mMOS_wMRS_repped_df <- data.frame(wMRS = wMRS_repped, # for working out mMOS_wMRS_error1_mean
                             error = mMOS_wMRS_error1)
-  mMOS_wMRS_sz_repped_df <- data.frame(wMRS = wMRS_repped_sz,
+  mMOS_wMRS_sz_repped_df <- data.frame(wMRS = wMRS_repped_sz, # for working out mMOS_wMRS_error1_mean_sz
                             error = mMOS_wMRS_error1_sz)
 
-  # work out mean of each MRS set of errors:
-  mMOS_wMRS_error1_mean <- c()
+  mMOS_wMRS_error1_mean <- c() # mean of each MRS set of errors:
   for (i in unique(mMOS_wMRS_repped_df$wMRS)){
     d <- mMOS_wMRS_repped_df[mMOS_wMRS_repped_df$wMRS==i,]
     mMOS_wMRS_error1_mean <- c(mMOS_wMRS_error1_mean, mean(d$error))
   }
   
-  # work out mean of each MRS set of errors: - including singles and zeros
-  mMOS_wMRS_error1_mean_sz <- c()
+  mMOS_wMRS_error1_mean_sz <- c() #mean of each MRS set of errors: - including singles and zeros
   for (i in unique(mMOS_wMRS_sz_repped_df$wMRS)){
     d <- mMOS_wMRS_sz_repped_df[mMOS_wMRS_sz_repped_df$wMRS==i,]
     mMOS_wMRS_error1_mean_sz <- c(mMOS_wMRS_error1_mean_sz, mean(d$error))
@@ -1397,7 +1401,67 @@ multispeed_analyse <- function(sp_and_iters){
   dev.off()
   
   
-  # NON-COMBINED PLOTS: (not using atm)
+  ## no. of singles & no. of zeros against MRS
+  n_s1z_wMRS_df <- data.frame(wMRS = wMRS,
+                         count = c(n_singles1, n_zeros),
+                         type = c(rep("single", times = 250), rep("zero", times = 250)))
+  n_s1z_wMRS_plot <- ggplot(n_s1z_wMRS_df, aes(x = wMRS, y = count, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "count",
+         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
+  n_s1z_wMRS_plot
+  
+  ## mean speeds of single & zero frame sequences
+  speeds_s1z_wMRS_df <- data.frame(wMRS = wMRS,
+                              speed = c(singles1_speeds_mean, zeros_speeds_mean),
+                              type = c(rep("single", times = 250), rep("zero", times = 250)))
+  speeds_s1z_wMRS_plot <- ggplot(speeds_s1z_wMRS_df, aes(x = wMRS, y = speed, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "mean speed (m/s)",
+         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
+  speeds_s1z_wMRS_plot
+  
+  s1z_wMRS_arranged <- ggarrange(n_s1z_wMRS_plot, speeds_s1z_wMRS_plot, nrow = 2)
+  
+  png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/sz_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=700, height=1000)
+  print(s1z_wMRS_arranged)
+  dev.off()
+  
+  
+  
+  ### MRS2_MOS2_s1_e2 PLOTS ###################################################################################################################################################################################
+  
+  # go from here - need to make sure you generate all the components needed above in the function
+  
+  
+  
+  
+  
+  
+  
+  
+  # NON-COMBINED PLOTS: (not using atm) (from original MRS1_MOS1_s1_e1) #########################################################################################################################################
   
   # # realised - observed speed errors plot - NOT USING ATM - USING COMBINED PLOT INSTEAD
   # mMOS_wMRS_error1_df <- data.frame(wMRS = wMRS,
@@ -1572,55 +1636,6 @@ multispeed_analyse <- function(sp_and_iters){
   #     width=900, height=650)
   # print(real_obs_plot_means_combined)
   # dev.off()
-  
-  # go from here - sort out singles & zeros against MRS
-  
-  ## no. of singles & no. of zeros against MRS
-  n_s1z_df <- data.frame(MRS = wMRS,
-                        count = c(n_singles1, n_zeros),
-                        type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_s1z_plot <- ggplot(n_s1z_df, aes(x = MRS, y = count, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  n_s1z_plot
-  
-  ## mean speeds of single & zero frame sequences
-  speeds_s1z_df <- data.frame(MRS = wMRS,
-                        speed = c(singles1_speeds_mean, zeros_speeds_mean),
-                        type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_s1z_plot <- ggplot(speeds_s1z_df, aes(x = MRS, y = speed, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  speeds_s1z_plot
-  
-  s1z_arranged <- ggarrange(n_s1z_plot, speeds_s1z_plot, nrow = 2)
-  
-  png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/sz_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(sz_arranged)
-  dev.off()
   
 }
 

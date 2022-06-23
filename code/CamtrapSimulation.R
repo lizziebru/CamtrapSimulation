@@ -4,6 +4,7 @@ require(parallel)
 require(rlist)
 require(future.apply)
 require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
+require(ggnewscale)
 
 # to test things:
 # path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
@@ -1185,9 +1186,6 @@ multispeed_analyse <- function(sp_and_iters){
       singles_speeds_mean <- c(singles_speeds_mean, mean(seq_dats$singles_speeds))
       zeros_speeds_mean <- c(zeros_speeds_mean, mean(seq_dats$zeros_speeds))
       
-      # isolate x and y coords of midpoint of each sequence (or just the x & y coord of the point if it's a single frame)
-      # for (i in )
-      
       estimates <- estimates_calc(seq_dats)
       filename <- paste0("pTurn", metadata_sim$pTurn, # filename for storing plots
                          "_speedCor", metadata_sim$speedCor,
@@ -1235,67 +1233,46 @@ multispeed_analyse <- function(sp_and_iters){
   vis_df$speed[is.infinite(vis_df$speed)] <- NA
   vis_df$speed[is.nan(vis_df$speed)] <- NA
   new_cols <- apply(vis_df, 1, vis_df_newcols)
-  ## GO FROM HERE - NEED TO ADD THESE AS THE NEW COLUMNS - NEED TO FIGURE OUT HOW TO EXTRACT WHAT YOU WANT FROM THE LIST
-  
-  
+  single_col <- sapply(new_cols,"[[", 1)
+  x_new <- sapply(new_cols, "[[", 2)
+  y_new <- sapply(new_cols, "[[", 3)
   vis_df["single"] <- single_col
-  ## TO DO: change x and y coords so that they look like Ollie's
+  vis_df["x_new"] <- x_new
+  vis_df["y_new"] <- y_new
   
-  ## vis_df_newcols
-  # to help making the visualisation plot in multispeed_analyse function
-  # INPUT
-  # dataframe of points to which in which the column needs to be filled
-  # OUTPUT
-  # list containing three new vectors of values for the three new columns: x_new, y_new, and single
-  vis_df_newcols <- function(df){
-    if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
-      single_col <- "single"
-    }
-    else{
-      single_col <- "multiple"
-    }
-    
-    x_new <- as.numeric(df[[1]]) - 20 # so that the centre of the x scale is 0
-    y_new <- as.numeric(df[[2]]) - 10 # so that the y scale starts at 0
-    
-    output <- list(single_col = single_col,
-                   x_new = x_new,
-                   y_new = y_new)
-    
-    return(output)
-  }
-  
-  
-  
-  
-  
-  
-  ## do it for one for now then can change it to make it for multiple
-  
-  vis_df2 <- vis_df[vis_df$sp==0.02,]
+  vis_df2 <- vis_df
   vis_df3 <- vis_df2[vis_df2$iter==1,]
+  vis_df4 <- vis_df3[vis_df3$single=="multiple",]
+  vis_df5 <- vis_df3[vis_df3$single=="single",]
   
-  vis_plot <- ggplot(vis_df3, aes(x = x, y = y, colour = single))+
-    geom_point(aes(shape = single))+
-    scale_shape_manual(values=c(1, 16))+
-    scale_colour_manual(values = c("#0000FF", "#FF0000"))+ # generated using wheel("blue, 3)
+  
+  vis_plot <- ggplot()+
+    geom_point(data = vis_df4, aes(x = x_new, y = y_new, colour = speed), shape = 1)+
+    # facet_grid(vars(sp))+
+    facet_wrap(~ sp, ncol = 3)+
+    # scale_colour_distiller(direction = 1)+
+    # scale_colour_gradient(low = "#56B4E9", high = "dark blue", na.value = NA)+
+    scale_colour_gradient(low = "#66CCFF", high = "dark blue", na.value = NA)+
+    # scale_shape_manual(values=c(1, 16))+
+    # scale_colour_manual(values = c("#0000FF", "#FF0000"))+ # generated using wheel("blue, 3)
     theme_minimal()+
+    labs(x = "x", y = "y",
+         title = "Locations of position data points for one run\nof a simulation of a given speed parameter")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
           title = element_text(size = 13),
           panel.grid.minor = element_blank(),
-          legend.title = element_blank())
+          legend.title = element_text("Speed (m/s)"),
+          plot.title = element_text(hjust = 0.5))+
+    
+    new_scale_colour()+
+    geom_point(data = vis_df5, aes(x = x_new, y = y_new, colour = "single"), shape = 1)+
+    scale_colour_manual(name = "",
+                      breaks = c("single"),
+                      values = c("red"))+
+    guides(colour = guide_legend(override.aes = list(size=5)))+
+    theme(legend.text = element_text(size = 12))
   vis_plot
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
   
   mean_reals_repped <- c()
@@ -1610,6 +1587,35 @@ multispeed_analyse <- function(sp_and_iters){
   print(real_obs_plot_means_combined)
   dev.off()
   
+  png(file=paste0("../results/PLOTS/visualisation_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=900, height=650)
+  print(vis_plot)
+  dev.off()
+  
+}
+
+## vis_df_newcols
+# to help making the visualisation plot in multispeed_analyse function
+# INPUT
+# dataframe of points to which in which the column needs to be filled
+# OUTPUT
+# list containing three new vectors of values for the three new columns: x_new, y_new, and single
+vis_df_newcols <- function(df){
+  if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
+    single_col <- "single"
+  }
+  else{
+    single_col <- "multiple"
+  }
+  
+  x_new <- as.numeric(df[[1]]) - 20 # so that the centre of the x scale is 0
+  y_new <- as.numeric(df[[2]]) - 10 # so that the y scale starts at 0
+  
+  output <- list(single_col = single_col,
+                 x_new = x_new,
+                 y_new = y_new)
+  
+  return(output)
 }
 
 

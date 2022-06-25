@@ -1078,14 +1078,27 @@ singlespeed_analyse <- function(speed_parameter, iter){
 # error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
 estimates_calc <- function(seq_dats){
   realised <- seq_dats$realised
-  wMRS <- mean(realised)
+  
+  wMRS <- mean(realised) # my original way of working out MRS
+  
   observed <- seq_dats$observed
   observed <- observed[is.finite(observed)]
-  mMOS <- mean(observed)
-  observed_sz <- c(observed, seq_dats$singles_speeds, seq_dats$zeros_speeds) # observed speeds when also including single and zero frame sequences
+  
+  mMOS <- mean(observed) # arithmetic mean of arithmetic means speed of sequences
   mMOS_sz <- mean(observed_sz)
+  gmMOS <- exp(mean(log(observed))) # geometric mean of arithmetic mean speeds of sequences
+  gmMOS_sz <- exp(mean(log(observed_sz))) # including singles & zeros
+  
+  p_to_p_speeds <- na.omit(seq_dats$posdat$distance) # remove NAs from point-to-point speeds
+  aMOS <- mean(p_to_p_speeds) # arithmetic mean of all the point-to-point speeds irrespective of sequence ID
+  aMOS_sz <- mean(c(p_to_p_speeds, seq_dats$singles_speeds, seq_dats$zeros_speeds)) # including singles & zeros
+  gMOS <- exp(mean(log(p_to_p_speeds))) # geometric mean of all the point-to-point speeds irrespective of sequence ID
+  gMOS_sz <- exp(mean(log(c(p_to_p_speeds, seq_dats$singles_speeds, seq_dats$zeros_speeds)))) # including singles & zeros
+  observed_sz <- c(observed, seq_dats$singles_speeds, seq_dats$zeros_speeds) # observed speeds when also including single and zero frame sequences
+  
   mMOS_wMRS_error1 <- sapply(observed, obs_meanreal_error_calc, mean_real = wMRS)
   mMOS_wMRS_error1_sz <- sapply(observed_sz, obs_meanreal_error_calc, mean_real = wMRS) # for observed speeds including single & zero-frame speeds
+  
   hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
   hmean_sz <- (hmean_calc(observed_sz))[1]
   obs_df <- data.frame(speed = observed)
@@ -1098,6 +1111,7 @@ estimates_calc <- function(seq_dats){
   gamma_sz <- predict.sbm(mods_sz[[1]]$gamma)[1,1]
   weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
   weibull_sz <- predict.sbm(mods_sz[[1]]$weibull)[1,1]
+  
   h_wMRS_error <- hmean - wMRS
   h_mMOS_error <- hmean - mMOS
   h_wMRS_error_sz <- hmean_sz - wMRS
@@ -1114,7 +1128,9 @@ estimates_calc <- function(seq_dats){
   w_mMOS_error <- weibull - mMOS
   w_wMRS_error_sz <- weibull_sz - wMRS
   w_mMOS_error_sz <- weibull_sz - mMOS
-  output <- list(wMRS=wMRS, mMOS_wMRS_error=mMOS_wMRS_error, mMOS_wMRS_error_sz=mMOS_wMRS_error_sz, 
+  
+  output <- list(wMRS=wMRS, mMOS=mMOS, mMOS_sz=mMOS_sz, mMOS=mMOS, gmMOS=gmMOS, aMOS=aMOS, gMOS=gMOS,
+                 mMOS_wMRS_error=mMOS_wMRS_error, mMOS_wMRS_error_sz=mMOS_wMRS_error_sz, 
                  hmean=hmean, hmean_sz=hmean_sz, lnorm=lnorm, lnorm_sz=lnorm_sz, gamma=gamma, gamma_sz=gamma_sz, weibull=weibull, weibull_sz=weibull_sz, 
                  h_wMRS_error=h_wMRS_error, h_mMOS_error=h_mMOS_error, h_wMRS_error_sz=h_wMRS_error_sz, h_mMOS_error_sz=h_mMOS_error_sz,
                  l_wMRS_error=l_wMRS_error, l_mMOS_error=l_mMOS_error, l_wMRS_error_sz=l_wMRS_error_sz, l_mMOS_error_sz=l_mMOS_error_sz, 
@@ -1142,8 +1158,24 @@ multispeed_analyse <- function(sp_and_iters){
   wMRS <- c() # my original (wrong) method of working out MRS
   aMRS <- c() # arithmetic MRS
   gMRS <- c() # geometric MRS
+  
+  mMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
+  mMOS_sz <- c() # with singles & zeros
+  gmMOS <- c() # geometric mean of geometric mean speeds of sequences
+  gmMOS_sz <- c() # with singles & zeros
+  aMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
+  aMOS_sz <- c() # with singles & zeros
+  gMOS <- c() # geometric mean of point-to-point speeds regardless of sequence
+  gMOS_sz <- c() # with singles & zeros
+  
+  hmean <- c()
+  lnorm <- c()
+  gamma <- c()
+  weibull <- c()
+  
   mMOS_wMRS_error1 <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
   mMOS_wMRS_error1_sz <- c() # including single & zero frames
+  
   h_wMRS_error <- c()
   h_wMRS_error_sz <- c()
   l_wMRS_error <- c()
@@ -1152,6 +1184,25 @@ multispeed_analyse <- function(sp_and_iters){
   g_wMRS_error_sz <- c()
   w_wMRS_error <- c()
   w_wMRS_error_sz <- c()
+  
+  h_aMRS_error <- c()
+  h_aMRS_error_sz <- c()
+  l_aMRS_error <- c()
+  l_aMRS_error_sz <- c()
+  g_aMRS_error <- c()
+  g_aMRS_error_sz <- c()
+  w_aMRS_error <- c()
+  w_aMRS_error_sz <- c()
+  
+  h_gMRS_error <- c()
+  h_gMRS_error_sz <- c()
+  l_gMRS_error <- c()
+  l_gMRS_error_sz <- c()
+  g_gMRS_error <- c()
+  g_gMRS_error_sz <- c()
+  w_gMRS_error <- c()
+  w_gMRS_error_sz <- c()
+  
   h_mMOS_error <- c()
   h_mMOS_error_sz <- c()
   l_mMOS_error <- c()
@@ -1189,8 +1240,6 @@ multispeed_analyse <- function(sp_and_iters){
       aMRS <- c(aMRS, mean(path$speed)) # arithmetic MRS
       gMRS <- c(gMRS, exp(mean(log(path$speed)))) # geometric mean
       
-      
-      
       # store the coords of each sequence and their speed
       # need to add a column to seq_dats$posdat with speed of each sequence
       posdat <- seq_dats$posdat
@@ -1223,6 +1272,21 @@ multispeed_analyse <- function(sp_and_iters){
                          "_twoCTs", metadata_sim$twoCTs,
                          "_connectedCTs", metadata_sim$connectedCTs)
       wMRS <- c(wMRS, estimates$wMRS)
+      
+      mMOS <- c(mMOS, estimates$mMOS)
+      mMOS_sz <- c(mMOS_sz, estimates$mMOS_sz)
+      gmMOS <- c(gmMOS, estimates$gmMOS)
+      gmMOS_sz <- c(gmMOS_sz, estimates$gmMOS_sz)
+      aMOS <- c(aMOS, estimates$aMOS)
+      aMOS_sz <- c(aMOS_sz, estimates$aMOS_sz)
+      gMOS <- c(gMOS, estimates$gMOS)
+      gMOS_sz <- c(gMOS_sz, estimates$gMOS_sz)
+      
+      hmean <- c(hmean, estimates$hmean)
+      lnorm <- c(lnorm, estimates$lnorm)
+      gamma <- c(gamma, estimates$gamma)
+      weibull <- c(weibull, estimates$weibull)
+      
       mMOS_wMRS_error1 <- c(mMOS_wMRS_error1, estimates$mMOS_wMRS_error1)
       mMOS_wMRS_error1_sz <- c(mMOS_wMRS_error1_sz, estimates$mMOS_wMRS_error1_sz)
       
@@ -1254,7 +1318,6 @@ multispeed_analyse <- function(sp_and_iters){
   ## COMMUNAL PLOTS #########################################################################################################################################################
   
   ## visualisation plot 
-  
   vis_df <- data.frame(x = x_plot,
                        y = y_plot,
                        speed = v_plot,
@@ -1453,6 +1516,7 @@ multispeed_analyse <- function(sp_and_iters){
   ### MRS2_MOS2_s1_e2 PLOTS ###################################################################################################################################################################################
   
   # go from here - need to make sure you generate all the components needed above in the function
+  
   
   
   

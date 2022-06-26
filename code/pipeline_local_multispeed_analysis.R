@@ -10,20 +10,24 @@ require(ggplot2)
 require(ggpubr)
 
 # set which speed parameters to analyse
-speed_parameters <- c(0.02, 0.04, 0.06, 
-                      0.08, 0.1, 0.25,
-                      0.35, 0.4, 0.5,
-                      0.7, 0.85, 0.95)
+speed_parameters <- c(0.02, 0.06, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
 speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
 
 # set number of iters for each to analyse
-iters <- c(27, 50, 29,
-           29, 50, 43,
-           45, 48, 41,
-           47, 46, 50)
+iters <- c(rep(25, times = 2))
 
 sp_and_iters <- data.frame(speed_parameter = speed_parameters, 
                            iter = iters)
 
-# run analysis function
-multispeed_analyse(sp_and_iters)
+# additional parameters:
+species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
+r = 9
+th = 0.7
+twoCTs = FALSE
+connectedCTs = FALSE
+
+# generate plotting variables
+generate_plotting_variables(sp_and_iters, species=species, r=r, th=th)
+
+# make plots
+make_plots()

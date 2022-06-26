@@ -1232,7 +1232,7 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
       
       ## mean realised speeds ###################################################################################################################################
       
-      w_real <- seq_dats$realised # my inital wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+      w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
       wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
       
       p_real <- path$speed # point-to-point realised speeds
@@ -1377,6 +1377,38 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
   save(output, file = "../results/plotting_data.RData")
   
 }
+
+## error to fix here - in zero_frame function:
+# Error: Unexpected error in future_lapply(): After gathering and merging the values from 1 chunks in to a list, 
+# the total number of elements (= 0) does not match the number of input elements in 'X' (= 500000). 
+# There were in total 1 chunks and 1 elements (1 chunks with 0 elements). Example of the first few values:  NULL
+
+
+
+
+## compare_diff_means_plots -- maybe do this in a seperate script altogether though
+# plot comparing different means & medians
+# make one for each speed parameter
+compare_diff_means_plots <- function(speed_parameters){
+  load("../results/plotting_data.RData")
+  
+  # save all the realised speeds and all the observed speeds for one run of each speed parameter
+  
+  real_v <- c()
+  obs_v <- c()
+  
+  
+  for (i in speed_parameters){
+    load(paste0("../results/seq_dats/sp", i, "iter1.RData"))
+    load(paste0("../results/paths_copy_for_analysis/sp", i, "/iter1.RData"))
+    
+    
+    
+  }
+      
+}
+
+
 
 
 

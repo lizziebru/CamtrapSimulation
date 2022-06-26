@@ -721,91 +721,92 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
     mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
   })
   
-  ### speeds of single-frame sequences and number of single-frame sequences
-  singles_speeds <- c()
-  n_singles <- 0
-  # select rows in posdat_all which are detected but only in a single frame, as well as the two points above and below each one of those
-  # select the seqID posdats when you only have one TRUE:
-  for (i in unique(posdat_all$sequenceID)){
-    p <- posdat_all[posdat_all$sequenceID==i,] # subset by sequence ID
-    n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
-    if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
-      
-      ## work out the detection probability of that single frame:
-      single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
-      single_y <- p[p$detected==TRUE,]$y
-      single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-      if (species == 0){
-        prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
-      }
-      if (species == 1){
-        prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
-      }
-      n_singles <- n_singles + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
-
-      ## select the row that's TRUE and the row above and below it
-      # assign row numbers to help with this
-      p["rownumber"] <- c(1:nrow(p))
-      true_rownumber <- p[p$detected==TRUE,]$rownumber # rownumber of the detected point
-      if (true_rownumber == 1){ # if the detected point is the first in that sequence, just use that point and the one after it
-        below_rownumber <- true_rownumber + 1
-        rownumbers_needed <- c(true_rownumber, below_rownumber)
-      }
-      if (true_rownumber == nrow(p)){ # if the detected point is the last in that sequence, just use that point and teh one before it
-        above_rownumber <- true_rownumber - 1
-        rownumbers_needed <- c(true_rownumber, above_rownumber)
-      }
-      else { # otherwise, use both the points below and above
-        above_rownumber <- true_rownumber - 1
-        below_rownumber <- true_rownumber + 1
-        rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
-      }
-      rows_needed <- p[rownumbers_needed,]
-      speed_single <- calc_speed(rows_needed)
-      singles_speeds <- c(singles_speeds, speed_single$speed)
-    } 
-  }
-  singles_speeds <- singles_speeds[is.finite(singles_speeds)==TRUE] # get rid of the NaNs - occur when the edge of the arena is reached
-  
-  ### number of zero-frame sequences:
-  path_df <- path$path
-  path_df2 <- path_df
-  path_df <- path_df[-nrow(path_df),] # remove last row
-  path_df2 <- path_df2[-1,] # remove first row
-  path_df_paired <- cbind(path_df, path_df2) # paired points
-  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-  max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
-  if (twoCTs == FALSE){
-    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-    zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
-  }
-  if (twoCTs == TRUE){
-    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-    if (connectedCTs == TRUE){
-      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-    }
-    if (connectedCTs == FALSE){ 
-      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-    }
-    zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
-    zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
-    zeros <- c(zeros1, zeros2)
-  }
-  zeros_vals <- zeros[zeros!=0]
-  n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
-  
-  
-  ## speeds of zero-frame sequences
-  # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
-  path_df_paired["ZERO"] <- zeros
-  zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
-  zeros_speeds <- c()
-  for (i in 1:nrow(zeros_dat)){
-    z <- zeros_dat[i,]
-    speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
-    zeros_speeds <- c(zeros_speeds, speed)
-  }
-  
+  # ### speeds of single-frame sequences and number of single-frame sequences - incorrect bc need to use the whole path df -- re-doing this in multispeed_analyse function
+  # singles_speeds <- c()
+  # n_singles <- 0
+  # # select rows in posdat_all which are detected but only in a single frame, as well as the two points above and below each one of those
+  # # select the seqID posdats when you only have one TRUE:
+  # for (i in unique(posdat_all$sequenceID)){
+  #   p <- posdat_all[posdat_all$sequenceID==i,] # subset by sequence ID
+  #   n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
+  #   if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
+  #     
+  #     ## work out the detection probability of that single frame:
+  #     single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
+  #     single_y <- p[p$detected==TRUE,]$y
+  #     single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
+  #     if (species == 0){
+  #       prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
+  #     }
+  #     if (species == 1){
+  #       prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
+  #     }
+  #     n_singles <- n_singles + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
+  #     
+  #     
+  #     ## select the row that's TRUE and the row above and below it -- incorrect!!
+  #     # assign row numbers to help with this
+  #     p["rownumber"] <- c(1:nrow(p))
+  #     true_rownumber <- p[p$detected==TRUE,]$rownumber # rownumber of the detected point
+  #     if (true_rownumber == 1){ # if the detected point is the first in that sequence, just use that point and the one after it
+  #       below_rownumber <- true_rownumber + 1
+  #       rownumbers_needed <- c(true_rownumber, below_rownumber)
+  #     }
+  #     if (true_rownumber == nrow(p)){ # if the detected point is the last in that sequence, just use that point and teh one before it
+  #       above_rownumber <- true_rownumber - 1
+  #       rownumbers_needed <- c(true_rownumber, above_rownumber)
+  #     }
+  #     else { # otherwise, use both the points below and above
+  #       above_rownumber <- true_rownumber - 1
+  #       below_rownumber <- true_rownumber + 1
+  #       rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
+  #     }
+  #     rows_needed <- p[rownumbers_needed,]
+  #     speed_single <- calc_speed(rows_needed)
+  #     singles_speeds <- c(singles_speeds, speed_single$speed)
+  #   } 
+  # }
+  # singles_speeds <- singles_speeds[is.finite(singles_speeds)==TRUE] # get rid of the NaNs - occur when the edge of the arena is reached
+  # 
+  # ### number of zero-frame sequences: -- also incorrect - bc of the realised speeds you're using here (my previous wrong way of doing it) -- re-doing this in multispeed analyse
+  # path_df <- path$path
+  # path_df2 <- path_df
+  # path_df <- path_df[-nrow(path_df),] # remove last row
+  # path_df2 <- path_df2[-1,] # remove first row
+  # path_df_paired <- cbind(path_df, path_df2) # paired points
+  # colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  # max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
+  # if (twoCTs == FALSE){
+  #   dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+  #   zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+  # }
+  # if (twoCTs == TRUE){
+  #   dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+  #   if (connectedCTs == TRUE){
+  #     dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+  #   }
+  #   if (connectedCTs == FALSE){ 
+  #     dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+  #   }
+  #   zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
+  #   zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+  #   zeros <- c(zeros1, zeros2)
+  # }
+  # zeros_vals <- zeros[zeros!=0]
+  # n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
+  # 
+  # 
+  # ## speeds of zero-frame sequences
+  # # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
+  # path_df_paired["ZERO"] <- zeros
+  # zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+  # zeros_speeds <- c()
+  # for (i in 1:nrow(zeros_dat)){
+  #   z <- zeros_dat[i,]
+  #   speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+  #   zeros_speeds <- c(zeros_speeds, speed)
+  # }
+  # 
   # make output list
   output_list <- list(posdat_all = posdat_all,
                       posdat = posdat,
@@ -813,14 +814,14 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
                       realised = realised_spds,
                       observed = observed,
                       obs_lengths = obs_lengths,
-                      n_singles = n_singles,
-                      singles_speeds = singles_speeds,
-                      n_zeros = n_zeros,
-                      zeros_speeds = zeros_speeds,
+                      # n_singles = n_singles, -- these are all incorrect -- re-doing them in multispeed_analyse
+                      # singles_speeds = singles_speeds,
+                      # n_zeros = n_zeros,
+                      # zeros_speeds = zeros_speeds,
                       n_points = nrow(posdat), # total number of position datapoints detected by the CT
                       singles_prop = n_singles/nrow(posdat),
                       zeros_prop = n_zeros/nrow(posdat))
-  
+
   # plot path
   if (plot_path == TRUE){
     png(file= paste0(parentfolder, pathfolder, "plot.png"),
@@ -878,171 +879,6 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
   }
 }
 
-## singlespeed_analyse
-# analyse simulation results from one speed parameter and generate combined plot saved to PLOTS folder
-# INPUTS
-# speed_parameter - which speed parameter to run the analysis for
-# iter - range of seqdats to analyse
-# OUTPUT
-# combined plot saved to PLOTS folder
-singlespeed_analyse <- function(speed_parameter, iter){
-  # concatenate results into a df:
-  
-  # concatenate the following from all the repeats:
-  mean_reals <- c()
-  obs_meanreal_errors <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
-  hmean_errors <- c()
-  lnorm_errors <- c()
-  gamma_errors <- c()
-  weibull_errors <- c()
-  
-  # concatenate the following from just the first rep:
-  reals <- c()
-  obs <- c() 
-  hmean <- c() 
-  lnorm <- c() 
-  gamma <- c()
-  weibull <- c()
-  
-  for (i in iter){
-    load(paste0("../results/seq_dats/sp", speed_parameter, "iter", i, ".RData"))
-    if (i == 1){
-      reals <- c(reals, seq_dats$realised)
-      obs <- c(obs, seq_dats$observed)
-      obs <- obs[is.finite(obs)]
-      estimates_1 <- estimates_calc(seq_dats)
-      hmean <- estimates_1$hmean
-      lnorm <- estimates_1$lnorm
-      gamma <- estimates_1$gamma
-      weibull <- estimates_1$weibull
-    }
-    estimates <- estimates_calc(seq_dats)
-    filename <- paste0("sp", exp(metadata_sim$speed_parameter), # filename for storing plots
-                       # "_speedSD", metadata_sim$speedSD,
-                       "_pTurn", metadata_sim$pTurn,
-                       "_speedCor", metadata_sim$speedCor,
-                       "_kTurn", metadata_sim$kTurn,
-                       "_kCor", metadata_sim$kCor,
-                       "_species", metadata_sim$species,
-                       "_twoCTs", metadata_sim$twoCTs,
-                       "_connectedCTs", metadata_sim$connectedCTs)
-    mean_reals <- c(mean_reals, estimates$mean_real)
-    obs_meanreal_errors <- c(obs_meanreal_errors, estimates$obs_meanreal_error)
-    hmean_errors <- c(hmean_errors, estimates$hmean_error)
-    lnorm_errors <- c(lnorm_errors, estimates$lnorm_error)
-    gamma_errors <- c(gamma_errors, estimates$gamma_error)
-    weibull_errors <- c(weibull_errors, estimates$weibull_error)
-    rm(list = c("seq_dats", "metadata_sim"))
-  }
-  estimates_df <- data.frame(iter = c(iter), mean_real=mean_reals, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
-  
-  # realised vs observed speeds plot:
-  # diff_in_length <- length(reals)-length(obs) # sometimes they're not the same length (bc of NaNs and Inf in obs)
-  # real_obs_df <- data.frame(realised = reals,
-  #                           observed = c(obs, rep(NA, times = diff_in_length)))
-  real_obs_df <- data.frame(speed = c(reals, obs),
-                            type = c(rep("realised", length(reals)), rep("observed", length(obs))))
-  
-  real_obs_plot <- ggplot(real_obs_df, aes(x = speed, colour = type))+
-    geom_density(size = 0.8)+
-    scale_colour_manual(values = c("red", "blue"))+
-    theme_minimal()+
-    labs(x = "speed (m/s)",
-         title = "Distributions of realised and observed speeds\n(for one simulation run)\nvertical lines = mean")+
-    theme(legend.title = element_blank(),
-          axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13),
-          legend.text = element_text(size = 15))+
-    geom_vline(xintercept = mean(real_obs_df[real_obs_df$type=="realised",]$speed), colour = "blue", linetype = "dashed")+
-    geom_vline(xintercept = mean(real_obs_df[real_obs_df$type=="observed",]$speed), colour = "red", linetype = "dashed")
-  # real_obs_plot
-  
-  # realised vs observed speeds errors plot:
-  real_obs_errors_df <- data.frame(error = obs_meanreal_errors)
-  real_obs_errors_plot <- ggplot(real_obs_errors_df, aes(x = error))+
-    geom_density(size = 1)+
-    theme_minimal()+
-    labs(x = "error (m/s)",
-         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: obs > MRS, -ve: MRS > obs)"))+
-    geom_vline(xintercept = 0, linetype = "dashed")+
-    #geom_text(x = -0.1, y = 1, label = "real > obs", size = 5, colour = "blue")+
-    # geom_text(x = 0.1, y = 10, label = "obs > real", size = 5, colour = "blue")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13))
-  
-  
-  # realised vs estimates plot: - go from here: might need to faff about to get a nice plot working - make it just for the first repeat btw!
-  real_est_df <- data.frame(speed = c(reals, obs),
-                            type = c(rep("realised", length(reals)), rep("observed", length(obs))))
-  # for the purposes of plotting: remove long tail of realised speeds: - commented out now that speeds should be naturally capped to reasonale values
-  # capped <- 0.1
-  # reals1 <- reals[reals<capped]
-  # obs1 <- obs[obs<capped]
-  # real_est_df1 <- data.frame(speed = c(reals1, obs1),
-  #                           type = c(rep("realised", length(reals1)), rep("observed", length(obs1))))
-  
-  hline_df <- data.frame(value = c(speed_parameter, mean(reals), mean(obs), hmean, lnorm, gamma, weibull),
-                         valtype = c("speed parameter", "MRS", "MOS", "hmean", "lnorm", "gamma", "weibull"),
-                         valtype2 = c("other", "other", "other", "estimate", "estimate", "estimate", "estimate"))
-  
-  real_est_plot <- ggplot(real_est_df, aes(x = speed, y = type))+
-    geom_boxplot()+
-    theme_minimal()+
-    geom_vline(data = hline_df,
-               aes(xintercept = value, colour = valtype))+ # could add in linetype = valtype2 but think the dashed lines makes things harder to read
-    #scale_colour_manual(values = c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7"))+
-    scale_colour_manual(values = c("#0000FF", "#DB00FF", "#FF0049", "#FF9200", "#92FF00", "#00FF49", "#00DBFF"))+ # generated using wheel("blue", 7) from colortools package
-    theme(axis.title = element_text(size = 18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13),
-          legend.title = element_blank(),
-          legend.text = element_text(size = 15),
-          legend.position = "bottom",
-          legend.key.size = unit(1, "cm"))+
-    labs(x = "speed (m/s)",
-         y = "",
-         title = paste0("Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run)"))
-  # real_est_plot
-  
-  real_est_errors_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
-                            method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
-  
-  real_est_errors_plot <- ggplot(real_est_errors_df, aes(x = method, y = error, colour = method))+
-    geom_boxplot()+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15))+
-    guides(colour = "none")+
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
-    #ylim(-0.05, 0.01)+
-    # geom_text(x = "hmean", y = -0.02, label = "real > est", size = 5, colour = "blue")+
-    #geom_text(y = 0.01, label = "est > real", size = 3)+
-    coord_flip()+
-    theme_minimal()+
-    labs(y = "error (m/s)",
-         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: est > MRS, -ve: MRS > est)"))+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          title = element_text(size = 13))
-    #ylim((min(real_est_errors_df$error)-0.2), 0.01)
-  
-  arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
-  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
-  errors_arranged <- ggarrange(real_obs_errors_plot, real_est_errors_plot, nrow = 2)
-  errors_annotated <- annotate_figure(errors_arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
-  
-  png(file=paste0("../results/PLOTS/sp", speed_parameter, ".png"),
-      width=900, height=700)
-  print(annotated)
-  dev.off()
-  
-  png(file=paste0("../results/PLOTS/sp", speed_parameter, "_errors.png"),
-      width=900, height=700)
-  print(errors_annotated)
-  dev.off()
-}
 
 
 
@@ -1149,11 +985,16 @@ estimates_calc <- function(seq_dats){
 
 ## multispeed_analyse
 # analyses simulation results from multiple different speed parameters and combines them into one plot saved to PLOTS folder
-# INPUT
+# INPUTS
 # sp_and_iters - dataframe of speed parameters to analyse and number of iters of each to use
+# species - 0 = small, 1 = large
+# r: radius of CT detection zone
+# th: angle of CT detection zone
+# twoCTs: whether or not to use two CTs
+# connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # combined plot saved into PLOTS folder
-multispeed_analyse <- function(sp_and_iters){
+multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   # store variables from the .RData files
   wMRS <- c() # my original (wrong) method of working out MRS
   aMRS <- c() # arithmetic MRS
@@ -1215,8 +1056,10 @@ multispeed_analyse <- function(sp_and_iters){
   mMOS_wMRS_error1_lengths_sz <- c()
   
   n_zeros <- c()
-  n_singles1 <- c()
-  singles1_speeds_mean <- c()
+  n_singles <- c()
+  singles_speeds <- c()
+  singles_speeds_mean <- c()
+  zeros_speeds <- c()
   zeros_speeds_mean <- c()
   
   # for making visualisation plot
@@ -1231,15 +1074,147 @@ multispeed_analyse <- function(sp_and_iters){
     iter_range <- c(1:sp_and_iters[sp_and_iters$speed_parameter==i,]$iter)
     for (j in iter_range){
       i <- sp_and_iters$speed_parameter[n]
+      
+      ## load in the path and seq_dats for that simulation run #####################################################################################
+      
       load(paste0("../results/seq_dats/sp", i, "iter", j, ".RData"))
       
-      # also need to load the correct path (need to finish putting them all in a separate folder and renaming so can access them easily)
-      # then use the original path to work out aMRS & gMRS
-      
       load(paste0("../results/paths_copy_for_analysis/sp", i, "/iter", j, ".RData"))
+      
+      ## work out MRSes and MOSes ##################################################################################################################
+      
       aMRS <- c(aMRS, mean(path$speed)) # arithmetic MRS
       gMRS <- c(gMRS, exp(mean(log(path$speed)))) # geometric mean
+      wMRS <- mean(seq_dats$realised) # my original way of working out MRS (using selected chunks of the path of length equal to average obs sequence length)
       
+      # GO FROM HERE - NEED TO MOVE A LOT OF THINGS FROM ESTIMATES_CALC TO HERE 
+      # ALL THE SZ STUFF ESPECIALLY
+      
+      
+      ## number of single frames and speeds of single frame sequences #######################################################################
+      
+      # make df with all xy coords of the path and their speeds:
+      path_xy_v <- data.frame(x = path$path$x[-1], # no speed for the first point
+                              y = path$path$y[-1],
+                              v = path$speed)
+      
+      # store posdat_all as a df too:
+      posdat_all <- seq_dats$posdat_all
+      
+      # detection zone:
+      if (twoCTs == FALSE){
+        dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+      }
+      if (twoCTs == TRUE){ # generate two detection zones and then would need to use both
+        dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+        if (connectedCTs == TRUE){
+          dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+        }
+        if (connectedCTs == FALSE){ 
+          dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+        }
+      }
+      
+      
+      singles_v <- c() # to store stuff from this upcoming for loop
+      singles_count <- 0 # ditto
+      
+      # select the seqID posdats when you only have one TRUE (i.e. single frame)
+      for (k in unique(posdat_all$sequenceID)){
+        p <- posdat_all[posdat_all$sequenceID==k,] # subset by sequence ID
+        n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
+        if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
+          
+          ## work out the detection probability of that single frame:
+          single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
+          single_y <- p[p$detected==TRUE,]$y
+          single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
+          if (species == 0){
+            prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
+          }
+          if (species == 1){
+            prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
+          }
+          singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
+          
+          
+          ## speeds of single frame sequences:
+          path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
+          true_rownumber <- path_xy_v[path_xy_v$x==single_x & path_xy_v$y==single_y,]$rownumber # rownumber of the detected single point
+          
+          if (true_rownumber == 1){ # if the detected point is the first in the whole path, just use the point after it
+            below_rownumber <- true_rownumber + 1
+            rownumbers_needed <- c(true_rownumber, below_rownumber)
+          }
+          if (true_rownumber == nrow(p)){ # if the detected point is the last in the whole path, just use that point and the one before it
+            above_rownumber <- true_rownumber - 1
+            rownumbers_needed <- c(true_rownumber, above_rownumber)
+          }
+          else { # otherwise, use both the points below and above
+            above_rownumber <- true_rownumber - 1
+            below_rownumber <- true_rownumber + 1
+            rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
+          }
+          rows_needed <- path_xy_v[rownumbers_needed,] # isolate just the single frame and rows below and above it
+          speed_single <- sum(rows_needed$v)/(nrow(rows_needed)-1) # speed = distance / time
+          singles_v <- c(singles_v, speed_single) # store outside of this smaller for loop
+        }
+      }
+      
+      singles_speeds <- c(singles_speeds, singles_v) # store externally of the main for loop
+      singles_speeds_mean <- c(singles_speeds_mean, mean(singles_speeds)) # ditto
+      n_singles <- c(n_singles, singles_count)  # ditto
+      
+      
+      
+      
+      ## number of zero frames and speeds of zero frame sequences ######################################################################################
+      
+      ### number of zero-frame sequences:
+      path_df <- path$path
+      path_df2 <- path_df
+      path_df <- path_df[-nrow(path_df),] # remove last row
+      path_df2 <- path_df2[-1,] # remove first row
+      path_df_paired <- cbind(path_df, path_df2) # paired points
+      colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+      max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
+      if (twoCTs == FALSE){
+        dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+      }
+      if (twoCTs == TRUE){
+        dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+        if (connectedCTs == TRUE){
+          dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+        }
+        if (connectedCTs == FALSE){ 
+          dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+        }
+        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
+        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+        zeros <- c(zeros1, zeros2)
+      }
+      zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
+      
+      n_zeros <- c(n_zeros, zeros_count) # save externally to the main for loop
+      
+      ## speeds of zero-frame sequences
+      # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
+      path_df_paired["ZERO"] <- zeros
+      zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+      zeros_v <- c() # to save outside of this mini for loop
+      for (l in 1:nrow(zeros_dat)){
+        z <- zeros_dat[l,]
+        speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+        zeros_v <- c(zeros_v, speed)
+      }
+      zeros_speeds <- c(zeros_speeds, zeros_v) # save outside of the main for loop
+      zeros_speeds_mean <- c(zeros_speeds_mean, mean(zeros_v)) # ditto
+      
+      
+      
+      ## coords and speeds for visualisation plot #############################################################################################################
+    
       # store the coords of each sequence and their speed
       # need to add a column to seq_dats$posdat with speed of each sequence
       posdat <- seq_dats$posdat
@@ -1258,23 +1233,16 @@ multispeed_analyse <- function(sp_and_iters){
       sp_plot <- c(sp_plot, rep(i, times = length(posdat$x)))
       iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
       
-      n_singles1 <- c(n_singles1, seq_dats$n_singles)
-      n_zeros <- c(n_zeros, seq_dats$n_zeros)
-      singles1_speeds_mean <- c(singles1_speeds_mean, mean(seq_dats$singles_speeds))
-      zeros_speeds_mean <- c(zeros_speeds_mean, mean(seq_dats$zeros_speeds))
+      
+      
+      ## wMRS, MOSes, and estimated speeds ###################################################################################################
       
       estimates <- estimates_calc(seq_dats)
-      filename <- paste0("pTurn", metadata_sim$pTurn, # filename for storing plots
-                         "_speedCor", metadata_sim$speedCor,
-                         "_kTurn", metadata_sim$kTurn,
-                         "_kCor", metadata_sim$kCor,
-                         "_species", metadata_sim$species,
-                         "_twoCTs", metadata_sim$twoCTs,
-                         "_connectedCTs", metadata_sim$connectedCTs)
+
       wMRS <- c(wMRS, estimates$wMRS)
       
       mMOS <- c(mMOS, estimates$mMOS)
-      mMOS_sz <- c(mMOS_sz, estimates$mMOS_sz)
+      mMOS_sz <- c(mMOS_sz, estimates$mMOS_sz) # problem: all of these are wrong: need to work them out outside the loop instead...
       gmMOS <- c(gmMOS, estimates$gmMOS)
       gmMOS_sz <- c(gmMOS_sz, estimates$gmMOS_sz)
       aMOS <- c(aMOS, estimates$aMOS)
@@ -1310,6 +1278,20 @@ multispeed_analyse <- function(sp_and_iters){
       
       mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(estimates$mMOS_wMRS_error1))
       mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(estimates$mMOS_wMRS_error1_sz))
+      
+      
+      
+      ## filename for storing plots ###############################################################################################################################
+      
+      filename <- paste0("pTurn", metadata_sim$pTurn, # filename for storing plots
+                         "_speedCor", metadata_sim$speedCor,
+                         "_kTurn", metadata_sim$kTurn,
+                         "_kCor", metadata_sim$kCor,
+                         "_species", metadata_sim$species,
+                         "_twoCTs", metadata_sim$twoCTs,
+                         "_connectedCTs", metadata_sim$connectedCTs)
+      
+      
       rm(list = c("seq_dats", "metadata_sim", "path"))
     }
   }
@@ -1725,6 +1707,174 @@ vis_df_newcols <- function(df){
                  y_new = y_new)
   
   return(output)
+}
+
+
+
+## singlespeed_analyse
+# analyse simulation results from one speed parameter and generate combined plot saved to PLOTS folder
+# INPUTS
+# speed_parameter - which speed parameter to run the analysis for
+# iter - range of seqdats to analyse
+# OUTPUT
+# combined plot saved to PLOTS folder
+singlespeed_analyse <- function(speed_parameter, iter){
+  # concatenate results into a df:
+  
+  # concatenate the following from all the repeats:
+  mean_reals <- c()
+  obs_meanreal_errors <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
+  hmean_errors <- c()
+  lnorm_errors <- c()
+  gamma_errors <- c()
+  weibull_errors <- c()
+  
+  # concatenate the following from just the first rep:
+  reals <- c()
+  obs <- c() 
+  hmean <- c() 
+  lnorm <- c() 
+  gamma <- c()
+  weibull <- c()
+  
+  for (i in iter){
+    load(paste0("../results/seq_dats/sp", speed_parameter, "iter", i, ".RData"))
+    if (i == 1){
+      reals <- c(reals, seq_dats$realised)
+      obs <- c(obs, seq_dats$observed)
+      obs <- obs[is.finite(obs)]
+      estimates_1 <- estimates_calc(seq_dats)
+      hmean <- estimates_1$hmean
+      lnorm <- estimates_1$lnorm
+      gamma <- estimates_1$gamma
+      weibull <- estimates_1$weibull
+    }
+    estimates <- estimates_calc(seq_dats)
+    filename <- paste0("sp", exp(metadata_sim$speed_parameter), # filename for storing plots
+                       # "_speedSD", metadata_sim$speedSD,
+                       "_pTurn", metadata_sim$pTurn,
+                       "_speedCor", metadata_sim$speedCor,
+                       "_kTurn", metadata_sim$kTurn,
+                       "_kCor", metadata_sim$kCor,
+                       "_species", metadata_sim$species,
+                       "_twoCTs", metadata_sim$twoCTs,
+                       "_connectedCTs", metadata_sim$connectedCTs)
+    mean_reals <- c(mean_reals, estimates$mean_real)
+    obs_meanreal_errors <- c(obs_meanreal_errors, estimates$obs_meanreal_error)
+    hmean_errors <- c(hmean_errors, estimates$hmean_error)
+    lnorm_errors <- c(lnorm_errors, estimates$lnorm_error)
+    gamma_errors <- c(gamma_errors, estimates$gamma_error)
+    weibull_errors <- c(weibull_errors, estimates$weibull_error)
+    rm(list = c("seq_dats", "metadata_sim"))
+  }
+  estimates_df <- data.frame(iter = c(iter), mean_real=mean_reals, hmean_error=hmean_errors, lnorm_error=lnorm_errors, gamma_error=gamma_errors, weibull_error=weibull_errors)
+  
+  # realised vs observed speeds plot:
+  # diff_in_length <- length(reals)-length(obs) # sometimes they're not the same length (bc of NaNs and Inf in obs)
+  # real_obs_df <- data.frame(realised = reals,
+  #                           observed = c(obs, rep(NA, times = diff_in_length)))
+  real_obs_df <- data.frame(speed = c(reals, obs),
+                            type = c(rep("realised", length(reals)), rep("observed", length(obs))))
+  
+  real_obs_plot <- ggplot(real_obs_df, aes(x = speed, colour = type))+
+    geom_density(size = 0.8)+
+    scale_colour_manual(values = c("red", "blue"))+
+    theme_minimal()+
+    labs(x = "speed (m/s)",
+         title = "Distributions of realised and observed speeds\n(for one simulation run)\nvertical lines = mean")+
+    theme(legend.title = element_blank(),
+          axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13),
+          legend.text = element_text(size = 15))+
+    geom_vline(xintercept = mean(real_obs_df[real_obs_df$type=="realised",]$speed), colour = "blue", linetype = "dashed")+
+    geom_vline(xintercept = mean(real_obs_df[real_obs_df$type=="observed",]$speed), colour = "red", linetype = "dashed")
+  # real_obs_plot
+  
+  # realised vs observed speeds errors plot:
+  real_obs_errors_df <- data.frame(error = obs_meanreal_errors)
+  real_obs_errors_plot <- ggplot(real_obs_errors_df, aes(x = error))+
+    geom_density(size = 1)+
+    theme_minimal()+
+    labs(x = "error (m/s)",
+         title = paste0("Errors between MRS and each observed speed\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: obs > MRS, -ve: MRS > obs)"))+
+    geom_vline(xintercept = 0, linetype = "dashed")+
+    #geom_text(x = -0.1, y = 1, label = "real > obs", size = 5, colour = "blue")+
+    # geom_text(x = 0.1, y = 10, label = "obs > real", size = 5, colour = "blue")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
+  
+  
+  # realised vs estimates plot: - go from here: might need to faff about to get a nice plot working - make it just for the first repeat btw!
+  real_est_df <- data.frame(speed = c(reals, obs),
+                            type = c(rep("realised", length(reals)), rep("observed", length(obs))))
+  # for the purposes of plotting: remove long tail of realised speeds: - commented out now that speeds should be naturally capped to reasonale values
+  # capped <- 0.1
+  # reals1 <- reals[reals<capped]
+  # obs1 <- obs[obs<capped]
+  # real_est_df1 <- data.frame(speed = c(reals1, obs1),
+  #                           type = c(rep("realised", length(reals1)), rep("observed", length(obs1))))
+  
+  hline_df <- data.frame(value = c(speed_parameter, mean(reals), mean(obs), hmean, lnorm, gamma, weibull),
+                         valtype = c("speed parameter", "MRS", "MOS", "hmean", "lnorm", "gamma", "weibull"),
+                         valtype2 = c("other", "other", "other", "estimate", "estimate", "estimate", "estimate"))
+  
+  real_est_plot <- ggplot(real_est_df, aes(x = speed, y = type))+
+    geom_boxplot()+
+    theme_minimal()+
+    geom_vline(data = hline_df,
+               aes(xintercept = value, colour = valtype))+ # could add in linetype = valtype2 but think the dashed lines makes things harder to read
+    #scale_colour_manual(values = c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7"))+
+    scale_colour_manual(values = c("#0000FF", "#DB00FF", "#FF0049", "#FF9200", "#92FF00", "#00FF49", "#00DBFF"))+ # generated using wheel("blue", 7) from colortools package
+    theme(axis.title = element_text(size = 18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          legend.position = "bottom",
+          legend.key.size = unit(1, "cm"))+
+    labs(x = "speed (m/s)",
+         y = "",
+         title = paste0("Distributions of speeds with speed parameter, MRS, MOS, and estimated speeds\n(for one simulation run)"))
+  # real_est_plot
+  
+  real_est_errors_df <- data.frame(error = c(hmean_errors, lnorm_errors, gamma_errors, weibull_errors),
+                                   method = c(rep("hmean", length(hmean_errors)), rep("lnorm", length(lnorm_errors)), rep("gamma", length(gamma_errors)), rep("weibull", length(weibull_errors))))
+  
+  real_est_errors_plot <- ggplot(real_est_errors_df, aes(x = method, y = error, colour = method))+
+    geom_boxplot()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15))+
+    guides(colour = "none")+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
+    #ylim(-0.05, 0.01)+
+    # geom_text(x = "hmean", y = -0.02, label = "real > est", size = 5, colour = "blue")+
+    #geom_text(y = 0.01, label = "est > real", size = 3)+
+    coord_flip()+
+    theme_minimal()+
+    labs(y = "error (m/s)",
+         title = paste0("Errors between MRS and estimated speeds\n(for ", length(iter), " repeats of the same speed parameter)\n(+ve: est > MRS, -ve: MRS > est)"))+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 13))
+  #ylim((min(real_est_errors_df$error)-0.2), 0.01)
+  
+  arranged <- ggarrange(real_obs_plot, real_est_plot, nrow = 2)
+  annotated <- annotate_figure(arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
+  errors_arranged <- ggarrange(real_obs_errors_plot, real_est_errors_plot, nrow = 2)
+  errors_annotated <- annotate_figure(errors_arranged, top = text_grob(paste0(filename), face = "bold", size = 14))
+  
+  png(file=paste0("../results/PLOTS/sp", speed_parameter, ".png"),
+      width=900, height=700)
+  print(annotated)
+  dev.off()
+  
+  png(file=paste0("../results/PLOTS/sp", speed_parameter, "_errors.png"),
+      width=900, height=700)
+  print(errors_annotated)
+  dev.off()
 }
 
 

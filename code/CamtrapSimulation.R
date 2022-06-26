@@ -425,17 +425,7 @@ line_arc_cross <- function(line, arc){
 
 
 
-## obs_meanreal_error_calc
-# work out error between an observed speed and the mean realised speed for that simulation run
-# INPUTS:
-# observed = an observed speed
-# mean_real = mean realised speed for the corresponding simulation run
-# OUTPUT:
-# error between the observed speed and mean realised speed (positive = observed speed is greater than mean realised speed)
-obs_meanreal_error_calc <- function(observed, mean_real){
-  error <- observed - mean_real
-  return(error)
-}
+
 
 ## reassign_prob
 # for all the points that cross the dz, reassign them as TRUE or FALSE based on probability of getting detected at that distance from the CT
@@ -884,6 +874,18 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
 
 
 
+## obs_meanreal_error_calc
+# work out error between an observed speed and the mean realised speed for that simulation run
+# INPUTS:
+# observed = an observed speed
+# mean_real = mean realised speed for the corresponding simulation run
+# OUTPUT:
+# error between the observed speed and mean realised speed (positive = observed speed is greater than mean realised speed)
+obs_meanreal_error_calc <- function(observed, mean_real){
+  error <- observed - mean_real
+  return(error)
+}
+
 
 
 
@@ -914,39 +916,25 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
 # error between each estimated speed and mean realised speed (estimated speed - mean realised speed)
 estimates_calc <- function(seq_dats){
   realised <- seq_dats$realised
-  
-  wMRS <- mean(realised) # my original way of working out MRS
-  
+
   observed <- seq_dats$observed
   observed <- observed[is.finite(observed)]
-  
-  mMOS <- mean(observed) # arithmetic mean of arithmetic means speed of sequences
-  mMOS_sz <- mean(observed_sz)
-  gmMOS <- exp(mean(log(observed))) # geometric mean of arithmetic mean speeds of sequences
-  gmMOS_sz <- exp(mean(log(observed_sz))) # including singles & zeros
-  
-  p_to_p_speeds <- na.omit(seq_dats$posdat$distance) # remove NAs from point-to-point speeds
-  aMOS <- mean(p_to_p_speeds) # arithmetic mean of all the point-to-point speeds irrespective of sequence ID
-  aMOS_sz <- mean(c(p_to_p_speeds, seq_dats$singles_speeds, seq_dats$zeros_speeds)) # including singles & zeros
-  gMOS <- exp(mean(log(p_to_p_speeds))) # geometric mean of all the point-to-point speeds irrespective of sequence ID
-  gMOS_sz <- exp(mean(log(c(p_to_p_speeds, seq_dats$singles_speeds, seq_dats$zeros_speeds)))) # including singles & zeros
-  observed_sz <- c(observed, seq_dats$singles_speeds, seq_dats$zeros_speeds) # observed speeds when also including single and zero frame sequences
-  
+
   mMOS_wMRS_error1 <- sapply(observed, obs_meanreal_error_calc, mean_real = wMRS)
   mMOS_wMRS_error1_sz <- sapply(observed_sz, obs_meanreal_error_calc, mean_real = wMRS) # for observed speeds including single & zero-frame speeds
-  
-  hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
-  hmean_sz <- (hmean_calc(observed_sz))[1]
-  obs_df <- data.frame(speed = observed)
-  obs_df_sz <- data.frame(speed = observed_sz)
-  mods <- sbm3(speed~1, obs_df) # fit all the models
-  mods_sz <- sbm3(speed~1, obs_df_sz)
-  lnorm <- predict.sbm(mods[[1]]$lnorm)[1,1] # lnorm estimate
-  lnorm_sz <- predict.sbm(mods_sz[[1]]$lnorm)[1,1]
-  gamma <- predict.sbm(mods[[1]]$gamma)[1,1] # gamma estimate
-  gamma_sz <- predict.sbm(mods_sz[[1]]$gamma)[1,1]
-  weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
-  weibull_sz <- predict.sbm(mods_sz[[1]]$weibull)[1,1]
+  # 
+  # hmean <- (hmean_calc(observed))[1] # harmonic mean estimate
+  # hmean_sz <- (hmean_calc(observed_sz))[1]
+  # obs_df <- data.frame(speed = observed)
+  # obs_df_sz <- data.frame(speed = observed_sz)
+  # mods <- sbm3(speed~1, obs_df) # fit all the models
+  # mods_sz <- sbm3(speed~1, obs_df_sz)
+  # lnorm <- predict.sbm(mods[[1]]$lnorm)[1,1] # lnorm estimate
+  # lnorm_sz <- predict.sbm(mods_sz[[1]]$lnorm)[1,1]
+  # gamma <- predict.sbm(mods[[1]]$gamma)[1,1] # gamma estimate
+  # gamma_sz <- predict.sbm(mods_sz[[1]]$gamma)[1,1]
+  # weibull <- predict.sbm(mods[[1]]$weibull)[1,1] # weibull estimate
+  # weibull_sz <- predict.sbm(mods_sz[[1]]$weibull)[1,1]
   
   h_wMRS_error <- hmean - wMRS
   h_mMOS_error <- hmean - mMOS
@@ -983,8 +971,8 @@ estimates_calc <- function(seq_dats){
 
 
 
-## multispeed_analyse
-# analyses simulation results from multiple different speed parameters and combines them into one plot saved to PLOTS folder
+## generate_plotting_variables
+# analyses simulation results from multiple different speed parameters to make summary plots
 # INPUTS
 # sp_and_iters - dataframe of speed parameters to analyse and number of iters of each to use
 # species - 0 = small, 1 = large
@@ -994,7 +982,7 @@ estimates_calc <- function(seq_dats){
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # combined plot saved into PLOTS folder
-multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   # store variables from the .RData files
   wMRS <- c() # my original (wrong) method of working out MRS
   aMRS <- c() # arithmetic MRS
@@ -1009,10 +997,43 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
   gMOS <- c() # geometric mean of point-to-point speeds regardless of sequence
   gMOS_sz <- c() # with singles & zeros
   
-  hmean <- c()
-  lnorm <- c()
-  gamma <- c()
-  weibull <- c()
+  hmean_m <- c() # calculated using M's way of working out observed speeds
+  hmean_m_sz <- c() # including singles & zeros too
+  hmean_p <- c() # calculated using point-to-point observed speeds
+  hmean_p_sz <- c() # including singles & zeros too
+  
+  lnorm_m <- c() # same as for hmean
+  lnorm_m_sz <- c()
+  lnorm_p <- c()
+  lnorm_p_sz <- c()
+  
+  gamma_m <- c() # ditto
+  gamma_m_sz <- c()
+  gamma_p <- c()
+  gamma_p_sz <- c()
+  
+  weibull_m <- c() # ditto
+  weibull_m_sz <- c()
+  weibull_p <- c()
+  weibull_p_sz <- c()
+  
+  n_zeros <- c()
+  n_singles <- c()
+  singles_speeds <- c()
+  singles_speeds_mean <- c()
+  zeros_speeds <- c()
+  zeros_speeds_mean <- c()
+  
+  # for making visualisation plot
+  x_plot <- c()
+  y_plot <- c()
+  v_plot <- c()
+  sp_plot <- c()
+  iter_plot <- c()
+  
+  
+  
+  ## for the original set of plots: wMRS_mMOS_mEST_e1:
   
   mMOS_wMRS_error1 <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
   mMOS_wMRS_error1_sz <- c() # including single & zero frames
@@ -1055,19 +1076,7 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
   mMOS_wMRS_error1_lengths <- c()
   mMOS_wMRS_error1_lengths_sz <- c()
   
-  n_zeros <- c()
-  n_singles <- c()
-  singles_speeds <- c()
-  singles_speeds_mean <- c()
-  zeros_speeds <- c()
-  zeros_speeds_mean <- c()
-  
-  # for making visualisation plot
-  x_plot <- c()
-  y_plot <- c()
-  v_plot <- c()
-  sp_plot <- c()
-  iter_plot <- c()
+  ## for loop to fill these variables #############################################################################################################################
   
   for (n in 1:length(sp_and_iters$speed_parameter)){
     i <- sp_and_iters$speed_parameter[n]
@@ -1081,14 +1090,26 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
       
       load(paste0("../results/paths_copy_for_analysis/sp", i, "/iter", j, ".RData"))
       
-      ## work out MRSes and MOSes ##################################################################################################################
       
-      aMRS <- c(aMRS, mean(path$speed)) # arithmetic MRS
-      gMRS <- c(gMRS, exp(mean(log(path$speed)))) # geometric mean
-      wMRS <- mean(seq_dats$realised) # my original way of working out MRS (using selected chunks of the path of length equal to average obs sequence length)
+      ## coords and speeds for visualisation plot #############################################################################################################
       
-      # GO FROM HERE - NEED TO MOVE A LOT OF THINGS FROM ESTIMATES_CALC TO HERE 
-      # ALL THE SZ STUFF ESPECIALLY
+      # store the coords of each sequence and their speed
+      # need to add a column to seq_dats$posdat with speed of each sequence
+      posdat <- seq_dats$posdat
+      posdat_extra_col <- c()
+      for (u in unique(posdat$sequenceID)){
+        s <- seq_dats$v[seq_dats$v$sequenceID==u,]
+        n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
+        v_id <- s$speed # speed for that sequence ID
+        posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
+      }
+      posdat["speed"] <- posdat_extra_col
+      
+      x_plot <- c(x_plot, posdat$x)
+      y_plot <- c(y_plot, posdat$y)
+      v_plot <- c(v_plot, posdat$speed)
+      sp_plot <- c(sp_plot, rep(i, times = length(posdat$x)))
+      iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
       
       
       ## number of single frames and speeds of single frame sequences #######################################################################
@@ -1161,11 +1182,8 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
         }
       }
       
-      singles_speeds <- c(singles_speeds, singles_v) # store externally of the main for loop
-      singles_speeds_mean <- c(singles_speeds_mean, mean(singles_speeds)) # ditto
+      singles_speeds_mean <- c(singles_speeds_mean, mean(singles_speeds)) # store outside of the main loop
       n_singles <- c(n_singles, singles_count)  # ditto
-      
-      
       
       
       ## number of zero frames and speeds of zero frame sequences ######################################################################################
@@ -1208,77 +1226,83 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
         speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
         zeros_v <- c(zeros_v, speed)
       }
-      zeros_speeds <- c(zeros_speeds, zeros_v) # save outside of the main for loop
-      zeros_speeds_mean <- c(zeros_speeds_mean, mean(zeros_v)) # ditto
-      
-      
-      
-      ## coords and speeds for visualisation plot #############################################################################################################
-    
-      # store the coords of each sequence and their speed
-      # need to add a column to seq_dats$posdat with speed of each sequence
-      posdat <- seq_dats$posdat
-      posdat_extra_col <- c()
-      for (u in unique(posdat$sequenceID)){
-        s <- seq_dats$v[seq_dats$v$sequenceID==u,]
-        n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
-        v_id <- s$speed # speed for that sequence ID
-        posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
-      }
-      posdat["speed"] <- posdat_extra_col
-      
-      x_plot <- c(x_plot, posdat$x)
-      y_plot <- c(y_plot, posdat$y)
-      v_plot <- c(v_plot, posdat$speed)
-      sp_plot <- c(sp_plot, rep(i, times = length(posdat$x)))
-      iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
-      
-      
-      
-      ## wMRS, MOSes, and estimated speeds ###################################################################################################
-      
-      estimates <- estimates_calc(seq_dats)
 
-      wMRS <- c(wMRS, estimates$wMRS)
+      zeros_speeds_mean <- c(zeros_speeds_mean, mean(zeros_v)) # store outside of main loop
       
-      mMOS <- c(mMOS, estimates$mMOS)
-      mMOS_sz <- c(mMOS_sz, estimates$mMOS_sz) # problem: all of these are wrong: need to work them out outside the loop instead...
-      gmMOS <- c(gmMOS, estimates$gmMOS)
-      gmMOS_sz <- c(gmMOS_sz, estimates$gmMOS_sz)
-      aMOS <- c(aMOS, estimates$aMOS)
-      aMOS_sz <- c(aMOS_sz, estimates$aMOS_sz)
-      gMOS <- c(gMOS, estimates$gMOS)
-      gMOS_sz <- c(gMOS_sz, estimates$gMOS_sz)
       
-      hmean <- c(hmean, estimates$hmean)
-      lnorm <- c(lnorm, estimates$lnorm)
-      gamma <- c(gamma, estimates$gamma)
-      weibull <- c(weibull, estimates$weibull)
+      ## mean realised speeds ###################################################################################################################################
       
-      mMOS_wMRS_error1 <- c(mMOS_wMRS_error1, estimates$mMOS_wMRS_error1)
-      mMOS_wMRS_error1_sz <- c(mMOS_wMRS_error1_sz, estimates$mMOS_wMRS_error1_sz)
+      w_real <- seq_dats$realised # my inital wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+      wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
       
-      h_wMRS_error <- c(h_wMRS_error, estimates$h_wMRS_error)
-      h_wMRS_error_sz <- c(h_wMRS_error_sz, estimates$h_wMRS_error_sz)
-      l_wMRS_error <- c(l_wMRS_error, estimates$l_wMRS_error)
-      l_wMRS_error_sz <- c(l_wMRS_error_sz, estimates$l_wMRS_error_sz)
-      g_wMRS_error <- c(g_wMRS_error, estimates$g_wMRS_error)
-      g_wMRS_error_sz <- c(g_wMRS_error_sz, estimates$g_wMRS_error_sz)
-      w_wMRS_error <- c(w_wMRS_error, estimates$w_wMRS_error)
-      w_wMRS_error_sz <- c(w_wMRS_error_sz, estimates$w_wMRS_error_sz)
+      p_real <- path$speed # point-to-point realised speeds
+      aMRS <- c(aMRS, mean(p_real)) # arithmetic MRS
+      gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
       
-      h_mMOS_error <- c(h_mMOS_error, estimates$h_mMOS_error)
-      h_mMOS_error_sz <- c(h_mMOS_error_sz, estimates$h_mMOS_error_sz)
-      l_mMOS_error <- c(l_mMOS_error, estimates$l_mMOS_error)
-      l_mMOS_error_sz <- c(l_mMOS_error_sz, estimates$l_mMOS_error_sz)
-      g_mMOS_error <- c(g_mMOS_error, estimates$g_mMOS_error)
-      g_mMOS_error_sz <- c(g_mMOS_error_sz, estimates$g_gMOS_error_sz)
-      w_mMOS_error <- c(w_mMOS_error, estimates$w_mMOS_error)
-      w_mMOS_errors_sz <- c(w_mMOS_errors_sz, estimates$w_mMOS_error_sz)
       
-      mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(estimates$mMOS_wMRS_error1))
-      mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(estimates$mMOS_wMRS_error1_sz))
+      ## mean observed speeds #################################################################################################################################
       
+      m_obs <- seq_dats$observed # M's way of working out observed speeds
+      m_obs <- m_obs[is.finite(m_obs)]
+      m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames
+      
+      mMOS <- c(mMOS, mean(m_obs)) 
+      mMOS_sz <- c(mMOS_sz, mean(m_obs_sz))
+      gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
+      gmMOS_sz <- c(gmMOS_sz, exp(mean(log(m_obs_sz))))
+      
+      p_obs <- seq_dats$posdat$distance # point-to-point observed speeds irrespective of sequence
+      p_obs <- p_obs[is.finite(p_obs)]
+      p_obs_sz <- c(p_obs, singles_v, zeros_v) # including singles & zeros too
+      
+      aMOS <- c(aMOS, mean(p_obs))
+      aMOS_sz <- c(aMOS_sz, mean(p_obs_sz))
+      gMOS <- c(gMOS, exp(mean(log(p_obs))))
+      gMOS_sz <- c(gMOS_sz, exp(mean(log(p_obs_sz))))
+      
+
+      
+      ## estimated speeds ###################################################################################################
+      
+      hmean_m <- c(hmean_m, (hmean_calc(m_obs))[1]) # harmonic mean estimate using M's observed speeds
+      hmean_m_sz <- c(hmean_m_sz, (hmean_calc(m_obs_sz))[1]) # including singles & zeros
+      hmean_p <- c(hmean_p, (hmean_calc(p_obs))[1]) # using raw point-to-point speeds
+      hmean_p_sz <- c(hmean_p_sz, (hmean_calc(p_obs_sz))[1])
+      
+      obs_df_m <- data.frame(speed = m_obs)
+      obs_df_m_sz <- data.frame(speed = m_obs_sz)
+      obs_df_p <- data.frame(speed = p_obs)
+      obs_df_p_sz <- data.frame(speed = p_obs_sz)
+      
+      mods_m <- sbm3(speed~1, obs_df_m) # fit all the models
+      mods_m_sz <- sbm3(speed~1, obs_df_m_sz)
+      mods_p <- sbm3(speed~1, obs_df_p)
+      mods_p_sz <- sbm3(speed~1, obs_df_p_sz)
+      
+      lnorm_m <- c(lnorm_m, predict.sbm(mods_m[[1]]$lnorm)[1,1])
+      lnorm_m_sz <- c(lnorm_m_sz, predict.sbm(mods_m_sz[[1]]$lnorm)[1,1])
+      lnorm_p <- c(lnorm_p, predict.sbm(mods_p[[1]]$lnorm)[1,1])
+      lnorm_p_sz <- c(lnorm_p_sz, predict.sbm(mods_p_sz[[1]]$lnorm)[1,1])
+      
+      gamma_m <- c(gamma_m, predict.sbm(mods_m[[1]]$gamma)[1,1])
+      gamma_m_sz <- c(gamma_m_sz, predict.sbm(mods_m_sz[[1]]$gamma)[1,1])
+      gamma_p <- c(gamma_p, predict.sbm(mods_p[[1]]$gamma)[1,1])
+      gamma_p_sz <- c(gamma_p_sz, predict.sbm(mods_p_sz[[1]]$gamma)[1,1])
+      
+      weibull_m <- c(weibull_m, predict.sbm(mods_m[[1]]$weibull)[1,1])
+      weibull_m_sz <- c(weibull_m_sz, predict.sbm(mods_m_sz[[1]]$weibull)[1,1])
+      weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
+      weibull_p_sz <- c(weibull_p_sz, predict.sbm(mods_p_sz[[1]]$weibull)[1,1])
+      
+      
+      
+      # calculations for the original plotting: wMRS_mMOS_mEST_e1 ####################################################################################
+      
+      mMOS_wMRS_error1 <- sapply(m_obs, obs_meanreal_error_calc, mean_real = wMRS)
+      mMOS_wMRS_error1_sz <- sapply(m_obs_sz, obs_meanreal_error_calc, mean_real = wMRS)
+      
+      mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(mMOS_wMRS_error1))
+      mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(mMOS_wMRS_error1_sz))
       
       
       ## filename for storing plots ###############################################################################################################################
@@ -1296,6 +1320,72 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
     }
   }
   
+  output <- list(
+    wMRS = wMRS,
+    aMRS = aMRS,
+    gMRS = gMRS,
+    
+    mMOS = mMOS,
+    mMOS_sz = mMOS_sz,
+    gmMOS = gmMOS,
+    gmMOS_sz = gmMOS_sz,
+    aMOS = aMOS,
+    aMOS_sz = aMOS_sz,
+    gMOS = gMOS,
+    gMOS_sz = gMOS_sz,
+    
+    hmean_m = hmean_m,
+    hmean_m_sz = hmean_m_sz,
+    hmean_p = hmean_p,
+    hmean_p_sz = hmean_p_sz,
+    
+    lnorm_m = lnorm_m,
+    lnorm_m_sz = lnorm_m_sz,
+    lnorm_p = lnorm_p,
+    lnorm_p_sz = lnorm_p_sz,
+    
+    gamma_m = gamma_m,
+    gamma_m_sz = gamma_m_sz,
+    gamma_p = gamma_p,
+    gamma_p_sz = gamma_p_sz,
+    
+    weibull_m = weibull_m,
+    weibull_m_sz = weibull_m_sz,
+    weibull_p = weibull_p,
+    weibull_p_sz = weibull_p_sz,
+    
+    n_zeros = n_zeros,
+    n_singles = n_singles,
+    singles_speeds = singles_speeds,
+    singles_speeds_mean = singles_speeds_mean,
+    zeros_speeds = zeros_speeds,
+    zeros_speeds_mean = zeros_speeds_mean,
+
+    x_plot = x_plot,
+    y_plot = y_plot,
+    v_plot = v_plot,
+    sp_plot = sp_plot,
+    iter_plot = iter_plot,
+    
+    mMOS_wMRS_error1 = mMOS_wMRS_error1,
+    mMOS_wMRS_error1_sz = mMOS_wMRS_error1_sz,
+
+    mMOS_wMRS_error1_lengths = mMOS_wMRS_error1_lengths,
+    mMOS_wMRS_error1_lengths_sz <- mMOS_wMRS_error1_lengths_sz
+  )
+  
+  save(output, file = "../results/plotting_data.RData")
+  
+}
+
+
+
+## make_plots
+# make summary plots using data generated in generate_plotting_variables function
+make_plots <- function(){
+  
+  # load in data generated in generate_plotting_variables function
+  load("../results/plotting_data.RData")
   
   ## COMMUNAL PLOTS #########################################################################################################################################################
   
@@ -1363,7 +1453,163 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
   
   
   
-  ### MRS1_MOS1_s1_e1 PLOTS ###################################################################################################################################################################################
+  
+  
+  
+  
+  ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST DIFF TYPES OF MRS ################################################################################################################################################
+  
+  
+  ## no. of singles & no. of zeros against wMRS
+  n_sz_wMRS_df <- data.frame(wMRS = wMRS,
+                             count = c(n_singles, n_zeros),
+                             type = c(rep("single", times = 250), rep("zero", times = 250)))
+  n_sz_wMRS_plot <- ggplot(n_sz_wMRS_df, aes(x = wMRS, y = count, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "count",
+         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
+  n_sz_wMRS_plot
+  
+  ## mean speeds of single & zero frame sequences
+  speeds_sz_wMRS_df <- data.frame(wMRS = wMRS,
+                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
+                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
+  speeds_sz_wMRS_plot <- ggplot(speeds_sz_wMRS_df, aes(x = wMRS, y = speed, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "mean speed (m/s)",
+         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
+  speeds_s1z_wMRS_plot
+  
+  s1z_wMRS_arranged <- ggarrange(n_s1z_wMRS_plot, speeds_s1z_wMRS_plot, nrow = 2)
+  
+  png(file=paste0("../results/PLOTS/sz/wMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=700, height=1000)
+  print(s1z_wMRS_arranged)
+  dev.off()
+  
+  
+  
+  ## no. of singles & no. of zeros against aMRS
+  n_sz_aMRS_df <- data.frame(aMRS = aMRS,
+                             count = c(n_singles, n_zeros),
+                             type = c(rep("single", times = 250), rep("zero", times = 250)))
+  n_sz_aMRS_plot <- ggplot(n_sz_aMRS_df, aes(x = aMRS, y = count, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "count",
+         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
+  # n_sz_aMRS_plot
+  
+  ## mean speeds of single & zero frame sequences
+  speeds_sz_aMRS_df <- data.frame(aMRS = aMRS,
+                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
+                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
+  speeds_sz_aMRS_plot <- ggplot(speeds_sz_aMRS_df, aes(x = aMRS, y = speed, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "mean speed (m/s)",
+         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
+  # speeds_sz_aMRS_plot
+  
+  sz_aMRS_arranged <- ggarrange(n_sz_aMRS_plot, speeds_sz_aMRS_plot, nrow = 2)
+  
+  png(file=paste0("../results/PLOTS/sz/aMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=700, height=1000)
+  print(sz_aMRS_arranged)
+  dev.off()
+  
+  
+  ## no. of singles & no. of zeros against gMRS
+  n_sz_gMRS_df <- data.frame(gMRS = gMRS,
+                             count = c(n_singles, n_zeros),
+                             type = c(rep("single", times = 250), rep("zero", times = 250)))
+  n_sz_gMRS_plot <- ggplot(n_sz_gMRS_df, aes(x = gMRS, y = count, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "count",
+         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
+  # n_sz_gMRS_plot
+  
+  ## mean speeds of single & zero frame sequences
+  speeds_sz_gMRS_df <- data.frame(gMRS = gMRS,
+                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
+                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
+  speeds_sz_gMRS_plot <- ggplot(speeds_sz_gMRS_df, aes(x = gMRS, y = speed, colour = type))+
+    geom_point()+
+    geom_smooth(alpha = 0.1)+
+    theme_minimal()+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_text(size = 18),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13))+
+    labs(x = "mean realised speed (m/s)",
+         y = "mean speed (m/s)",
+         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
+  # speeds_sz_gMRS_plot
+  
+  sz_gMRS_arranged <- ggarrange(n_sz_gMRS_plot, speeds_sz_gMRS_plot, nrow = 2)
+  
+  png(file=paste0("../results/PLOTS/sz/gMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
+      width=700, height=1000)
+  print(sz_gMRS_arranged)
+  dev.off()
+  
+  
+  
+  
+  
+  
+  ### wMRS_mMOS1_mEST_e1 PLOTS ###################################################################################################################################################################################
   
   wMRS_repped <- c()
   for (x in 1:length(wMRS)){
@@ -1413,9 +1659,18 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
   # mMOS_wMRS_error1_combined_plot
   
   # real-est:
+  mh_wMRS_e <- hmean_m - wMRS
+  mh_wMRS_e_sz <- hmean_m_sz - wMRS
+  ml_wMRS_e <- lnorm_m - wMRS
+  ml_wMRS_e_sz <- lnorm_m_sz - wMRS
+  mg_wMRS_e <- gamma_m - wMRS
+  mg_wMRS_e_sz <- gamma_m_sz - wMRS
+  mw_wMRS_e <- weibull_m - wMRS
+  mw_wMRS_e_sz <- weibull_m_sz - wMRS
+  
   est_wMRS_combined_df <- data.frame(wMRS = c(rep(wMRS, times = 8)),
-                                     error = -c(h_wMRS_error, l_wMRS_error, g_wMRS_error, w_wMRS_error, h_wMRS_error_sz, l_wMRS_error_sz, g_wMRS_error_sz, w_wMRS_error_sz),
-                                     method = c(rep("hmean", length(h_wMRS_error)), rep("lnorm", length(l_wMRS_error)), rep("gamma", length(g_wMRS_error)), rep("weibull", length(w_wMRS_error)), rep("hmean", length(h_wMRS_error_sz)), rep("lnorm", length(l_wMRS_error_sz)), rep("gamma", length(g_wMRS_error_sz)), rep("weibull", length(w_wMRS_error_sz))),
+                                     error = -c(mh_wMRS_e, ml_wMRS_e, mg_wMRS_e, mw_wMRS_e, mh_wMRS_e_sz, ml_wMRS_e_sz, mg_wMRS_e_sz, mw_wMRS_e_sz),
+                                     method = c(rep("hmean", length(mh_wMRS_e)), rep("lnorm", length(mh_wMRS_e)), rep("gamma", length(mh_wMRS_e)), rep("weibull", length(mh_wMRS_e)), rep("hmean", length(mh_wMRS_e)), rep("lnorm", length(mh_wMRS_e)), rep("gamma", length(mh_wMRS_e)), rep("weibull", length(mh_wMRS_e))),
                                      type = c(rep("raw", times=2400), rep("with_sz", times=2400)))
   
   est_wMRS_combined_plot <- ggplot(est_wMRS_combined_df, aes(x = wMRS, y = error, colour = method))+
@@ -1446,58 +1701,11 @@ multispeed_analyse <- function(sp_and_iters, species, r, th, twoCTs=FALSE, conne
   dev.off()
   
   
-  ## no. of singles & no. of zeros against MRS
-  n_s1z_wMRS_df <- data.frame(wMRS = wMRS,
-                         count = c(n_singles1, n_zeros),
-                         type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_s1z_wMRS_plot <- ggplot(n_s1z_wMRS_df, aes(x = wMRS, y = count, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  n_s1z_wMRS_plot
   
-  ## mean speeds of single & zero frame sequences
-  speeds_s1z_wMRS_df <- data.frame(wMRS = wMRS,
-                              speed = c(singles1_speeds_mean, zeros_speeds_mean),
-                              type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_s1z_wMRS_plot <- ggplot(speeds_s1z_wMRS_df, aes(x = wMRS, y = speed, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  speeds_s1z_wMRS_plot
+  ### wMRS_mMOS1_mEST_e2 PLOTS ###################################################################################################################################################################################
   
-  s1z_wMRS_arranged <- ggarrange(n_s1z_wMRS_plot, speeds_s1z_wMRS_plot, nrow = 2)
+  ## don't make any more plots for now - first decide which ones are the correct ones
   
-  png(file=paste0("../results/PLOTS/MRS1_MOS1_s1_e1/sz_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(s1z_wMRS_arranged)
-  dev.off()
-  
-  
-  
-  ### MRS2_MOS2_s1_e2 PLOTS ###################################################################################################################################################################################
-  
-  # go from here - need to make sure you generate all the components needed above in the function
   
   
   

@@ -11,6 +11,200 @@ panama_data <- read.csv("../data/panama_data.csv")
 
 data_all_cats <- read.csv("../data/data_all_cats.csv")
 
+
+
+# deciding on speedSD value and truncation parameter ---------------------
+
+# logspeedSD -- this suggests 1 would be ok?
+plot(density(sd_explore_df$sd_log_v))
+
+# truncation parameter - need to find a relationship between mean & max speed going via their relationships with body mass
+
+# Garland 1983: relationship between body mass (kg) & max running speed (km/h):
+
+
+
+
+
+
+
+
+
+# investigating body mass - speed - SD relationship more closely -----------
+
+# add column with body mass to data_all_cats dataframe
+
+data_all_cats["Body_mass_g"] <- rep(NA, times = nrow(data_all_cats))
+
+for (i in 1:nrow(data_all_cats)){
+  if (data_all_cats[i,]$species=="Fox"){
+    data_all_cats[i,]$Body_mass_g <- 4820.36
+  }
+  if (data_all_cats[i,]$species=="Hedgehog"){
+    data_all_cats[i,]$Body_mass_g <- 777.95
+  }
+  if (data_all_cats[i,]$species=="takin"){
+    data_all_cats[i,]$Body_mass_g <- 294515.33
+  }
+  if (data_all_cats[i,]$species=="takin young"){
+    data_all_cats[i,]$Body_mass_g <- 100000
+  }
+  if (data_all_cats[i,]$species=="himalayan black bear"){
+    data_all_cats[i,]$Body_mass_g <- 99714.19
+  }
+  if (data_all_cats[i,]$species=="agouti"){
+    data_all_cats[i,]$Body_mass_g <- 2309.12
+  }
+  if (data_all_cats[i,]$species=="coati"){
+    data_all_cats[i,]$Body_mass_g <- 3775.5
+  }
+  if (data_all_cats[i,]$species=="ocelot"){
+    data_all_cats[i,]$Body_mass_g <- 11880
+  }
+  if (data_all_cats[i,]$species=="squirrel"){
+    data_all_cats[i,]$Body_mass_g <- 545.4
+  }
+  if (data_all_cats[i,]$species=="paca"){
+    data_all_cats[i,]$Body_mass_g <- 8172.55
+  }
+  if (data_all_cats[i,]$species=="rat"){
+    data_all_cats[i,]$Body_mass_g <- 282.17
+  }
+  if (data_all_cats[i,]$species=="tamandua"){
+    data_all_cats[i,]$Body_mass_g <- 4800
+  }
+  if (data_all_cats[i,]$species=="peccary"){
+    data_all_cats[i,]$Body_mass_g <- 21133.69
+  }
+  if (data_all_cats[i,]$species=="brocket"){
+    data_all_cats[i,]$Body_mass_g <- 20546.86
+  }
+  if (data_all_cats[i,]$species=="mouse"){
+    data_all_cats[i,]$Body_mass_g <- 19.3
+  }
+  if (data_all_cats[i,]$species=="armadillo"){
+    data_all_cats[i,]$Body_mass_g <- 3949.01
+  }
+  if (data_all_cats[i,]$species=="opossum"){
+    data_all_cats[i,]$Body_mass_g <- 1134.75
+  }
+}
+
+# write.csv(data_all_cats, file = "../data/data_all_cats.csv")
+
+
+# need:
+# species
+# body mass
+# mean speed
+# mean log speed
+# speed sd
+# sd of log speeds
+# max speed
+# max log speed
+
+species <- c()
+body_mass <- c()
+mean_v <- c()
+mean_log_v <- c()
+sd_v <- c()
+sd_log_v <- c()
+max_v <- c()
+max_log_v <- c()
+
+for (i in unique(data_all_cats$species)){
+  species <- c(species, i)
+  body_mass <- c(body_mass, data_all_cats[data_all_cats$species==i,]$Body_mass_g[1])
+  
+  spds <- data_all_cats[data_all_cats$species==i,]$speed
+  spds <- spds[spds>0]
+  mean_v <- c(mean_v, mean(spds))
+  sd_v <- c(sd_v, sd(spds))
+
+  spds_log <- log(spds) # log the speeds
+  mean_log_v <- c(mean_log_v, mean(spds_log))
+  sd_log_v <- c(sd_log_v, sd(spds_log))
+  
+  max_v <- c(max_v, max(spds))
+  max_log_v <- c(max_log_v, max(spds_log))
+
+}
+
+sd_explore_df <- data.frame(species=species, 
+                            body_mass=body_mass,
+                            mean_v=mean_v,
+                            mean_log_v=mean_log_v,
+                            sd_v=sd_v,
+                            sd_log_v=sd_log_v,
+                            max_v=max_v,
+                            max_log_v=max_log_v)
+
+ggplot(sd_explore_df, aes(x = mean_v, y = max_v))+
+  geom_point()
+
+
+# SD of logged speeds agains mean log speed
+sd_v_plot <- ggplot(sd_explore_df, aes(x = mean_log_v, y = sd_log))+
+  geom_point()+
+  # geom_smooth()+
+  theme_minimal()+
+  labs(x = "mean log speed (m/s)",
+       y = "SD of logged speeds (m/s)")+
+  theme(axis.title = element_text(size=14),
+        axis.text = element_text(size=15))
+sd_v_plot
+
+# body mass plot
+body_mass_df <- data.frame(log_body_mass=rep(log(body_mass), times = 6),
+                           measure=c(mean_v, mean_log_v, sd_v, sd_log_v, max_v, max_log_v),
+                           logged=c(rep("raw", times = length(mean_v)), rep("logged", times = length(mean_log_v)), rep("raw", times = length(mean_v)), rep("logged", times = length(mean_log_v)), rep("raw", times = length(mean_v)), rep("logged", times = length(mean_log_v))),
+                           type=c(rep("mean speed", times = 2*length(mean_v)), rep("speed SD", times = 2*length(mean_v)), rep("max speed", times = 2*length(mean_v))))
+
+max_raw_plot <- ggplot(body_mass_df[body_mass_df$logged=="raw" & body_mass_df$log_body_mass<10,])+
+
+ggplot()
+
+
+body_mass_plot <- ggplot(body_mass_df[body_mass_df$logged=="raw" & body_mass_df$log_body_mass<10,], aes(x = log_body_mass, y = measure))+
+  geom_point()+
+  # geom_smooth()+
+  facet_grid(type~.)+
+  theme_bw()+
+  labs(x = "body mass (g)",
+       y = "",
+       title = "raw")+
+  theme(axis.title = element_text(size=14),
+        axis.text = element_text(size=15),
+        strip.text = element_text(size = 14))
+body_mass_plot  
+
+body_mass_plot_log <- ggplot(body_mass_df[body_mass_df$logged=="logged" & body_mass_df$log_body_mass<10,], aes(x = log_body_mass, y = measure))+
+  geom_point()+
+  # geom_smooth()+
+  facet_grid(type~.)+
+  theme_bw()+
+  labs(x = "body mass (g)",
+       y = "",
+       title = "raw")+
+  theme(axis.title = element_text(size=14),
+        axis.text = element_text(size=15),
+        strip.text = element_text(size = 14))
+body_mass_plot  
+
+
+## --> to better visualise (advice from M):
+# no geom_smooth - just the points
+# avoid using facets when comparing logged & non logged things or just generally anything that isn't in the same range
+# -- bc with facets it means the axes are all the same so it can be harder to discern relationships
+
+
+## --> conclusion of all this: no clear trends suggesting we need to vary speed SD, so keep it to 1 for the sake of the simulation
+
+# but need to find a relationship between max and mean speed so that can add a truncation parameter to pathgen
+
+
+# herbivores vs carnivores ------------------------------------------------
+
 # add column for herbivores vs carnivores to data_all_cats:
 
 small_herbivores <- c("mouse", "rat", "squirrel", "Hedgehog", "agouti", "coati")
@@ -81,7 +275,7 @@ for (i in unique(data_all_cats$species)){
   mean_log2 <- c(mean_log2, fit_lnorm$estimate[[1]])
   sd_log2 <- c(sd_log2, fit_lnorm$estimate[[2]])
   
-  CV_log <- c(CV_log, (sd(spds_log)/mean(spds_log)))
+  CV_log <- c(CV_log, (sd(spds_log)/mean(spds_log))) #
   PGCV <- c(PGCV, (exp(sd(spds_log))/exp(mean(spds_log))))
 }
 
@@ -157,7 +351,7 @@ data_all$species <- as.character(data_all$species)
 # 
 # # --> can't figure this out... to come back to
 
-speeds_all <- ggplot(data_all, aes(x = speed, colour = species))+
+speeds_all <- ggplot(data_all, aes(x = log(speed), colour = species))+
   geom_density()
 speeds_all
 

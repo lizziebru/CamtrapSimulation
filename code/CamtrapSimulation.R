@@ -7,11 +7,28 @@ require(colortools) # for generating contrasting colours - use wheel("blue, 3) e
 require(ggnewscale)
 
 # to test things:
+
+
+# # # set speed parameter
+# # speed_parameter <- log(0.02) # list whatever speeds you want (can be multiple) - and if you want 10 of each need -J 1-40 (needs to be a multiple of number of speeds)
+# # #
+# # # # set parameters
+# # xlim = c(0,40)
+# step_no = 5e4
+# # size = 0
+# # pTurn = 0.5
+# # speedCor = 0.9
+# # kTurn = 2
+# # kCor = TRUE
+# # #
+# path <- pathgen(n=step_no, kTurn=kTurn, kCor=kCor, pTurn=pTurn, logspeed=speed_parameter, size=size, speedCor=speedCor, xlim=xlim)
+
+
 # path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
 #                 logspeed=-2, speedSD=1, speedCor=0.9,
 #                 xlim=c(0,40), wrap=TRUE)
 # point <- path$path[,1:2]
-# 
+#
 # dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
 
 
@@ -51,12 +68,12 @@ rautonorm <- function(n,mean=0,sd=1,r){
 pathgen <- function(n, kTurn=0, logspeed=0, size, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
   # work out speedSD using coefficients of variation worked out using the data for small & large species
   if (size == 0){
-    speedSD <- 0.5337202 * logspeed # calculated from the data
+    logspeedSD <- 0.5337202 * logspeed # calculated from the data
   }
   if (size == 1){
-    speedSD <- 0.6842889 * logspeed
+    logspeedSD <- 0.6842889 * logspeed
   }
-  spds <- exp(rautonorm(n, logspeed, speedSD, speedCor)) # generates set of autocorrelated variates
+  spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
   # so you're generating a normal distribution of variates on the log scale (using logspeed)
   # so take exp to get them back to linear scale
@@ -1033,48 +1050,48 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
   
   
   
-  ## for the original set of plots: wMRS_mMOS_mEST_e1:
-  
-  mMOS_wMRS_error1 <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
-  mMOS_wMRS_error1_sz <- c() # including single & zero frames
-  
-  h_wMRS_error <- c()
-  h_wMRS_error_sz <- c()
-  l_wMRS_error <- c()
-  l_wMRS_error_sz <- c()
-  g_wMRS_error <- c()
-  g_wMRS_error_sz <- c()
-  w_wMRS_error <- c()
-  w_wMRS_error_sz <- c()
-  
-  h_aMRS_error <- c()
-  h_aMRS_error_sz <- c()
-  l_aMRS_error <- c()
-  l_aMRS_error_sz <- c()
-  g_aMRS_error <- c()
-  g_aMRS_error_sz <- c()
-  w_aMRS_error <- c()
-  w_aMRS_error_sz <- c()
-  
-  h_gMRS_error <- c()
-  h_gMRS_error_sz <- c()
-  l_gMRS_error <- c()
-  l_gMRS_error_sz <- c()
-  g_gMRS_error <- c()
-  g_gMRS_error_sz <- c()
-  w_gMRS_error <- c()
-  w_gMRS_error_sz <- c()
-  
-  h_mMOS_error <- c()
-  h_mMOS_error_sz <- c()
-  l_mMOS_error <- c()
-  l_mMOS_error_sz <- c()
-  g_mMOS_error <- c()
-  g_mMOS_error_sz <- c()
-  w_mMOS_error <- c()
-  w_mMOS_error_sz <- c()
-  mMOS_wMRS_error1_lengths <- c()
-  mMOS_wMRS_error1_lengths_sz <- c()
+  # ## for the original set of plots: wMRS_mMOS_mEST_e1: - don't need this for now
+  # 
+  # mMOS_wMRS_error1 <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
+  # mMOS_wMRS_error1_sz <- c() # including single & zero frames
+  # 
+  # h_wMRS_error <- c()
+  # h_wMRS_error_sz <- c()
+  # l_wMRS_error <- c()
+  # l_wMRS_error_sz <- c()
+  # g_wMRS_error <- c()
+  # g_wMRS_error_sz <- c()
+  # w_wMRS_error <- c()
+  # w_wMRS_error_sz <- c()
+  # 
+  # h_aMRS_error <- c()
+  # h_aMRS_error_sz <- c()
+  # l_aMRS_error <- c()
+  # l_aMRS_error_sz <- c()
+  # g_aMRS_error <- c()
+  # g_aMRS_error_sz <- c()
+  # w_aMRS_error <- c()
+  # w_aMRS_error_sz <- c()
+  # 
+  # h_gMRS_error <- c()
+  # h_gMRS_error_sz <- c()
+  # l_gMRS_error <- c()
+  # l_gMRS_error_sz <- c()
+  # g_gMRS_error <- c()
+  # g_gMRS_error_sz <- c()
+  # w_gMRS_error <- c()
+  # w_gMRS_error_sz <- c()
+  # 
+  # h_mMOS_error <- c()
+  # h_mMOS_error_sz <- c()
+  # l_mMOS_error <- c()
+  # l_mMOS_error_sz <- c()
+  # g_mMOS_error <- c()
+  # g_mMOS_error_sz <- c()
+  # w_mMOS_error <- c()
+  # w_mMOS_error_sz <- c()
+  # mMOS_wMRS_error1_lengths <- c()
+  # mMOS_wMRS_error1_lengths_sz <- c()
   
   ## for loop to fill these variables #############################################################################################################################
   
@@ -1296,14 +1313,14 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
       
       
       
-      # calculations for the original plotting: wMRS_mMOS_mEST_e1 ####################################################################################
-      
-      mMOS_wMRS_error1 <- sapply(m_obs, obs_meanreal_error_calc, mean_real = wMRS)
-      mMOS_wMRS_error1_sz <- sapply(m_obs_sz, obs_meanreal_error_calc, mean_real = wMRS)
-      
-      mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(mMOS_wMRS_error1))
-      mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(mMOS_wMRS_error1_sz))
-      
+      # # calculations for the original plotting: wMRS_mMOS_mEST_e1 ####################################################################################
+      #  --> don't need for now
+      # mMOS_wMRS_error1 <- sapply(m_obs, obs_meanreal_error_calc, mean_real = wMRS)
+      # mMOS_wMRS_error1_sz <- sapply(m_obs_sz, obs_meanreal_error_calc, mean_real = wMRS)
+      # 
+      # mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(mMOS_wMRS_error1))
+      # mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(mMOS_wMRS_error1_sz))
+      # 
       
       ## filename for storing plots ###############################################################################################################################
       
@@ -1321,6 +1338,7 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
   }
   
   output <- list(
+    filename = filename,
     wMRS = wMRS,
     aMRS = aMRS,
     gMRS = gMRS,
@@ -1367,14 +1385,14 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
     sp_plot = sp_plot,
     iter_plot = iter_plot,
     
-    mMOS_wMRS_error1 = mMOS_wMRS_error1,
-    mMOS_wMRS_error1_sz = mMOS_wMRS_error1_sz,
-
-    mMOS_wMRS_error1_lengths = mMOS_wMRS_error1_lengths,
-    mMOS_wMRS_error1_lengths_sz <- mMOS_wMRS_error1_lengths_sz
+    # mMOS_wMRS_error1 = mMOS_wMRS_error1, - for original plot - but don't need for now
+    # mMOS_wMRS_error1_sz = mMOS_wMRS_error1_sz,
+    # 
+    # mMOS_wMRS_error1_lengths = mMOS_wMRS_error1_lengths,
+    # mMOS_wMRS_error1_lengths_sz <- mMOS_wMRS_error1_lengths_sz
   )
   
-  save(output, file = "../results/plotting_data.RData")
+  save(output, file = "../results/plotting_data.RData") # add sp range and number of iters too to the name of the output file
   
 }
 
@@ -1453,68 +1471,11 @@ make_plots <- function(){
   print(vis_plot)
   dev.off()
   
+
+  # --> need to make changes to this that C suggested though
   
-  ## comparing different means/medians plot:
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST DIFF TYPES OF MRS ################################################################################################################################################
-  
-  
-  ## no. of singles & no. of zeros against wMRS
-  n_sz_wMRS_df <- data.frame(wMRS = wMRS,
-                             count = c(n_singles, n_zeros),
-                             type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_sz_wMRS_plot <- ggplot(n_sz_wMRS_df, aes(x = wMRS, y = count, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  n_sz_wMRS_plot
-  
-  ## mean speeds of single & zero frame sequences
-  speeds_sz_wMRS_df <- data.frame(wMRS = wMRS,
-                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
-                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_sz_wMRS_plot <- ggplot(speeds_sz_wMRS_df, aes(x = wMRS, y = speed, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  speeds_s1z_wMRS_plot
-  
-  s1z_wMRS_arranged <- ggarrange(n_s1z_wMRS_plot, speeds_s1z_wMRS_plot, nrow = 2)
-  
-  png(file=paste0("../results/PLOTS/sz/wMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(s1z_wMRS_arranged)
-  dev.off()
-  
-  
+  ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST aMRS ################################################################################################################################################
+
   
   ## no. of singles & no. of zeros against aMRS
   n_sz_aMRS_df <- data.frame(aMRS = aMRS,

@@ -12,10 +12,10 @@ require(ggpubr)
 # one plot per simulation speed parameter (just one run for each - so just iter1)
 
 # initialise dataframes to store realised and observed speeds
-real_og <- data.frame(matrix(ncol=12, nrow=5e5)) # my original way of working out realised speeds (select chunks of the path of length same as mean observed sequence length - select the same number as number of observed sequences in that run)
-real_p_to_p <- data.frame(matrix(ncol=12, nrow=5e5)) # individual speeds between each step (much more than above)
-obs_m <- data.frame(matrix(ncol=12, nrow=5e5)) # M's way of working out observed speeds (arithmetic mean of speeds within each sequence)
-obs_p_to_p <- data.frame(matrix(ncol=12, nrow=5e5)) # observed speeds are just the speeds between consecutive steps irrespective of path (much more than above too)
+real_og <- data.frame(matrix(ncol=11, nrow=5e5)) # my original way of working out realised speeds (select chunks of the path of length same as mean observed sequence length - select the same number as number of observed sequences in that run)
+real_p_to_p <- data.frame(matrix(ncol=11, nrow=5e5)) # individual speeds between each step (much more than above)
+obs_m <- data.frame(matrix(ncol=11, nrow=5e5)) # M's way of working out observed speeds (arithmetic mean of speeds within each sequence)
+obs_p_to_p <- data.frame(matrix(ncol=11, nrow=5e5)) # observed speeds are just the speeds between consecutive steps irrespective of path (much more than above too)
 
 # initialise vectors to store means & medians of realised and observed speeds
 wMRS <- c() # mean of my original way of working out realised speeds
@@ -44,7 +44,7 @@ weibull_p <- c()
 
 # loop through each speed parameter and fill these dataframes and vectors
 
-speed_parameters <- c(0.02, 0.06, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00)
+speed_parameters <- c(0.02, 0.06, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90) # sp1.00 is being problematic with sigma... - ask Francis/Marcus about this
 speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
 
 for (i in 1:length(speed_parameters)){
@@ -55,14 +55,22 @@ for (i in 1:length(speed_parameters)){
   
   ## realised speeds ###################################################################################################################################
   
-  real_og[,i] <- c(seq_dats$realised, rep(NA, times = (5e5-length(seq_dats$realised)))) # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
-  real_p_to_p[,i] <- path$speed # point-to-point realised speeds
+  r_og <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+  r_p_to_p <- path$speed # point-to-point realised speeds
   
-  wMRS <- c(wMRS, mean(seq_dats$realised)) # my original way of working out MRS 
-  aMRS <- c(aMRS, mean(path$speed)) # arithmetic MRS
-  gMRS <- c(gMRS, exp(mean(log(path$speed)))) # geometric MRS
-  med_wMRS <- c(med_wMRS, median(seq_dats$realised))
-  med_pMRS <- c(med_pMRS, median(path$speed))
+  # cap both at 10m/s (36km/h) to get rid of unrealistically high ones
+  r_og <- r_og[r_og<10]
+  r_p_to_p <- r_p_to_p[r_p_to_p<10]
+  
+  # fill dataframes with those speeds
+  real_og[,i] <- c(r_og, rep(NA, times = (5e5-length(r_og))))
+  real_p_to_p[,i] <- c(r_p_to_p, rep(NA, times = (5e5-length(r_p_to_p))))
+  
+  wMRS <- c(wMRS, mean(r_og)) # my original way of working out MRS 
+  aMRS <- c(aMRS, mean(r_p_to_p)) # arithmetic MRS
+  gMRS <- c(gMRS, exp(mean(log(r_p_to_p)))) # geometric MRS
+  med_wMRS <- c(med_wMRS, median(r_og))
+  med_pMRS <- c(med_pMRS, median(r_p_to_p))
   
   ## mean observed speeds #################################################################################################################################
   
@@ -86,6 +94,7 @@ for (i in 1:length(speed_parameters)){
   # estimated speeds ##
   
   hmean_m <- c(hmean_m, (hmean_calc(m_obs))[1]) # harmonic mean estimate using M's observed speeds
+  
   hmean_p <- c(hmean_p, (hmean_calc(p_obs))[1]) # using raw point-to-point speeds
   
   obs_df_m <- data.frame(speed = m_obs)
@@ -98,16 +107,50 @@ for (i in 1:length(speed_parameters)){
   lnorm_p <- c(lnorm_p, predict.sbm(mods_p[[1]]$lnorm)[1,1])
   
   gamma_m <- c(gamma_m, predict.sbm(mods_m[[1]]$gamma)[1,1])
-  gamma_p <- c(gamma_p, predict.sbm(mods_p[[1]]$gamma)[1,1])
+  gamma_p <- c(gamma_p, predict.sbm(mods_p[[1]]$gamma)[1,1]) # this is the problematic one for sp = 1.00 for some reason!! -- check this with Francis tomorrow
   
   weibull_m <- c(weibull_m, predict.sbm(mods_m[[1]]$weibull)[1,1])
   weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
   
+  rm(list = c("seq_dats", "metadata_sim", "path"))
+  
 }
 
 
+## plot - which you'll then loop through each speed parameter
 
+## realised speeds plot - with mean and median realised speeds and estimated speeds
+# top one = my original way of working out realised speeds
+# bottom one = point-to-point
 
+# problems with super high realised speeds - see notebook for info but best solution rn is just to truncate at 10m/s
 
+real_plots <- c()
+
+for (i in 1:ncol(real_og)){
+  r_og <- real_og[,i]
+  r_p2p <- real_p_to_p[,i]
+  if (i < 7){ # for the lower speeds - truncate at 3m/s for the purposes of visualisation
+    r_og <- r_og[r_og<3]
+    r_p2p <- r_p2p[r_p2p<3]
+  }
+  real_plot_df <- data.frame(real = c(real_og[,i], real_p_to_p[,i]),
+                             type = c(rep("path sections", times = length(real_og[,i])), rep("all steps", times = length(real_p_to_p[,i]))))
+  real_plot <- ggplot(real_plot_df, aes(x = real))+
+    geom_density()+
+    facet_grid(vars(type))+
+    geom_vline(xintercept = aMRS[i], colour = "blue", linetype = "dashed")
+  # facet_wrap(type ~.)
+  real_plots <- c(real_plots, real_plot)
+}
+
+## to finish if decide it would be useful -- for now try to do the multi-speed plots though
+
+# write this down in notebook then can close this script for now
+
+  
+  
+  
+  
 
 

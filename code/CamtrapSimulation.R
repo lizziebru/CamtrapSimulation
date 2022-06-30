@@ -52,10 +52,9 @@ rautonorm <- function(n,mean=0,sd=1,r){
 ## generates a path of x, y positions using a correlated random walk
 # INPUTS:
 # n: number of steps
-# size: size of animal to be generated: 0 = small, 1 = large
 # pTurn: probability of turning at each step
 # kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
-# logspeed: mean log speed - use this to then work out appropriate speedSD (standard deviation of log speed)
+# Mb: body mass - then defines meanlogspeed and maxlogspeed
 # speedCor: autocorrelation in speed
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
@@ -65,14 +64,7 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
-pathgen <- function(n, kTurn=0, logspeed=0, size, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
-  # work out speedSD using coefficients of variation worked out using the data for small & large species
-  if (size == 0){
-    logspeedSD <- 0.5337202 * logspeed # calculated from the data
-  }
-  if (size == 1){
-    logspeedSD <- 0.6842889 * logspeed
-  }
+pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
   spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates
   # exp bc: the speed chunks we see tend to be log normally distributed
   # so you're generating a normal distribution of variates on the log scale (using logspeed)

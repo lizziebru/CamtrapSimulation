@@ -146,10 +146,7 @@ for (i in 1:ncol(real_og)){
 
 ## to finish if decide it would be useful -- for now try to do the multi-speed plots though
 
-# write this down in notebook then can close this script for now
 
-  
-  
   
   
 

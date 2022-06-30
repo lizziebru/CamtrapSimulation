@@ -4,6 +4,7 @@ require(dplyr)
 require(ggplot2)
 require(ggpubr)
 require(fitdistrplus)
+require(stringr)
 
 regentspark_mov_data <- read.csv("../data/regentspark_mov_data.csv")
 india_mov_data <- read.csv("../data/india_mov_data.csv")
@@ -15,17 +16,96 @@ data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 # deciding on speedSD value and truncation parameter ---------------------
 
-# logspeedSD -- this suggests 1 would be ok?
-plot(density(sd_explore_df$sd_log_v))
+### logspeedSD - use the distribution of speed SDs in the data - but exclude bears & takins bc anomalous
+rp_panama_only <- read.csv("../results/rp_panama_only.csv") # everything apart from bears & takins
+plot(density(rp_panama_only$sd_log_v))
 
-# truncation parameter - need to find a relationship between mean & max speed going via their relationships with body mass
+sd_log_density <- ggplot(rp_panama_only, aes(x = sd_log_v))+
+  geom_density()+
+  geom_vline(xintercept = mean(rp_panama_only$sd_log_v), colour = "red")
+sd_log_density
+
+# use the mean of this as the fixed speed SD - bc there's no literature on the variation of speedSD with body size
+# and empirical data suggest it remains relatively constant across body masses too
+fixed_logspeedSD <- mean(rp_panama_only$sd_log_v) ## == 0.8546151
+
+
+
+
+
+### max speed (=truncation parameter) 
+
+# use the relationship between body mass & max speed from data
 
 # Garland 1983: relationship between body mass (kg) & max running speed (km/h):
 
+# use the polynomial relationship so that can relate body mass to it well
+
+# polynomial relationship between body mass and max speed:
+
+# vmax = max speed in km/h - just need to figure out units though
+# Mb = body mass in kg
+
+# log10(vmax) = 1.47832 + 0.25892*log10(Mb) - 0.06237*(log10(Mb))^2 -- original eqn from paper
+
+# get it in non-log form then convert units (see notebook for full maths)
+# vmax = (30.08292*(Mb^0.25892))/(M^(0.06237*log10(Mb))) -- eqn to use in pathgen
 
 
+# Rowcliffe et al. 2016: mean travel speed related to body mass - using Panama data
 
+# mean scaling exponent (faunivores & herbivores) = 0.17
+# need the constant though
+# --> need to reproduce their work to work out constant so that can calculate mean speed from body mass
 
+# do the same as Rowcliffe et al. but also use regent's park data
+
+# use lnorm
+
+# use data_all_cats for this bc need all the observed speeds for each species:
+rp_spp <- c(as.character(unique(regentspark_mov_data$species)), as.character(unique(panama_data$species)))
+rp_spp2 <- str_remove(rp_spp, "mouse") # don't do mouse bc only one datapoint
+
+data_all_cats_rp <- data_all_cats[data_all_cats$species==rp_spp2,]
+
+rp_panama_only2 <- rp_panama_only[rp_panama_only$species %in% rp_spp2,]
+
+lnorm_est <- c()
+
+for (i in rp_panama_only2$species){
+  v <- data_all_cats_rp[data_all_cats_rp$species==i,]$speed
+  v_df <- data.frame(speed = v)
+  mods <- sbm3(speed~1, v_df) # fit all the models
+  lnorm_est <- c(lnorm_est, predict.sbm(mods[[1]]$lnorm)[1,1])
+}
+
+# make dataframe:
+rp_panama_only2["lnorm_est"] <- lnorm_est
+
+# write.csv(rp_panama_only2, file = "../results/rp_panama_only2.csv")
+# --> if need to go back to this can just read in the saved csv now
+rp_panama_only2 <- read.csv("../results/rp_panama_only2.csv")
+
+# now need the relationship between travel speed (m/s) & body mass (kg)
+rp_panama_only2["body_mass_kg"] <- (rp_panama_only2$body_mass)/1000
+
+# need this on a log scale:
+v_bodymass_relat <- ggplot(rp_panama_only2, aes(x = log(body_mass_kg), y = log(lnorm_est)))+
+  geom_point()
+v_bodymass_relat
+
+# fit regression model:
+v_bodymass_lm_fit <- lm(log(lnorm_est) ~ log(body_mass_kg), data = rp_panama_only2)
+summary(v_bodymass_lm_fit)
+
+# intercept: -1.9971
+# slope: 0.1972
+
+# c = 10^intercept = 0.010067
+# b = slope = 0.1972
+
+# therefore, power law eqn to use in pathgen:
+# v_av = 0.010067*(Mb^0.1972)
 
 
 
@@ -138,6 +218,8 @@ sd_explore_df <- data.frame(species=species,
                             sd_log_v=sd_log_v,
                             max_v=max_v,
                             max_log_v=max_log_v)
+
+# write.csv(sd_explore_df, file = "../results/sd_explore_df.csv")
 
 ggplot(sd_explore_df, aes(x = mean_v, y = max_v))+
   geom_point()

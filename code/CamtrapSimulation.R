@@ -463,15 +463,15 @@ reassign_prob <- function(isindz_row){
     return(FALSE)
   }
   else {
-    if (species == 0){
-      prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
-      if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
-        prob_radius <- 1
-      }
-      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      return(new_res)
-    }
-    if (species == 1){
+    # if (species == 0){ - only use large species hazard function for now
+    #   prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+    #   if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
+    #     prob_radius <- 1
+    #   }
+    #   new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+    #   return(new_res)
+    # }
+    # if (species == 1){
       prob_radius <- large_radius(as.numeric(isindz_row[[2]])) * 2.767429 # probability of being detected based on the estimated probability density for the radius
       if (prob_radius > 1){
         prob_radius <- 1
@@ -479,7 +479,6 @@ reassign_prob <- function(isindz_row){
       new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
       return(new_res)
     }
-  }
 }
 
 ## is_in_dz - see bottom for original function
@@ -494,7 +493,7 @@ reassign_prob <- function(isindz_row){
 # species = size of the animal (1 = large, 0 = small)
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone, species){
+is_in_dz <- function(point, dzone){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -557,9 +556,9 @@ is_in_dz <- function(point, dzone, species){
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
 # for small species:
-sequence_data <- function(pth, dzone, species){
+sequence_data <- function(pth, dzone){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone, species) # returns true or false for whether each position in the path is in the detection zone
+  isin_all <- is_in_dz(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
   
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
@@ -694,12 +693,12 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
   
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all <- sequence_data(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -709,8 +708,8 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    posdat_all1 <- sequence_data(path, dz1, species) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2, species)
+    posdat_all1 <- sequence_data(path, dz1) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2)
     posdat_all <- rbind(posdat_all1, posdat_all2)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
@@ -857,7 +856,7 @@ run_simulation <- function(path, parentfolder, pathfolder, species, r, th, plot_
 # path_nos: range of iter numbers to run the simulation on (vary depending on computational ability of local machine) - e.g. course laptop can take about 10 at once max
 # OUTPUT
 # saved seq_dats.RData files in seq_dats folder
-generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
+generate_seqdats <- function(parentfolder, pathfolder, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
   for (i in path_nos){
     load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
     if (i == 1){
@@ -867,15 +866,15 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
       plot_path <- FALSE
     }
     if (path_cutby == 1){
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     }
     else { # if want to cut the path short to make it computationally easier:
       path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, species=species, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
     }
     metadata_sim <- list(datetime = metadata$datetime,
                          iter = metadata$iter,
-                         speed_parameter = metadata$speed_parameter,
+                         Mb = metadata$Mb,
                          xlim = metadata$xlim,
                          step_no = metadata$step_no,
                          #speedSD = metadata$speedSD,
@@ -883,13 +882,12 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, species, r, th,
                          speedCor = metadata$speedCor,
                          kTurn = metadata$kTurn,
                          kCor = metadata$kCor,
-                         species = species,
                          r = r,
                          th = th,
                          twoCTs = twoCTs,
                          connectedCTs = connectedCTs)
     
-    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/sp", exp(metadata_sim$speed_parameter), "iter", i, ".RData"))
+    save(seq_dats, metadata_sim, file = paste0(parentfolder, "../seq_dats/Mb", exp(metadata_sim$Mb), "iter", i, ".RData"))
     rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
   }
 }

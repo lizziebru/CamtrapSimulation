@@ -832,9 +832,9 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
                       # singles_speeds = singles_speeds,
                       # n_zeros = n_zeros,
                       # zeros_speeds = zeros_speeds,
-                      n_points = nrow(posdat), # total number of position datapoints detected by the CT
-                      singles_prop = n_singles/nrow(posdat),
-                      zeros_prop = n_zeros/nrow(posdat))
+                      n_points = nrow(posdat)) # total number of position datapoints detected by the CT
+                      # singles_prop = n_singles/nrow(posdat),
+                      # zeros_prop = n_zeros/nrow(posdat))
 
   # plot path
   if (plot_path == TRUE){
@@ -887,7 +887,7 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, r, th, twoCTs, 
                          twoCTs = twoCTs,
                          connectedCTs = connectedCTs)
     
-    save(seq_dats, metadata_sim, file = paste0(parentfolder, "../seq_dats/Mb", exp(metadata_sim$Mb), "iter", i, ".RData"))
+    save(seq_dats, metadata_sim, file = paste0(parentfolder, "../seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
     rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
   }
 }

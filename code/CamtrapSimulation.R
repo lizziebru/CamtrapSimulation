@@ -447,11 +447,6 @@ line_arc_cross <- function(line, arc){
 
 
 
-
-
-
-
-
 ## reassign_prob
 # for all the points that cross the dz, reassign them as TRUE or FALSE based on probability of getting detected at that distance from the CT
 # INPUTS
@@ -657,12 +652,7 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
       mx <- (x1+x2)/2 # midpoint x coord
       my <- (y1+y2)/2 # midpoint y coord
       midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-      if (species == 0){
-        prob_detect <- small_radius(midpoint_radius) * 3.340884
-      }
-      if (species == 1){
-        prob_detect <- large_radius(midpoint_radius) * 2.767429
-      }
+      prob_detect <- large_radius(midpoint_radius) * 2.767429 # just use the hazard rate function (without logistic mix) bc not worrying about species rn
       zero <- prob_detect
     }
     else{
@@ -988,37 +978,32 @@ estimates_calc <- function(seq_dats){
 
 
 
-
-
-
-
-
-
 ## generate_plotting_variables
 # analyses simulation results from multiple different speed parameters to make summary plots
 # INPUTS
-# sp_and_iters - dataframe of speed parameters to analyse and number of iters of each to use
-# species - 0 = small, 1 = large
+# Mb_iters - dataframe of body masses to analyse and number of iters of each to use
 # r: radius of CT detection zone
 # th: angle of CT detection zone
 # twoCTs: whether or not to use two CTs
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
-# combined plot saved into PLOTS folder
-generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FALSE, connectedCTs=FALSE){
-  # store variables from the .RData files
-  wMRS <- c() # my original (wrong) method of working out MRS
-  aMRS <- c() # arithmetic MRS
-  gMRS <- c() # geometric MRS
+# big list of variables which will be used for plotting
+generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
-  mMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
-  mMOS_sz <- c() # with singles & zeros
-  gmMOS <- c() # geometric mean of geometric mean speeds of sequences
-  gmMOS_sz <- c() # with singles & zeros
-  aMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
-  aMOS_sz <- c() # with singles & zeros
-  gMOS <- c() # geometric mean of point-to-point speeds regardless of sequence
-  gMOS_sz <- c() # with singles & zeros
+  ## store variables from the .RData files
+  
+  # wMRS <- c() # my original (wrong) method of working out MRS
+  aMRS <- c() # arithmetic MRS
+  # gMRS <- c() # geometric MRS
+  
+  amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
+  amMOS_sz <- c() # with singles & zeros
+  # gmMOS <- c() # geometric mean of geometric mean speeds of sequences
+  # gmMOS_sz <- c() # with singles & zeros
+  apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
+  apMOS_sz <- c() # with singles & zeros
+  # gMOS <- c() # geometric mean of point-to-point speeds regardless of sequence
+  # gMOS_sz <- c() # with singles & zeros
   
   hmean_m <- c() # calculated using M's way of working out observed speeds
   hmean_m_sz <- c() # including singles & zeros too
@@ -1042,76 +1027,26 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
   
   n_zeros <- c()
   n_singles <- c()
-  singles_speeds <- c()
-  singles_speeds_mean <- c()
-  zeros_speeds <- c()
-  zeros_speeds_mean <- c()
+  # singles_speeds <- c()
+  singles_v_mean <- c()
+  # zeros_speeds <- c()
+  zeros_v_mean <- c()
   
-  # for making visualisation plot
-  x_plot <- c()
-  y_plot <- c()
-  v_plot <- c()
-  sp_plot <- c()
-  iter_plot <- c()
+
   
+  ## loop to fill these variables #############################################################################################################################
   
-  
-  # ## for the original set of plots: wMRS_mMOS_mEST_e1: - don't need this for now
-  # 
-  # mMOS_wMRS_error1 <- c() # much longer bc includes 1 error for each observed speed (rather than a mean across all)
-  # mMOS_wMRS_error1_sz <- c() # including single & zero frames
-  # 
-  # h_wMRS_error <- c()
-  # h_wMRS_error_sz <- c()
-  # l_wMRS_error <- c()
-  # l_wMRS_error_sz <- c()
-  # g_wMRS_error <- c()
-  # g_wMRS_error_sz <- c()
-  # w_wMRS_error <- c()
-  # w_wMRS_error_sz <- c()
-  # 
-  # h_aMRS_error <- c()
-  # h_aMRS_error_sz <- c()
-  # l_aMRS_error <- c()
-  # l_aMRS_error_sz <- c()
-  # g_aMRS_error <- c()
-  # g_aMRS_error_sz <- c()
-  # w_aMRS_error <- c()
-  # w_aMRS_error_sz <- c()
-  # 
-  # h_gMRS_error <- c()
-  # h_gMRS_error_sz <- c()
-  # l_gMRS_error <- c()
-  # l_gMRS_error_sz <- c()
-  # g_gMRS_error <- c()
-  # g_gMRS_error_sz <- c()
-  # w_gMRS_error <- c()
-  # w_gMRS_error_sz <- c()
-  # 
-  # h_mMOS_error <- c()
-  # h_mMOS_error_sz <- c()
-  # l_mMOS_error <- c()
-  # l_mMOS_error_sz <- c()
-  # g_mMOS_error <- c()
-  # g_mMOS_error_sz <- c()
-  # w_mMOS_error <- c()
-  # w_mMOS_error_sz <- c()
-  # mMOS_wMRS_error1_lengths <- c()
-  # mMOS_wMRS_error1_lengths_sz <- c()
-  
-  ## for loop to fill these variables #############################################################################################################################
-  
-  for (n in 1:length(sp_and_iters$speed_parameter)){
-    i <- sp_and_iters$speed_parameter[n]
-    iter_range <- c(1:sp_and_iters[sp_and_iters$speed_parameter==i,]$iter)
+  for (n in 1:length(Mb_iters$Mb_range)){
+    i <- Mb_iters$Mb_range[n]
+    iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
     for (j in iter_range){
-      i <- sp_and_iters$speed_parameter[n]
+      i <- Mb_iters$Mb_range[n]
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0("../results/seq_dats/sp", i, "iter", j, ".RData"))
+      load(paste0("../Mb_results/seq_dats/Mb", i, "iter", j, ".RData"))
       
-      load(paste0("../results/paths_copy_for_analysis/sp", i, "/iter", j, ".RData"))
+      load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter", j, ".RData"))
       
       
       ## coords and speeds for visualisation plot #############################################################################################################
@@ -1121,17 +1056,17 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
       posdat <- seq_dats$posdat
       posdat_extra_col <- c()
       for (u in unique(posdat$sequenceID)){
-        s <- seq_dats$v[seq_dats$v$sequenceID==u,]
+        s <- seq_dats$v[seq_dats$v$sequenceID==u,] # v = arithmetic mean of speeds within a sequence ID
         n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
         v_id <- s$speed # speed for that sequence ID
         posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
       }
-      posdat["speed"] <- posdat_extra_col
+      posdat["speed"] <- posdat_extra_col # so will use this extra col for estimating mean speed using sequence ID speeds, and will use the distance col for point-to-point mean speed estimation
       
       x_plot <- c(x_plot, posdat$x)
       y_plot <- c(y_plot, posdat$y)
       v_plot <- c(v_plot, posdat$speed)
-      sp_plot <- c(sp_plot, rep(i, times = length(posdat$x)))
+      Mb_plot <- c(Mb_plot, rep(i, times = length(posdat$x)))
       iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
       
       
@@ -1149,7 +1084,7 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
       if (twoCTs == FALSE){
         dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
       }
-      if (twoCTs == TRUE){ # generate two detection zones and then would need to use both
+      if (twoCTs == TRUE){ # generate two detection zones and use both
         dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
         if (connectedCTs == TRUE){
           dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
@@ -1173,14 +1108,8 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
           single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
           single_y <- p[p$detected==TRUE,]$y
           single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-          if (species == 0){
-            prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
-          }
-          if (species == 1){
-            prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
-          }
+          prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection using hazard function
           singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
-          
           
           ## speeds of single frame sequences:
           path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
@@ -1205,7 +1134,7 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
         }
       }
       
-      singles_speeds_mean <- c(singles_speeds_mean, mean(singles_speeds)) # store outside of the main loop
+      singles_v_mean <- c(singles_v_mean, mean(singles_v)) # store outside of the main loop
       n_singles <- c(n_singles, singles_count)  # ditto
       
       
@@ -1250,17 +1179,17 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
         zeros_v <- c(zeros_v, speed)
       }
 
-      zeros_speeds_mean <- c(zeros_speeds_mean, mean(zeros_v)) # store outside of main loop
+      zeros_v_mean <- c(zeros_v_mean, mean(zeros_v)) # store outside of main loop
       
       
       ## mean realised speeds ###################################################################################################################################
       
-      w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
-      wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
+      # w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+      # wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
       
       p_real <- path$speed # point-to-point realised speeds
       aMRS <- c(aMRS, mean(p_real)) # arithmetic MRS
-      gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
+      # gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
       
       
       ## mean observed speeds #################################################################################################################################
@@ -1269,21 +1198,19 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
       m_obs <- m_obs[is.finite(m_obs)]
       m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames
       
-      mMOS <- c(mMOS, mean(m_obs)) 
-      mMOS_sz <- c(mMOS_sz, mean(m_obs_sz))
-      gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
-      gmMOS_sz <- c(gmMOS_sz, exp(mean(log(m_obs_sz))))
+      amMOS <- c(amMOS, mean(m_obs)) 
+      amMOS_sz <- c(amMOS_sz, mean(m_obs_sz))
+      # gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
+      # gmMOS_sz <- c(gmMOS_sz, exp(mean(log(m_obs_sz))))
       
       p_obs <- seq_dats$posdat$distance # point-to-point observed speeds irrespective of sequence
       p_obs <- p_obs[is.finite(p_obs)]
       p_obs_sz <- c(p_obs, singles_v, zeros_v) # including singles & zeros too
       
-      aMOS <- c(aMOS, mean(p_obs))
-      aMOS_sz <- c(aMOS_sz, mean(p_obs_sz))
-      gMOS <- c(gMOS, exp(mean(log(p_obs))))
-      gMOS_sz <- c(gMOS_sz, exp(mean(log(p_obs_sz))))
-      
-
+      apMOS <- c(apMOS, mean(p_obs))
+      apMOS_sz <- c(apMOS_sz, mean(p_obs_sz))
+      # gMOS <- c(gMOS, exp(mean(log(p_obs))))
+      # gMOS_sz <- c(gMOS_sz, exp(mean(log(p_obs_sz))))
       
       ## estimated speeds ###################################################################################################
       
@@ -1317,27 +1244,15 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
       weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
       weibull_p_sz <- c(weibull_p_sz, predict.sbm(mods_p_sz[[1]]$weibull)[1,1])
       
-      
-      
-      # # calculations for the original plotting: wMRS_mMOS_mEST_e1 ####################################################################################
-      #  --> don't need for now
-      # mMOS_wMRS_error1 <- sapply(m_obs, obs_meanreal_error_calc, mean_real = wMRS)
-      # mMOS_wMRS_error1_sz <- sapply(m_obs_sz, obs_meanreal_error_calc, mean_real = wMRS)
-      # 
-      # mMOS_wMRS_error1_lengths <- c(mMOS_wMRS_error1_lengths, length(mMOS_wMRS_error1))
-      # mMOS_wMRS_error1_lengths_sz <- c(mMOS_wMRS_error1_lengths_sz, length(mMOS_wMRS_error1_sz))
-      # 
-      
       ## filename for storing plots ###############################################################################################################################
       
       filename <- paste0("pTurn", metadata_sim$pTurn, # filename for storing plots
                          "_speedCor", metadata_sim$speedCor,
                          "_kTurn", metadata_sim$kTurn,
                          "_kCor", metadata_sim$kCor,
-                         "_species", metadata_sim$species,
+                         # "_species", metadata_sim$species,
                          "_twoCTs", metadata_sim$twoCTs,
                          "_connectedCTs", metadata_sim$connectedCTs)
-      
       
       rm(list = c("seq_dats", "metadata_sim", "path"))
     }
@@ -1345,18 +1260,18 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
   
   output <- list(
     filename = filename,
-    wMRS = wMRS,
+    # wMRS = wMRS,
     aMRS = aMRS,
-    gMRS = gMRS,
+    # gMRS = gMRS,
     
-    mMOS = mMOS,
-    mMOS_sz = mMOS_sz,
-    gmMOS = gmMOS,
-    gmMOS_sz = gmMOS_sz,
-    aMOS = aMOS,
-    aMOS_sz = aMOS_sz,
-    gMOS = gMOS,
-    gMOS_sz = gMOS_sz,
+    amMOS = amMOS,
+    amMOS_sz = amMOS_sz,
+    # gmMOS = gmMOS,
+    # gmMOS_sz = gmMOS_sz,
+    apMOS = apMOS,
+    apMOS_sz = apMOS_sz,
+    # gMOS = gMOS,
+    # gMOS_sz = gMOS_sz,
     
     hmean_m = hmean_m,
     hmean_m_sz = hmean_m_sz,
@@ -1380,15 +1295,15 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
     
     n_zeros = n_zeros,
     n_singles = n_singles,
-    singles_speeds = singles_speeds,
-    singles_speeds_mean = singles_speeds_mean,
-    zeros_speeds = zeros_speeds,
-    zeros_speeds_mean = zeros_speeds_mean,
+    # singles_speeds = singles_speeds,
+    singles_v_mean = singles_v_mean,
+    # zeros_speeds = zeros_speeds,
+    zeros_v_mean = zeros_v_mean,
 
     x_plot = x_plot,
     y_plot = y_plot,
     v_plot = v_plot,
-    sp_plot = sp_plot,
+    Mb_plot = Mb_plot,
     iter_plot = iter_plot,
     
     # mMOS_wMRS_error1 = mMOS_wMRS_error1, - for original plot - but don't need for now
@@ -1398,17 +1313,38 @@ generate_plotting_variables <- function(sp_and_iters, species, r, th, twoCTs=FAL
     # mMOS_wMRS_error1_lengths_sz <- mMOS_wMRS_error1_lengths_sz
   )
   
-  save(output, file = "../results/plotting_data.RData") # add sp range and number of iters too to the name of the output file
+  save(output, file = "../Mb_results/plotting_data.RData") # add sp range and number of iters too to the name of the output file
   
 }
 
-## error to fix here - in zero_frame function:
-# Error: Unexpected error in future_lapply(): After gathering and merging the values from 1 chunks in to a list, 
-# the total number of elements (= 0) does not match the number of input elements in 'X' (= 500000). 
-# There were in total 1 chunks and 1 elements (1 chunks with 0 elements). Example of the first few values:  NULL
+## make_vis_plot
+# make visualisation plot for one rep of each simulation with a different body mass
 
-
-
+make_vis_plot <- function(){
+  
+  for (i in 1:length(Mb_iters$Mb_range)){
+    i <- Mb_iters$Mb_range[n]
+    iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
+    for (j in iter_range){
+      i <- Mb_iters$Mb_range[n]
+      
+      ## load in the path and seq_dats for that simulation run #####################################################################################
+      
+      load(paste0("../Mb_results/seq_dats/Mb", i, "iter", j, ".RData"))
+      
+      load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter", j, ".RData"))
+      
+  
+  
+  # for making visualisation plot
+  x_plot <- c()
+  y_plot <- c()
+  v_plot <- c()
+  Mb_plot <- c()
+  iter_plot <- c()
+  detected_ratio <- c() # ratio of detected to non-detected points to display on visualisation plot
+  sz_ratio <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
+}
 
 
 ## make_plots
@@ -1418,7 +1354,7 @@ make_plots <- function(){
   # load in data generated in generate_plotting_variables function
   load("../results/plotting_data.RData")
   
-  ## COMMUNAL PLOTS #########################################################################################################################################################
+  ## VISUALISATION PLOT #########################################################################################################################################################
   
   ## visualisation plot 
   vis_df <- data.frame(x = x_plot,
@@ -1482,7 +1418,6 @@ make_plots <- function(){
   
   ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST aMRS ################################################################################################################################################
 
-  
   ## no. of singles & no. of zeros against aMRS
   n_sz_aMRS_df <- data.frame(aMRS = aMRS,
                              count = c(n_singles, n_zeros),

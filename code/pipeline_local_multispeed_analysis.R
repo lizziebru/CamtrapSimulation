@@ -10,24 +10,22 @@ require(ggplot2)
 require(ggpubr)
 
 # set which speed parameters to analyse
-speed_parameters <- c(0.02, 0.06, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
-speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
+Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
 # set number of iters for each to analyse
-iters <- c(rep(25, times = 2))
+iters <- c(20,20,19,20,20,20,20,20,20,20,20)
 
-sp_and_iters <- data.frame(speed_parameter = speed_parameters, 
-                           iter = iters)
+Mb_iters <- data.frame(Mb_range = Mb_range, iter = iters)
 
 # additional parameters:
-species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
+# species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
 r = 9
 th = 0.7
-twoCTs = FALSE
-connectedCTs = FALSE
+# twoCTs = FALSE
+# connectedCTs = FALSE
 
 # generate plotting variables
-generate_plotting_variables(sp_and_iters, species=species, r=r, th=th)
+generate_plotting_variables(Mb_iters, r=r, th=th)
 
 # make plots
 make_plots()

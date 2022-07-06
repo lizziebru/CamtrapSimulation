@@ -1074,6 +1074,8 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       }
       
       
+      ## speeds of single frames
+      
       singles_v <- c() # to store stuff from this upcoming for loop
       singles_count <- 0 # ditto
       
@@ -1297,64 +1299,171 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
 
 ## make_vis_plot
 # make visualisation plot for one rep of each simulation with a different body mass
-
-make_vis_plot <- function(){
+# this is done separately from the other generation of variables (generate_plotting_variables function) and plotting (make_plots function) bc here only one rep of each body mass simulation is used rather than all of them
+# INPUTS
+# Mb_range: range of body masses to plot for
+# r: radius of detection zone
+# th: angle of dz
+# twoCTs: whether or not to use two CTs
+# connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
+make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
-  ## need to add the plotting to this
-  ## and also a way to work out coord of zero frame sequences
+  # variables needed
+  x_plot <- c() # x coord of a position data point falling in the dz
+  y_plot <- c() # y coord of that position data point
+  v_plot <- c() # speed of the sequence that the point is in
+  Mb_plot <- c() # body mass associated with the simulation run that the point is in
+  detected_ratio <- c() # ratio of detected to non-detected points to display on visualisation plot
+  sz_ratio <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
   
   
   for (i in Mb_range){
 
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0("../Mb_results/seq_dats/Mb", i, "iter", j, ".RData"))
+      load(paste0("../Mb_results/seq_dats/Mb", i, "iter1.RData"))
       
-      load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter", j, ".RData"))
-      
+      load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter1.RData"))
       
       ## coords and speeds for visualisation plot #############################################################################################################
       
-      # store the coords of each sequence and their speed
-      # need to add a column to seq_dats$posdat with speed of each sequence
-      posdat <- seq_dats$posdat
+      # store the coords of all points (including not detected ones) and the speed of the sequence they're associated with
+      posdat_all <- seq_dats$posdat_all # all position data points and whether or not they were detected
       posdat_extra_col <- c()
-      for (u in unique(posdat$sequenceID)){
-        s <- seq_dats$v[seq_dats$v$sequenceID==u,] # v = arithmetic mean of speeds within a sequence ID
-        n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
-        v_id <- s$speed # speed for that sequence ID
-        posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
+      for (j in unique(posdat_all$sequenceID)){
+        s <- seq_dats$v[seq_dats$v$sequenceID==j,]$speed # arithmetic mean speed of that sequence ID
+        if (is.finite(s)==FALSE || length(s)==0){ # if s is NaN, Inf, or numeric(0) (these happen when there's one or fewer detected points in that sequence)
+          s <- NA # assign it as NA so that it still gets put in the posdat_extra_col vector
+        }
+        p <- posdat_all[posdat_all$sequenceID==j,] # all the position data points with that sequence ID (both detected and not detected)
+        posdat_extra_col <- c(posdat_extra_col, rep(s, times = nrow(p))) # in the new speed column: need to repeat the speed of that sequence ID as many times as there are points for that sequence ID
       }
-      posdat["speed"] <- posdat_extra_col # so will use this extra col for estimating mean speed using sequence ID speeds, and will use the distance col for point-to-point mean speed estimation
+      posdat_all["speed"] <- posdat_extra_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
+      
+      
+      ## speeds of single frames (single frame == when one point in a sequence gets detected)
+      
+      singles_seqIDs <- c() # store the sequence ID of each single frame
+      singles_v <- c() # store the speed of each single frame
+      
+      # define detection zone:
+      if (twoCTs == FALSE){
+        dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+      }
+      if (twoCTs == TRUE){ # generate two detection zones and use both
+        dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+        if (connectedCTs == TRUE){
+          dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+        }
+        if (connectedCTs == FALSE){ 
+          dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+        }
+      }
+      
+      # make df with all xy coords of the path and their speeds:
+      path_xy_v <- data.frame(x = path$path$x[-1], # no speed for the first point
+                              y = path$path$y[-1],
+                              v = path$speed)
+      
+      
+      # select the seqID posdats when you only have one TRUE (i.e. single frame)
+      for (k in unique(posdat_all$sequenceID)){
+        p <- posdat_all[posdat_all$sequenceID==k,] # subset by sequence ID
+        n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
+        if (n_true == 1){ # if there's only one point detected by the CT (i.e. it's a single frame)
+          singles_seqIDs <- c(singles_seqIDs, k) # store the sequence ID of this single frame
+          
+          # select the x and y coords of the detected single point
+          single_x <- p[p$detected==TRUE,]$x 
+          single_y <- p[p$detected==TRUE,]$y
+          
+          ## work out the speed of the single frame by using points above and below it in the whole-path data
+          path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
+          true_rownumber <- path_xy_v[path_xy_v$x==single_x & path_xy_v$y==single_y,]$rownumber # rownumber of the detected single point
+          
+          if (true_rownumber == 1){ # if the detected point is the first in the whole path, just use the point after it
+            below_rownumber <- true_rownumber + 1
+            rownumbers_needed <- c(true_rownumber, below_rownumber)
+          }
+          if (true_rownumber == nrow(p)){ # if the detected point is the last in the whole path, just use that point and the one before it
+            above_rownumber <- true_rownumber - 1
+            rownumbers_needed <- c(true_rownumber, above_rownumber)
+          }
+          else { # otherwise, use both the points below and above
+            above_rownumber <- true_rownumber - 1
+            below_rownumber <- true_rownumber + 1
+            rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
+          }
+          rows_needed <- path_xy_v[rownumbers_needed,] # isolate just the single frame and rows below and above it
+          speed_single <- sum(rows_needed$v)/(nrow(rows_needed)-1) # speed = distance / time
+          singles_v <- c(singles_v, speed_single) # store the speed of this single frame
+        }
+      }
+      
+      # add a column saying that these are single frames to the posdat_all df
+      extra_singles_col <- c()
+      for (l in unique(posdat_all$sequenceID)){
+        p <- posdat_all[posdat_all$sequenceID==l,] # subset by sequence ID
+        n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
+        if (n_true == 1){ # if there's only one point detected by the CT (i.e. it's a single frame)
+        extra_singles_col <- c(extra_singles_col, rep("TRUE", times = nrow(p))) # in the new singles column: need to repeat TRUE (i.e. that it is a single frame) as many times as there are points for that sequence ID
+        }
+        else { # if it's not a single frame, do the same but with FALSE in that column instead
+          extra_singles_col <- c(extra_singles_col, rep("FALSE", times = nrow(p)))
+        }
+      }
+      posdat_all["single"] <- extra_singles_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
+      
+      # also add the speeds of these single frames into the posdat_all df:
+      singles_df <- data.frame(seqID = singles_seqIDs,
+                               speed = singles_v)
+      
+      spds_with_singles_col <- c()
+      for (m in unique(posdat_all$sequenceID)){
+        p <- posdat_all[posdat_all$sequenceID==m,] # subset by sequence ID
+        if (m %in% singles_df$seqID){ # if this sequence is a single frame
+          v <- singles_df[singles_df$seqID==m,]$speed # extract the single frame speed for that sequence ID
+          spds_with_singles_col <- c(spds_with_singles_col, rep(v, times = nrow(p))) # store that speed in the new speed column, repeated the number of times needed to fill out the empty speed cells for that whole sequence ID
+        }
+        else {
+          spds_with_singles_col <- c(spds_with_singles_col, rep(p$speed, times = nrow(p)))
+        }
+      }
+      posdat_all["speed_new"] <- spds_with_singles_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
+      
+      
+      
+      add_single_speeds <- function(posdat_all, singles_df){ # loop through each position data point by using apply(posdat_all, 1, add_singles_speeds)
+        if(posdat_all[[3]] %in% singles_df$seqID){ # if the sequence ID of that position data point is in the singles_df (i.e. belongs to a single frame)
+          v <- singles_df[singles_df$seqID==posdat_all[[3]],]$speed # store the speed of that position data point as the speed of the single frame with that sequence ID
+        }
+        else { # if it's not a single frame
+          v <- posdat_all[[6]] # store its speed as the speed already assigned to it in posdat_all
+        }
+        return(v)
+      }
+      
+      spds_with_singles <- as.numeric(apply(posdat_all, 1, add_single_speeds, singles_df=singles_df))
+      
+      
+      
+      
+      ## speeds of zero frames - need to work out both the coords of these zero frames and their speed (and add both as an extra row in the df)
+      
+      
+      ## work out speeds of frames where the point(s) fell in the dz but didn't get detected (need to use the same method as for singles for the single ones?)
+      
+      
+      
+      
+      
+      
       
       x_plot <- c(x_plot, posdat$x)
       y_plot <- c(y_plot, posdat$y)
       v_plot <- c(v_plot, posdat$speed)
       Mb_plot <- c(Mb_plot, rep(i, times = length(posdat$x)))
-      iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
-      
     }
-  
-  
-  # for making visualisation plot
-  x_plot <- c()
-  y_plot <- c()
-  v_plot <- c()
-  Mb_plot <- c()
-  iter_plot <- c()
-  detected_ratio <- c() # ratio of detected to non-detected points to display on visualisation plot
-  sz_ratio <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
-}
-
-
-## make_plots
-# make summary plots using data generated in generate_plotting_variables function
-make_plots <- function(){
-  
-  # load in data generated in generate_plotting_variables function
-  load("../results/plotting_data.RData")
-  
-  ## VISUALISATION PLOT #########################################################################################################################################################
   
   ## visualisation plot 
   vis_df <- data.frame(x = x_plot,
@@ -1363,7 +1472,7 @@ make_plots <- function(){
                        sp = sp_plot,
                        iter = iter_plot)
   
-  #add column for whether or not it's a single frame:
+  # add column for whether or not it's a single frame:
   vis_df$speed[is.infinite(vis_df$speed)] <- NA
   vis_df$speed[is.nan(vis_df$speed)] <- NA
   new_cols <- apply(vis_df, 1, vis_df_newcols)
@@ -1378,7 +1487,6 @@ make_plots <- function(){
   vis_df3 <- vis_df2[vis_df2$iter==1,]
   vis_df4 <- vis_df3[vis_df3$single=="multiple",]
   vis_df5 <- vis_df3[vis_df3$single=="single",]
-  
   
   vis_plot <- ggplot()+
     geom_point(data = vis_df4, aes(x = x_new, y = y_new, colour = speed), shape = 1)+
@@ -1402,8 +1510,8 @@ make_plots <- function(){
     new_scale_colour()+
     geom_point(data = vis_df5, aes(x = x_new, y = y_new, colour = "single"), shape = 1)+
     scale_colour_manual(name = "",
-                      breaks = c("single"),
-                      values = c("red"))+
+                        breaks = c("single"),
+                        values = c("red"))+
     guides(colour = guide_legend(override.aes = list(size=5)))+
     theme(legend.text = element_text(size = 12))
   vis_plot
@@ -1413,8 +1521,46 @@ make_plots <- function(){
   print(vis_plot)
   dev.off()
   
-
+  
   # --> need to make changes to this that C suggested though
+  
+  
+  
+  
+  
+}
+
+
+## vis_df_newcols
+# to help make the visualisation plot
+# INPUT
+# dataframe of points to which in which the column needs to be filled
+# OUTPUT
+# list containing three new vectors of values for the three new columns: x_new, y_new, and single
+vis_df_newcols <- function(df){
+  if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
+    single_col <- "single"
+  }
+  else{
+    single_col <- "multiple"
+  }
+  
+  x_new <- as.numeric(df[[1]]) - 20 # so that the centre of the x scale is 0
+  y_new <- as.numeric(df[[2]]) - 10 # so that the y scale starts at 0
+  
+  output <- list(single_col = single_col,
+                 x_new = x_new,
+                 y_new = y_new)
+  
+  return(output)
+}
+
+## make_plots
+# make summary plots using data generated in generate_plotting_variables function
+make_plots <- function(){
+  
+  # load in data generated in generate_plotting_variables function
+  load("../results/plotting_data.RData")
   
   ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST aMRS ################################################################################################################################################
 
@@ -1800,30 +1946,6 @@ make_plots <- function(){
   # print(real_obs_plot_means_combined)
   # dev.off()
   
-}
-
-## vis_df_newcols
-# to help making the visualisation plot in multispeed_analyse function
-# INPUT
-# dataframe of points to which in which the column needs to be filled
-# OUTPUT
-# list containing three new vectors of values for the three new columns: x_new, y_new, and single
-vis_df_newcols <- function(df){
-  if (is.na(df[[3]])){ # if the speed is Inf or NaN, it means it's a single frame
-    single_col <- "single"
-  }
-  else{
-    single_col <- "multiple"
-  }
-  
-  x_new <- as.numeric(df[[1]]) - 20 # so that the centre of the x scale is 0
-  y_new <- as.numeric(df[[2]]) - 10 # so that the y scale starts at 0
-  
-  output <- list(single_col = single_col,
-                 x_new = x_new,
-                 y_new = y_new)
-  
-  return(output)
 }
 
 

@@ -1049,27 +1049,6 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter", j, ".RData"))
       
       
-      ## coords and speeds for visualisation plot #############################################################################################################
-      
-      # store the coords of each sequence and their speed
-      # need to add a column to seq_dats$posdat with speed of each sequence
-      posdat <- seq_dats$posdat
-      posdat_extra_col <- c()
-      for (u in unique(posdat$sequenceID)){
-        s <- seq_dats$v[seq_dats$v$sequenceID==u,] # v = arithmetic mean of speeds within a sequence ID
-        n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
-        v_id <- s$speed # speed for that sequence ID
-        posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
-      }
-      posdat["speed"] <- posdat_extra_col # so will use this extra col for estimating mean speed using sequence ID speeds, and will use the distance col for point-to-point mean speed estimation
-      
-      x_plot <- c(x_plot, posdat$x)
-      y_plot <- c(y_plot, posdat$y)
-      v_plot <- c(v_plot, posdat$speed)
-      Mb_plot <- c(Mb_plot, rep(i, times = length(posdat$x)))
-      iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
-      
-      
       ## number of single frames and speeds of single frame sequences #######################################################################
       
       # make df with all xy coords of the path and their speeds:
@@ -1169,7 +1148,6 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       n_zeros <- c(n_zeros, zeros_count) # save externally to the main for loop
       
       ## speeds of zero-frame sequences
-      # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
       path_df_paired["ZERO"] <- zeros
       zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
       zeros_v <- c() # to save outside of this mini for loop
@@ -1298,13 +1276,13 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
     # singles_speeds = singles_speeds,
     singles_v_mean = singles_v_mean,
     # zeros_speeds = zeros_speeds,
-    zeros_v_mean = zeros_v_mean,
+    zeros_v_mean = zeros_v_mean
 
-    x_plot = x_plot,
-    y_plot = y_plot,
-    v_plot = v_plot,
-    Mb_plot = Mb_plot,
-    iter_plot = iter_plot,
+    # x_plot = x_plot,
+    # y_plot = y_plot,
+    # v_plot = v_plot,
+    # Mb_plot = Mb_plot,
+    # iter_plot = iter_plot,
     
     # mMOS_wMRS_error1 = mMOS_wMRS_error1, - for original plot - but don't need for now
     # mMOS_wMRS_error1_sz = mMOS_wMRS_error1_sz,
@@ -1322,18 +1300,40 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
 
 make_vis_plot <- function(){
   
-  for (i in 1:length(Mb_iters$Mb_range)){
-    i <- Mb_iters$Mb_range[n]
-    iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
-    for (j in iter_range){
-      i <- Mb_iters$Mb_range[n]
-      
+  ## need to add the plotting to this
+  ## and also a way to work out coord of zero frame sequences
+  
+  
+  for (i in Mb_range){
+
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
       load(paste0("../Mb_results/seq_dats/Mb", i, "iter", j, ".RData"))
       
       load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter", j, ".RData"))
       
+      
+      ## coords and speeds for visualisation plot #############################################################################################################
+      
+      # store the coords of each sequence and their speed
+      # need to add a column to seq_dats$posdat with speed of each sequence
+      posdat <- seq_dats$posdat
+      posdat_extra_col <- c()
+      for (u in unique(posdat$sequenceID)){
+        s <- seq_dats$v[seq_dats$v$sequenceID==u,] # v = arithmetic mean of speeds within a sequence ID
+        n_id <- s$points # number of points captured for that sequence ID (so the number of times that speed needs to be repeated in that extra column)
+        v_id <- s$speed # speed for that sequence ID
+        posdat_extra_col <- c(posdat_extra_col, rep(v_id, times = n_id))
+      }
+      posdat["speed"] <- posdat_extra_col # so will use this extra col for estimating mean speed using sequence ID speeds, and will use the distance col for point-to-point mean speed estimation
+      
+      x_plot <- c(x_plot, posdat$x)
+      y_plot <- c(y_plot, posdat$y)
+      v_plot <- c(v_plot, posdat$speed)
+      Mb_plot <- c(Mb_plot, rep(i, times = length(posdat$x)))
+      iter_plot <- c(iter_plot, rep(j, times = length(posdat$x)))
+      
+    }
   
   
   # for making visualisation plot

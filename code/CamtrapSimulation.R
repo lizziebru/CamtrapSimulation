@@ -1329,16 +1329,16 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       
       # store the coords of all points (including not detected ones) and the speed of the sequence they're associated with
       posdat_all <- seq_dats$posdat_all # all position data points and whether or not they were detected
-      posdat_extra_col <- c()
+      posdat_speed_col <- c() # new column with speed of each sequence ID repeated for the length of that sequence ID
       for (j in unique(posdat_all$sequenceID)){
         s <- seq_dats$v[seq_dats$v$sequenceID==j,]$speed # arithmetic mean speed of that sequence ID
         if (is.finite(s)==FALSE || length(s)==0){ # if s is NaN, Inf, or numeric(0) (these happen when there's one or fewer detected points in that sequence)
           s <- NA # assign it as NA so that it still gets put in the posdat_extra_col vector
         }
         p <- posdat_all[posdat_all$sequenceID==j,] # all the position data points with that sequence ID (both detected and not detected)
-        posdat_extra_col <- c(posdat_extra_col, rep(s, times = nrow(p))) # in the new speed column: need to repeat the speed of that sequence ID as many times as there are points for that sequence ID
+        posdat_speed_col <- c(posdat_speed_col, rep(s, times = nrow(p))) # in the new speed column: need to repeat the speed of that sequence ID as many times as there are points for that sequence ID
       }
-      posdat_all["speed"] <- posdat_extra_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
+      posdat_all["speed"] <- posdat_speed_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
       
       
       ## speeds of single frames (single frame == when one point in a sequence gets detected)
@@ -1405,7 +1405,8 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       for (l in unique(posdat_all$sequenceID)){
         p <- posdat_all[posdat_all$sequenceID==l,] # subset by sequence ID
         n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
-        if (n_true == 1){ # if there's only one point detected by the CT (i.e. it's a single frame)
+        n_row <- nrow(p) # number of rows of p - need this in case there's only one row but it's not detected
+        if (n_true == 1 || n_row == 1){ # if there's only one point detected by the CT (i.e. it's a single frame) or if there's only one point but it's not detected by the CT
         extra_singles_col <- c(extra_singles_col, rep("TRUE", times = nrow(p))) # in the new singles column: need to repeat TRUE (i.e. that it is a single frame) as many times as there are points for that sequence ID
         }
         else { # if it's not a single frame, do the same but with FALSE in that column instead
@@ -1426,32 +1427,43 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
           spds_with_singles_col <- c(spds_with_singles_col, rep(v, times = nrow(p))) # store that speed in the new speed column, repeated the number of times needed to fill out the empty speed cells for that whole sequence ID
         }
         else {
-          spds_with_singles_col <- c(spds_with_singles_col, rep(p$speed, times = nrow(p)))
+          spds_with_singles_col <- c(spds_with_singles_col, rep(p$speed[1], times = nrow(p))) # otherwise, just use the speed already there
         }
       }
-      posdat_all["speed_new"] <- spds_with_singles_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
+      posdat_all$speed <- spds_with_singles_col # add this as the new column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
       
       
       
-      add_single_speeds <- function(posdat_all, singles_df){ # loop through each position data point by using apply(posdat_all, 1, add_singles_speeds)
-        if(posdat_all[[3]] %in% singles_df$seqID){ # if the sequence ID of that position data point is in the singles_df (i.e. belongs to a single frame)
-          v <- singles_df[singles_df$seqID==posdat_all[[3]],]$speed # store the speed of that position data point as the speed of the single frame with that sequence ID
+
+      ## work out speeds of frames where the point(s) fell in the dz but didn't get detected (need to use the same method as for singles for the single ones?)
+      # these are in posdat_all[is.na(posdat_all$speed),]
+      spds_with_extras_col <- c() # new speeds column with the added speeds of those points
+      
+      for (n in unique(posdat_all$sequenceID)){
+        p <- posdat_all[posdat_all$sequenceID==n,] # subset by sequence ID
+        if (is.na(p$speed)){ # if the speed is NA (bc there were no points at all detected in that sequence)
+          if (nrow(p)==1){ # if it's also a single frame, need to use the same method as for single frames to work out speed
+            # need to work out v using single-frames method
+            
+            
+            spds_with_extras_col <- c(spds_with_extras_col, rep(v, times = nrow(p)))
+          }
+          else { # if it's not a single frame, can just work out speed using speed = dist/time
+            v <- (sum(na.omit(p$distance)))/(nrow(p)-1)
+            spds_with_extras_col <- c(spds_with_extras_col, rep(v, times = nrow(p)))
+          }
         }
-        else { # if it's not a single frame
-          v <- posdat_all[[6]] # store its speed as the speed already assigned to it in posdat_all
+        else { # otherwise, just use the speed already there
+          spds_with_extras_col <- c(spds_with_extras_col, rep(p$speed[1], times = nrow(p)))
         }
-        return(v)
       }
       
-      spds_with_singles <- as.numeric(apply(posdat_all, 1, add_single_speeds, singles_df=singles_df))
-      
-      
-      
+      ## GO FROM HERE - MIGHT NEED TO FINISH THIS LOOP AND IF NOT START ON ZERO FRAMES
       
       ## speeds of zero frames - need to work out both the coords of these zero frames and their speed (and add both as an extra row in the df)
       
       
-      ## work out speeds of frames where the point(s) fell in the dz but didn't get detected (need to use the same method as for singles for the single ones?)
+      
       
       
       

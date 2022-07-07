@@ -1305,24 +1305,19 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       singles_v_mean = singles_v_mean,
       zeros_v_mean = zeros_v_mean)
     
-    save(output, file = paste0("../Mb_results/plotting_data/Mb", n, ".RData")) # add sp range and number of iters too to the name of the output file
+    # save one dataframe for each Mb
+    save(output, file = paste0("../Mb_results/plotting_data/Mb", n, "_iters1-", Mb_iters[Mb_iters$Mb_range==n,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
   
-  output <- list(
-    filename = filename,
-    # wMRS = wMRS,
+  output <- data.frame(
     aMRS = aMRS,
-    # gMRS = gMRS,
     
     amMOS = amMOS,
     amMOS_sz = amMOS_sz,
-    # gmMOS = gmMOS,
-    # gmMOS_sz = gmMOS_sz,
+
     apMOS = apMOS,
     apMOS_sz = apMOS_sz,
-    # gMOS = gMOS,
-    # gMOS_sz = gMOS_sz,
     
     hmean_m = hmean_m,
     hmean_m_sz = hmean_m_sz,
@@ -1346,25 +1341,12 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
     
     n_zeros = n_zeros,
     n_singles = n_singles,
-    # singles_speeds = singles_speeds,
     singles_v_mean = singles_v_mean,
-    # zeros_speeds = zeros_speeds,
     zeros_v_mean = zeros_v_mean
-
-    # x_plot = x_plot,
-    # y_plot = y_plot,
-    # v_plot = v_plot,
-    # Mb_plot = Mb_plot,
-    # iter_plot = iter_plot,
-    
-    # mMOS_wMRS_error1 = mMOS_wMRS_error1, - for original plot - but don't need for now
-    # mMOS_wMRS_error1_sz = mMOS_wMRS_error1_sz,
-    # 
-    # mMOS_wMRS_error1_lengths = mMOS_wMRS_error1_lengths,
-    # mMOS_wMRS_error1_lengths_sz <- mMOS_wMRS_error1_lengths_sz
   )
   
-  save(output, file = "../Mb_results/plotting_data.RData") # add sp range and number of iters too to the name of the output file
+  # also save the whole thing
+  save(output, file = paste0("../Mb_results/plotting_data/combined_Mb", Mb_iters$Mb_range[1], "-", Mb_iters$Mb_range[nrow(Mb_iters)], "_iters1-", Mb_iters$iter[1], ".RData")) # add sp range and number of iters too to the name of the output file
   
 }
 

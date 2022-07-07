@@ -1039,6 +1039,39 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
   for (n in 1:length(Mb_iters$Mb_range)){
     i <- Mb_iters$Mb_range[n]
     iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
+    
+    aMRS <- c() # arithmetic MRS
+    
+    amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
+    amMOS_sz <- c() # with singles & zeros
+    apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
+    apMOS_sz <- c() # with singles & zeros
+    
+    hmean_m <- c() # calculated using M's way of working out observed speeds
+    hmean_m_sz <- c() # including singles & zeros too
+    hmean_p <- c() # calculated using point-to-point observed speeds
+    hmean_p_sz <- c() # including singles & zeros too
+    
+    lnorm_m <- c() # same as for hmean
+    lnorm_m_sz <- c()
+    lnorm_p <- c()
+    lnorm_p_sz <- c()
+    
+    gamma_m <- c() # ditto
+    gamma_m_sz <- c()
+    gamma_p <- c()
+    gamma_p_sz <- c()
+    
+    weibull_m <- c() # ditto
+    weibull_m_sz <- c()
+    weibull_p <- c()
+    weibull_p_sz <- c()
+    
+    n_zeros <- c()
+    n_singles <- c()
+    singles_v_mean <- c()
+    zeros_v_mean <- c()
+    
     for (j in iter_range){
       i <- Mb_iters$Mb_range[n]
       
@@ -1236,6 +1269,44 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       
       rm(list = c("seq_dats", "metadata_sim", "path"))
     }
+    
+    output <- data.frame(
+
+      aMRS = aMRS,
+      
+      amMOS = amMOS,
+      amMOS_sz = amMOS_sz,
+
+      apMOS = apMOS,
+      apMOS_sz = apMOS_sz,
+      
+      hmean_m = hmean_m,
+      hmean_m_sz = hmean_m_sz,
+      hmean_p = hmean_p,
+      hmean_p_sz = hmean_p_sz,
+      
+      lnorm_m = lnorm_m,
+      lnorm_m_sz = lnorm_m_sz,
+      lnorm_p = lnorm_p,
+      lnorm_p_sz = lnorm_p_sz,
+      
+      gamma_m = gamma_m,
+      gamma_m_sz = gamma_m_sz,
+      gamma_p = gamma_p,
+      gamma_p_sz = gamma_p_sz,
+      
+      weibull_m = weibull_m,
+      weibull_m_sz = weibull_m_sz,
+      weibull_p = weibull_p,
+      weibull_p_sz = weibull_p_sz,
+      
+      n_zeros = n_zeros,
+      n_singles = n_singles,
+      singles_v_mean = singles_v_mean,
+      zeros_v_mean = zeros_v_mean)
+    
+    save(output, file = paste0("../Mb_results/plotting_data/Mb", n, ".RData")) # add sp range and number of iters too to the name of the output file
+    
   }
   
   output <- list(

@@ -1309,10 +1309,16 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
 make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
   # variables needed
+  Mb_plot <- c() # body mass associated with the simulation run that the point is in
   x_plot <- c() # x coord of a position data point falling in the dz
   y_plot <- c() # y coord of that position data point
   v_plot <- c() # speed of the sequence that the point is in
-  Mb_plot <- c() # body mass associated with the simulation run that the point is in
+  seqID_plot <- c() # seqID of the sequence the point is in
+  dist_plot <- c() # distance between that point and the previous one
+  detected_plot <- c() # whether that point got detected by the CT
+  single_plot <- c() # whether that point was a single frame
+  zero_plot <- c() # whether that point was a zero frame
+  
   detected_ratio <- c() # ratio of detected to non-detected points to display on visualisation plot
   sz_ratio <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
   
@@ -1341,7 +1347,7 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       posdat_all["speed"] <- posdat_speed_col # add this as an extra column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
       
       
-      ## speeds of single frames (single frame == when one point in a sequence gets detected)
+      ## SINGLE FRAMES (== when one point in a sequence gets detected)
       
       singles_seqIDs <- c() # store the sequence ID of each single frame
       singles_v <- c() # store the speed of each single frame
@@ -1366,7 +1372,9 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
                               v = path$speed)
       
       
-      # select the seqID posdats when you only have one TRUE (i.e. single frame)
+      ## work out speeds of single frames and number of single frames
+      # select the seqID posdats when you only have one TRUE (i.e. single frame) and work out its speed using points before and after it in the whole path
+      singles_count <- 0
       for (k in unique(posdat_all$sequenceID)){
         p <- posdat_all[posdat_all$sequenceID==k,] # subset by sequence ID
         n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
@@ -1376,6 +1384,11 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
           # select the x and y coords of the detected single point
           single_x <- p[p$detected==TRUE,]$x 
           single_y <- p[p$detected==TRUE,]$y
+          
+          # work out a count for that single frame based on its detection probability
+          single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
+          prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection using hazard function
+          singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
           
           ## work out the speed of the single frame by using points above and below it in the whole-path data
           path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
@@ -1432,24 +1445,44 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       }
       posdat_all$speed <- spds_with_singles_col # add this as the new column of speed of sequence associated with each point (with NA for if the sequence contained one or fewer detected points)
       
-      
-      
-
-      ## work out speeds of frames where the point(s) fell in the dz but didn't get detected (need to use the same method as for singles for the single ones?)
+    
+      ## work out speeds of frames where the point(s) fell in the dz but didn't get detected (use the same method as for singles for the single ones)
       # these are in posdat_all[is.na(posdat_all$speed),]
       spds_with_extras_col <- c() # new speeds column with the added speeds of those points
       
       for (n in unique(posdat_all$sequenceID)){
         p <- posdat_all[posdat_all$sequenceID==n,] # subset by sequence ID
-        if (is.na(p$speed)){ # if the speed is NA (bc there were no points at all detected in that sequence)
+        if (is.na(p$speed)){ # if the speed is NA (bc there were no points at all detected in that sequence) - i.e. selects the ones we're interested in here
           if (nrow(p)==1){ # if it's also a single frame, need to use the same method as for single frames to work out speed
-            # need to work out v using single-frames method
             
+            # select the x and y coords of the detected single point
+            single_x <- p$x 
+            single_y <- p$y
             
-            spds_with_extras_col <- c(spds_with_extras_col, rep(v, times = nrow(p)))
+            ## work out the speed of the single frame by using points above and below it in the whole-path data
+            path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
+            true_rownumber <- path_xy_v[path_xy_v$x==single_x & path_xy_v$y==single_y,]$rownumber # rownumber of the detected single point
+            
+            if (true_rownumber == 1){ # if the detected point is the first in the whole path, just use the point after it
+              below_rownumber <- true_rownumber + 1
+              rownumbers_needed <- c(true_rownumber, below_rownumber)
+            }
+            if (true_rownumber == nrow(p)){ # if the detected point is the last in the whole path, just use that point and the one before it
+              above_rownumber <- true_rownumber - 1
+              rownumbers_needed <- c(true_rownumber, above_rownumber)
+            }
+            else { # otherwise, use both the points below and above
+              above_rownumber <- true_rownumber - 1
+              below_rownumber <- true_rownumber + 1
+              rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
+            }
+            rows_needed <- path_xy_v[rownumbers_needed,] # isolate just the single frame and rows below and above it
+            v <- sum(rows_needed$v)/(nrow(rows_needed)-1) # speed = distance / time
+            
+            spds_with_extras_col <- c(spds_with_extras_col, rep(v, times = nrow(p))) # add this speed to the new speed column
           }
-          else { # if it's not a single frame, can just work out speed using speed = dist/time
-            v <- (sum(na.omit(p$distance)))/(nrow(p)-1)
+          else { # if it's not a single frame, can just work out speed as the arithmetic mean of the speeds in that sequence
+            v <- (sum(na.omit(p$distance)))/(length(na.omit(p$distance)))
             spds_with_extras_col <- c(spds_with_extras_col, rep(v, times = nrow(p)))
           }
         }
@@ -1458,31 +1491,96 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
         }
       }
       
-      ## GO FROM HERE - MIGHT NEED TO FINISH THIS LOOP AND IF NOT START ON ZERO FRAMES
+      posdat_all$speed <- spds_with_extras_col
+      
+      ## there should now be no more NAs in the speed column
       
       ## speeds of zero frames - need to work out both the coords of these zero frames and their speed (and add both as an extra row in the df)
       
+      ### number of zero-frame sequences:
+      path_df <- path$path
+      path_df2 <- path_df
+      path_df <- path_df[-nrow(path_df),] # remove last row
+      path_df2 <- path_df2[-1,] # remove first row
+      path_df_paired <- cbind(path_df, path_df2) # paired points
+      colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+      max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
+      if (twoCTs == FALSE){
+        dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+      }
+      if (twoCTs == TRUE){
+        dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+        if (connectedCTs == TRUE){
+          dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+        }
+        if (connectedCTs == FALSE){ 
+          dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+        }
+        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
+        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+        zeros <- c(zeros1, zeros2)
+      }
+      zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation (each count is multiplied by its detection probability though - so this number should be compared to the number of detected points rather than the total number of (detected+undetected) points falling in the dz -- ditto for the singles_count above)
+      
+      ## speeds of zero-frame sequences
+      path_df_paired["ZERO"] <- zeros
+      zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+      zeros_v <- c() # speed of each zero frame sequence
+      zeros_x <- c() # coords of each zero frame sequence - defined as just the midpoint between the two points either side of the zero frame
+      zeros_y <- c()
+      for (l in 1:nrow(zeros_dat)){
+        z <- zeros_dat[l,]
+        speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+        x_coord <- (z$x1+z$x2)/2
+        y_coord <- (z$y1+z$y2)/2
+        zeros_v <- c(zeros_v, speed)
+        zeros_x <- c(zeros_x, x_coord)
+        zeros_y <- c(zeros_y, y_coord)
+      }
+      
+      # make dataframe of all the info of these - then can rbind it to the bottom of posdat_all
+      zeros_df <- data.frame(x = zeros_x, y = zeros_y, sequenceID = rep(NA, times = length(zeros_x)), distance = rep(NA, times = length(zeros_x)), detected = rep(FALSE, times = length(zeros_x)), speed = zeros_v, single = rep(FALSE, times = length(zeros_x)), zero = rep(TRUE, times = length(zeros_x)))
+      
+      # add zeros column to posdat_all so that all the columns are matching
+      posdat_all["zero"] <- rep(FALSE, times = nrow(posdat_all))
+      
+      # combine both dataframes by row
+      posdat_all <- rbind(posdat_all, zeros_df)
+      
+      ## ratio of detected/non-detected and singles&zeros/sequences with 2+ points
       
       
       
       
+      # add column with body mass
+      
+      posdat_all["Mb"] <- rep(i, times= nrow(posdat_all))
       
       
+      # save all the variables to make one big vis_df outside this loop with info from multiple body masses
+      Mb_plot <- c(Mb_plot, posdat_all$Mb)
+      x_plot <- c(x_plot, posdat_all$x)
+      y_plot <- c(y_plot, posdat_all$y)
+      v_plot <- c(v_plot, posdat_all$speed)
+      seqID_plot <- c(seqID_plot, posdat_all$sequenceID)
+      dist_plot <- c(dist_plot, posdat_all$distance)
+      detected_plot <- c(detected_plot, posdat_all$detected)
+      single_plot <- c(single_plot, posdat_all$single)
+      zero_plot <- c(zero_plot, posdat_all$zero)
+      detected_ratio_plot <- c(detected_ratio_plot, posdat_all$detected_ratio)
+      sz_ratio_plot <- c(sz_ratio_plot, posdat_all$sz_ratio)
       
+      ## TO DO: NEED TO WORK THESE OUT AND REP THEM AND ADD THEM AS AN EXTRA COL
+
       
+      # also save each individual dataframe to the path folder
       
-      x_plot <- c(x_plot, posdat$x)
-      y_plot <- c(y_plot, posdat$y)
-      v_plot <- c(v_plot, posdat$speed)
-      Mb_plot <- c(Mb_plot, rep(i, times = length(posdat$x)))
     }
   
   ## visualisation plot 
-  vis_df <- data.frame(x = x_plot,
-                       y = y_plot,
-                       speed = v_plot,
-                       sp = sp_plot,
-                       iter = iter_plot)
+  vis_df <- data.frame(Mb=Mb_plot,x=x_plot, y=y_plot, speed=v_plot, seqID=seqID_plot, dist=dist_plot, detected=detected_plot, single=single_plot, zero=zero_plot)
+                      
   
   # add column for whether or not it's a single frame:
   vis_df$speed[is.infinite(vis_df$speed)] <- NA

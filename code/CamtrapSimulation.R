@@ -1368,8 +1368,8 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
   
 }
 
-## make_vis_plot
-# make visualisation plot for one rep of each simulation with a different body mass
+## make_vis_plotting_variables
+# make visualisation plotting variables for one rep of each simulation with a different body mass
 # this is done separately from the other generation of variables (generate_plotting_variables function) and plotting (make_plots function) bc here only one rep of each body mass simulation is used rather than all of them
 # INPUTS
 # Mb_range: range of body masses to plot for
@@ -1377,24 +1377,11 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
 # th: angle of dz
 # twoCTs: whether or not to use two CTs
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
-make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+# OUTPUT
+# a posdat_all dataframe for each body mass saved in the same folder as the path
+make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
-  # variables needed
-  Mb_plot <- c() # body mass associated with the simulation run that the point is in
-  x_plot <- c() # x coord of a position data point falling in the dz
-  y_plot <- c() # y coord of that position data point
-  v_plot <- c() # speed of the sequence that the point is in
-  seqID_plot <- c() # seqID of the sequence the point is in
-  dist_plot <- c() # distance between that point and the previous one
-  detected_plot <- c() # whether that point got detected by the CT
-  single_plot <- c() # whether that point was a single frame
-  zero_plot <- c() # whether that point was a zero frame
-  detected_percent_plot <- c() # ratio of detected to non-detected points to display on visualisation plot
-  single_percent_plot <- c() # ratio of no. of singles vs no. of sequences with 2 or more points
-  zero_percent_plot <- c() # ratio of no. of zeros vs no. of sequences with 2 or more points
-  sz_percent_plot <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
-  
-  
+
   for (i in Mb_range){
 
       ## load in the path and seq_dats for that simulation run #####################################################################################
@@ -1639,52 +1626,79 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       posdat_all["Mb"] <- rep(i, times= nrow(posdat_all))
       
       
-      # save all the variables to make one big vis_df outside this loop with info from multiple body masses
-      Mb_plot <- c(Mb_plot, posdat_all$Mb)
-      x_plot <- c(x_plot, posdat_all$x)
-      y_plot <- c(y_plot, posdat_all$y)
-      v_plot <- c(v_plot, posdat_all$speed)
-      seqID_plot <- c(seqID_plot, posdat_all$sequenceID)
-      dist_plot <- c(dist_plot, posdat_all$distance)
-      detected_plot <- c(detected_plot, posdat_all$detected)
-      single_plot <- c(single_plot, posdat_all$single)
-      zero_plot <- c(zero_plot, posdat_all$zero)
-      detected_percent_plot <- c(detected_percent_plot, posdat_all$detected_percent)
-      single_percent_plot <- c(single_percent_plot, posdat_all$single_percent)
-      zero_percent_plot <- c(zero_percent_plot, posdat_all$zero_percent)
-      sz_percent_plot <- c(sz_percent_plot, posdat_all$sz_percent)
+
       
       # also save each individual dataframe to the path folder
       save(posdat_all, file = paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/vis_plotting_variables_iter1.RData")) # add sp range and number of iters too to the name of the output file
       
       rm(list = c("seq_dats", "metadata_sim", "path"))
       
-    }
+  }
+}
+
+
+
+## vis_plot
+# make the visualisation plot using variables generated in make_vis_plotting_variables
+# INPUTS
+# Mb_range: range of body masses to plot for
+# r: radius of detection zone
+# th: angle of dz
+# twoCTs: whether or not to use two CTs
+# connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
+# OUTPUT
+# visualisation plots outputted to the plots/vis_plots folder
+vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+
+  ## concatenate the posdat_all dataframes from individual body masses into one big one
+  
+  # variables needed
+  Mb_plot <- c() # body mass associated with the simulation run that the point is in
+  x_plot <- c() # x coord of a position data point falling in the dz
+  y_plot <- c() # y coord of that position data point
+  v_plot <- c() # speed of the sequence that the point is in
+  seqID_plot <- c() # seqID of the sequence the point is in
+  dist_plot <- c() # distance between that point and the previous one
+  detected_plot <- c() # whether that point got detected by the CT
+  single_plot <- c() # whether that point was a single frame
+  zero_plot <- c() # whether that point was a zero frame
+  detected_percent_plot <- c() # ratio of detected to non-detected points to display on visualisation plot
+  single_percent_plot <- c() # ratio of no. of singles vs no. of sequences with 2 or more points
+  zero_percent_plot <- c() # ratio of no. of zeros vs no. of sequences with 2 or more points
+  sz_percent_plot <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
+  
+  for (i in Mb_range){
+    
+    ## load in the path and seq_dats for that simulation run #####################################################################################
+    
+    load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/vis_plotting_variables_iter1.RData"))
+    
+    # save all the variables to make one big vis_df outside this loop with info from multiple body masses
+    Mb_plot <- c(Mb_plot, posdat_all$Mb)
+    x_plot <- c(x_plot, posdat_all$x)
+    y_plot <- c(y_plot, posdat_all$y)
+    v_plot <- c(v_plot, posdat_all$speed)
+    seqID_plot <- c(seqID_plot, posdat_all$sequenceID)
+    dist_plot <- c(dist_plot, posdat_all$distance)
+    detected_plot <- c(detected_plot, posdat_all$detected)
+    single_plot <- c(single_plot, posdat_all$single)
+    zero_plot <- c(zero_plot, posdat_all$zero)
+    detected_percent_plot <- c(detected_percent_plot, posdat_all$detected_percent)
+    single_percent_plot <- c(single_percent_plot, posdat_all$single_percent)
+    zero_percent_plot <- c(zero_percent_plot, posdat_all$zero_percent)
+    sz_percent_plot <- c(sz_percent_plot, posdat_all$sz_percent)
+  
+  }
   
   ## visualisation plot 
+  
+  ## TO DO: GO FROM HERE AND MAKE THE PLOT NICE ONCE YOU HAVE THE PLOTTING VARIABLES GENERATED & STORED
   vis_df <- data.frame(Mb=Mb_plot,x=x_plot, y=y_plot, speed=v_plot, seqID=seqID_plot, dist=dist_plot, detected=detected_plot, single=single_plot, zero=zero_plot)
                       
-  
-  # add column for whether or not it's a single frame:
-  vis_df$speed[is.infinite(vis_df$speed)] <- NA
-  vis_df$speed[is.nan(vis_df$speed)] <- NA
-  new_cols <- apply(vis_df, 1, vis_df_newcols)
-  single_col <- sapply(new_cols,"[[", 1)
-  x_new <- sapply(new_cols, "[[", 2)
-  y_new <- sapply(new_cols, "[[", 3)
-  vis_df["single"] <- single_col
-  vis_df["x_new"] <- x_new
-  vis_df["y_new"] <- y_new
-  
-  vis_df2 <- vis_df
-  vis_df3 <- vis_df2[vis_df2$iter==1,]
-  vis_df4 <- vis_df3[vis_df3$single=="multiple",]
-  vis_df5 <- vis_df3[vis_df3$single=="single",]
-  
   vis_plot <- ggplot()+
     geom_point(data = vis_df4, aes(x = x_new, y = y_new, colour = speed), shape = 1)+
     # facet_grid(vars(sp))+
-    facet_wrap(~ sp, ncol = 3)+
+    facet_wrap(~ sp, ncol = 2)+
     # scale_colour_distiller(direction = 1)+
     # scale_colour_gradient(low = "#56B4E9", high = "dark blue", na.value = NA)+
     scale_colour_gradient(low = "#66CCFF", high = "dark blue", na.value = NA)+
@@ -1716,9 +1730,6 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
   
   # --> need to make changes to this that C suggested though
-  
-  
-  
   
   
 }

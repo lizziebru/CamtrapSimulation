@@ -1318,9 +1318,10 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   detected_plot <- c() # whether that point got detected by the CT
   single_plot <- c() # whether that point was a single frame
   zero_plot <- c() # whether that point was a zero frame
-  
-  detected_ratio <- c() # ratio of detected to non-detected points to display on visualisation plot
-  sz_ratio <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
+  detected_percent_plot <- c() # ratio of detected to non-detected points to display on visualisation plot
+  single_percent_plot <- c() # ratio of no. of singles vs no. of sequences with 2 or more points
+  zero_percent_plot <- c() # ratio of no. of zeros vs no. of sequences with 2 or more points
+  sz_percent_plot <- c() # ratio of no. of singles & zeros vs no. of sequences with 2 or more points
   
   
   for (i in Mb_range){
@@ -1549,8 +1550,17 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       posdat_all <- rbind(posdat_all, zeros_df)
       
       ## ratio of detected/non-detected and singles&zeros/sequences with 2+ points
+
+      detected_ratio <- (nrow(posdat_all[posdat_all$detected==TRUE,]))/nrow(posdat_all[posdat_all$zero==FALSE,])
+      posdat_all["detected_percent"] <- rep(detected_ratio*100, times = nrow(posdat_all))
       
+      s_ratio <- nrow(posdat_all[posdat_all$single==TRUE & posdat_all$detected==TRUE,])/nrow(posdat_all[posdat_all$zero==FALSE & posdat_all$detected==TRUE,]) # just compare to total no. detected
+      posdat_all["single_percent"] <- rep(s_ratio*100, times = nrow(posdat_all))
+      z_ratio <- nrow(posdat_all[posdat_all$zero==TRUE,])/nrow(posdat_all[posdat_all$zero==FALSE & posdat_all$detected==TRUE,]) # just compare to total no. detected
+      posdat_all["zero_percent"] <- rep(z_ratio*100, times = nrow(posdat_all))
       
+      sz_ratio <- (nrow(posdat_all[posdat_all$single==TRUE & posdat_all$detected==TRUE,]) + nrow(posdat_all[posdat_all$zero==TRUE,]))/nrow(posdat_all[posdat_all$zero==FALSE & posdat_all$detected==TRUE,])
+      posdat_all["sz_percent"] <- rep(sz_ratio*100, times = nrow(posdat_all))
       
       
       # add column with body mass
@@ -1568,13 +1578,15 @@ make_vis_plot <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
       detected_plot <- c(detected_plot, posdat_all$detected)
       single_plot <- c(single_plot, posdat_all$single)
       zero_plot <- c(zero_plot, posdat_all$zero)
-      detected_ratio_plot <- c(detected_ratio_plot, posdat_all$detected_ratio)
-      sz_ratio_plot <- c(sz_ratio_plot, posdat_all$sz_ratio)
-      
-      ## TO DO: NEED TO WORK THESE OUT AND REP THEM AND ADD THEM AS AN EXTRA COL
-
+      detected_percent_plot <- c(detected_percent_plot, posdat_all$detected_percent)
+      single_percent_plot <- c(single_percent_plot, posdat_all$single_percent)
+      zero_percent_plot <- c(zero_percent_plot, posdat_all$zero_percent)
+      sz_percent_plot <- c(sz_percent_plot, posdat_all$sz_percent)
       
       # also save each individual dataframe to the path folder
+      save(posdat_all, file = paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/vis_plotting_variables_iter1.RData")) # add sp range and number of iters too to the name of the output file
+      
+      rm(list = c("seq_dats", "metadata_sim", "path"))
       
     }
   

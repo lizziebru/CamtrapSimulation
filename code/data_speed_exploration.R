@@ -49,7 +49,11 @@ fixed_logspeedSD <- mean(rp_panama_only$sd_log_v) ## == 0.8546151
 # log10(vmax) = 1.47832 + 0.25892*log10(Mb) - 0.06237*(log10(Mb))^2 -- original eqn from paper
 
 # get it in non-log form then convert units (see notebook for full maths)
-# vmax = (30.08292*(Mb^0.25892))/(M^(0.06237*log10(Mb))) -- eqn to use in pathgen
+# vmax = (30.08292*(Mb^0.25892))/(M^(0.06237*log10(Mb)))
+# in m/s: (!!) (need to multiply by 5/18)
+# vmax = (8.356367*(Mb^0.25892))/(M^(0.06237*log10(Mb))) -- eqn to use in pathgen 
+
+
 
 
 # Rowcliffe et al. 2016: mean travel speed related to body mass - using Panama data
@@ -62,13 +66,11 @@ fixed_logspeedSD <- mean(rp_panama_only$sd_log_v) ## == 0.8546151
 
 # use lnorm
 
-# use data_all_cats for this bc need all the observed speeds for each species:
-rp_spp <- c(as.character(unique(regentspark_mov_data$species)), as.character(unique(panama_data$species)))
-rp_spp2 <- str_remove(rp_spp, "mouse") # don't do mouse bc only one datapoint
+rp_panama_only <- read.csv("../results/rp_panama_only.csv") # everything apart from bears & takins
 
-data_all_cats_rp <- data_all_cats[data_all_cats$species==rp_spp2,]
-
-rp_panama_only2 <- rp_panama_only[rp_panama_only$species %in% rp_spp2,]
+# exclude mouse bc only one datapoint
+rp_spp <- str_remove(rp_panama_only$species, "mouse") 
+rp_panama_only2 <- rp_panama_only[rp_panama_only$species %in% rp_spp,]
 
 lnorm_est <- c()
 
@@ -90,22 +92,54 @@ rp_panama_only2 <- read.csv("../results/rp_panama_only2.csv")
 rp_panama_only2["body_mass_kg"] <- (rp_panama_only2$body_mass)/1000
 
 # need this on a log scale:
-v_bodymass_relat <- ggplot(rp_panama_only2, aes(x = log(body_mass_kg), y = log(lnorm_est)))+
+v_bodymass_relat <- ggplot(rp_panama_only2, aes(x = log10(body_mass_kg), y = log10(lnorm_est)))+
   geom_point()
 v_bodymass_relat
 
+v_bodymass_relat2 <- ggplot(rp_panama_only2, aes(x = body_mass_kg, y = lnorm_est))+
+  geom_point()+
+  scale_y_log10()+
+  scale_x_log10()
+v_bodymass_relat2
+
 # fit regression model:
 v_bodymass_lm_fit <- lm(log(lnorm_est) ~ log(body_mass_kg), data = rp_panama_only2)
+v_bodymass_lm_fit10 <- lm(log10(lnorm_est) ~ log10(body_mass_kg), data = rp_panama_only2)
 summary(v_bodymass_lm_fit)
 
-# intercept: -1.9971
-# slope: 0.1972
+cfs1 <- coef(v_bodymass_lm_fit)
+cfs2 <- coef(v_bodymass_lm_fit10)
+exp(cfs[1])*1^cfs[2]
 
-# c = 10^intercept = 0.010067
-# b = slope = 0.1972
+exp(cfs1[1])
+10^cfs2[1]
+# --> both of these give you the same bc the back-transform corresponds to which way you logged it originally
+
+
+# plot this regression on the log scale plot to check it's ok:
+rp_panama_only2["lm_predicted"] <- predict(v_bodymass_lm_fit)
+
+v_bodymass_relat3 <- ggplot(rp_panama_only2, aes(x = body_mass_kg, y = lnorm_est))+
+  geom_point()
+#  scale_y_log10()+
+#  scale_x_log10()+
+  geom_line(aes(y=lm_predicted), colour="red")+
+  geom_smooth(method="lm", colour = "blue", se=F)+
+  stat_regline_equation()
+v_bodymass_relat3
+
+
+plot(lnorm_est ~ body_mass_kg, data=rp_panama_only2, log=c('x', 'y'))
+abline(v_bodymass_lm_fit, col='red')
+
+# intercept: -0.8673281 
+# slope: 0.197178
+
+# c = 10^intercept = 0.1357288
+# b = slope = 0.197178
 
 # therefore, power law eqn to use in pathgen:
-# v_av = 0.010067*(Mb^0.1972)
+# v_av = 0.1357288*(Mb^0.197178)
 
 
 

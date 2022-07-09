@@ -877,7 +877,7 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, r, th, twoCTs, 
                          twoCTs = twoCTs,
                          connectedCTs = connectedCTs)
     
-    save(seq_dats, metadata_sim, file = paste0(parentfolder, "../seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
+    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
     rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
   }
 }
@@ -988,7 +988,7 @@ estimates_calc <- function(seq_dats){
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # big list of variables which will be used for plotting
-generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
   ## store variables from the .RData files
   
@@ -1077,9 +1077,9 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0("../Mb_results/seq_dats/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "seq_dats/Mb", i, "iter", j, ".RData"))
       
-      load(paste0("../Mb_results/paths_30Jun22_1727/Mb", i, "/iter", j, ".RData"))
+      load(paste0(parentfolder, "paths/Mb", i, "/iter", j, ".RData"))
       
       
       ## number of single frames and speeds of single frame sequences #######################################################################
@@ -1210,6 +1210,8 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       m_obs <- seq_dats$observed # M's way of working out observed speeds
       m_obs <- m_obs[is.finite(m_obs)]
       m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames
+      m_obs <- na.omit(m_obs)
+      m_obs_sz <- na.omit(m_obs_sz)
       
       amMOS <- c(amMOS, mean(m_obs)) 
       amMOS_sz <- c(amMOS_sz, mean(m_obs_sz))
@@ -1219,6 +1221,9 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       p_obs <- seq_dats$posdat$distance # point-to-point observed speeds irrespective of sequence
       p_obs <- p_obs[is.finite(p_obs)]
       p_obs_sz <- c(p_obs, singles_v, zeros_v) # including singles & zeros too
+      p_obs <- na.omit(p_obs)
+      p_obs_sz <- na.omit(p_obs_sz)
+      
       
       apMOS <- c(apMOS, mean(p_obs))
       apMOS_sz <- c(apMOS_sz, mean(p_obs_sz))
@@ -1306,7 +1311,7 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
       zeros_v_mean = zeros_v_mean)
     
     # save one dataframe for each Mb
-    save(output, file = paste0("../Mb_results/plotting_data/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
+    save(output, file = paste0(parentfolder, "plotting_data/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
   
@@ -1356,7 +1361,7 @@ generate_plotting_variables <- function(Mb_iters, r, th, twoCTs=FALSE, connected
 ## make_plots - GO FROM HERE!! - NEED TO FINISH MAKING THIS FUNCTION SO IT'S READY FOR RESULTS COMING IN
 # make summary plots using data generated in generate_plotting_variables function
 
-make_plots <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
   # initialise vectors to fill massive dataframe
   Mb <- c()
@@ -1390,7 +1395,7 @@ make_plots <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   for (i in Mb_range){
     
     # load in data generated in generate_plotting_variables function
-    load(paste0("../Mb_results/plotting_data/Mb", i, "_iters1-", Mb_iters$iter[1], ".RData"))
+    load(paste0(parentfolder, "plotting_data/Mb", i, "_iters1-", Mb_iters$iter[1], ".RData"))
     
     # fill vectors
     Mb <- c(Mb, rep(i, times = Mb_iters$iter[1]))
@@ -1529,7 +1534,7 @@ make_plots <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   m_annotated <- annotate_figure(m_arranged, top = text_grob(paste0("observed speeds (then used to calculate estimates) calculated using mean of means"),
                                                                                          color = "red", face = "bold", size = 14))
   
-  png(file=paste0("../Mb_results/plots/m_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+  png(file=paste0(parentfolder, "plots/m_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
       width=700, height=1000)
   print(m_annotated)
   dev.off()
@@ -1538,7 +1543,7 @@ make_plots <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   p_annotated <- annotate_figure(p_arranged, top = text_grob(paste0("observed speeds (then used to calculate estimates) calculated using point-to-point"),
                                                              color = "red", face = "bold", size = 14))
   
-  png(file=paste0("../Mb_results/plots/p_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+  png(file=paste0(parentfolder, "plots/p_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
       width=700, height=1000)
   print(p_annotated)
   dev.off()
@@ -1548,13 +1553,13 @@ make_plots <- function(Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   mp_annotated <- annotate_figure(mp_arranged, top = text_grob(paste0("LEFT: mean of means; RIGHT: point-to-point"),
                                                              color = "red", face = "bold", size = 14))
   
-  png(file=paste0("../Mb_results/plots/mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+  png(file=paste0(parentfolder, "plots/mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
       width=1000, height=1000)
   print(mp_annotated)
   dev.off()
   
   
-  ## to do: fix order of arrangement in 4-panel plot
+  ## to do:
   # fix est plot for p plots
   
   

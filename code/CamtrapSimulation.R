@@ -984,59 +984,14 @@ estimates_calc <- function(seq_dats){
 # Mb_iters - dataframe of body masses to analyse and number of iters of each to use
 # r: radius of CT detection zone
 # th: angle of CT detection zone
+# part_of_wedge: which part of the wedge to take points from: 0=whole, 1=bottom third, 2 = middle third, 3 = top third
 # twoCTs: whether or not to use two CTs
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # big list of variables which will be used for plotting
-generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE){
   
-  ## store variables from the .RData files
-  
-  # wMRS <- c() # my original (wrong) method of working out MRS
-  aMRS <- c() # arithmetic MRS
-  # gMRS <- c() # geometric MRS
-  
-  amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
-  amMOS_sz <- c() # with singles & zeros
-  # gmMOS <- c() # geometric mean of geometric mean speeds of sequences
-  # gmMOS_sz <- c() # with singles & zeros
-  apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
-  apMOS_sz <- c() # with singles & zeros
-  # gMOS <- c() # geometric mean of point-to-point speeds regardless of sequence
-  # gMOS_sz <- c() # with singles & zeros
-  
-  hmean_m <- c() # calculated using M's way of working out observed speeds
-  hmean_m_sz <- c() # including singles & zeros too
-  hmean_p <- c() # calculated using point-to-point observed speeds
-  hmean_p_sz <- c() # including singles & zeros too
-  
-  lnorm_m <- c() # same as for hmean
-  lnorm_m_sz <- c()
-  lnorm_p <- c()
-  lnorm_p_sz <- c()
-  
-  gamma_m <- c() # ditto
-  gamma_m_sz <- c()
-  gamma_p <- c()
-  gamma_p_sz <- c()
-  
-  weibull_m <- c() # ditto
-  weibull_m_sz <- c()
-  weibull_p <- c()
-  weibull_p_sz <- c()
-  
-  n_zeros <- c()
-  n_singles <- c()
-  # singles_speeds <- c()
-  singles_v_mean <- c()
-  # zeros_speeds <- c()
-  zeros_v_mean <- c()
-  
-
-  
-  ## loop to fill these variables #############################################################################################################################
-  
-  for (n in 1:length(Mb_iters$Mb_range)){
+  for (n in 1:length(Mb_iters$Mb_range)){ # loop through each body mass
     i <- Mb_iters$Mb_range[n]
     iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
     
@@ -1072,7 +1027,11 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
     singles_v_mean <- c()
     zeros_v_mean <- c()
     
-    for (j in iter_range){
+    n_points <- c() # number of all points (detected and non-detected)
+    n_detected <- c() # number of detected points
+    
+    
+    for (j in iter_range){ # fill these variables by looping through each iteration of simulations for each a given body mass
       i <- Mb_iters$Mb_range[n]
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
@@ -1090,7 +1049,18 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
                               v = path$speed)
       
       # store posdat_all as a df too:
+      
       posdat_all <- seq_dats$posdat_all
+      
+      if (part_of_wedge==1){ # bottom third of wedge
+        posdat_all <- posdat_all[posdat_all$y>=10 & posdat_all$y<13,]
+      }
+      if (part_of_wedge==2){ # middle third of wedge
+        posdat_all <- posdat_all[posdat_all$y>=13 & posdat_all$y<16,]
+      }
+      if (part_of_wedge==3){ # top third of wedge
+        posdat_all <- posdat_all[posdat_all$y>=16 & posdat_all$y<=19,]
+      }
       
       # detection zone:
       if (twoCTs == FALSE){
@@ -1161,6 +1131,16 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
       path_df2 <- path_df2[-1,] # remove first row
       path_df_paired <- cbind(path_df, path_df2) # paired points
       colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+      if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
+        path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
+      }
+      if (part_of_wedge==2){ 
+        path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
+      }
+      if (part_of_wedge==3){ 
+        path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
+      }
+      
       max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
       if (twoCTs == FALSE){
         dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
@@ -1208,7 +1188,23 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
       
       ## mean observed speeds #################################################################################################################################
       
-      m_obs <- seq_dats$observed # M's way of working out observed speeds
+      posdat <- seq_dats$posdat # position datapoints that fall in dz and get detected
+      
+      if (part_of_wedge==1){
+        posdat <- posdat[posdat$y>=10 & posdat$y<13,]
+      }
+      if (part_of_wedge==2){
+        posdat <- posdat[posdat$y>=13 & posdat$y<16,]
+      }
+      if (part_of_wedge==3){
+        posdat <- posdat[posdat$y>=16 & posdat$y<=19,]
+      }
+      
+      
+      # work out observed speeds using mean of means  
+      v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
+      
+      m_obs <- v$speed 
       m_obs <- m_obs[is.finite(m_obs)]
       m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames
       m_obs <- na.omit(m_obs)
@@ -1219,7 +1215,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
       # gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
       # gmMOS_sz <- c(gmMOS_sz, exp(mean(log(m_obs_sz))))
       
-      p_obs <- seq_dats$posdat$distance # point-to-point observed speeds irrespective of sequence
+      p_obs <- posdat$distance # point-to-point observed speeds irrespective of sequence
       p_obs <- p_obs[is.finite(p_obs)]
       p_obs_sz <- c(p_obs, singles_v, zeros_v) # including singles & zeros too
       p_obs <- na.omit(p_obs)
@@ -1262,16 +1258,10 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
       weibull_m_sz <- c(weibull_m_sz, predict.sbm(mods_m_sz[[1]]$weibull)[1,1])
       weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
       weibull_p_sz <- c(weibull_p_sz, predict.sbm(mods_p_sz[[1]]$weibull)[1,1])
-      
-      ## filename for storing plots ###############################################################################################################################
-      
-      filename <- paste0("pTurn", metadata_sim$pTurn, # filename for storing plots
-                         "_speedCor", metadata_sim$speedCor,
-                         "_kTurn", metadata_sim$kTurn,
-                         "_kCor", metadata_sim$kCor,
-                         # "_species", metadata_sim$species,
-                         "_twoCTs", metadata_sim$twoCTs,
-                         "_connectedCTs", metadata_sim$connectedCTs)
+
+      # no. of detected & non-detected points
+      n_points <- c(n_points, nrow(posdat_all))
+      n_detected <- c(n_detected, nrow(posdat))
       
       rm(list = c("seq_dats", "metadata_sim", "path"))
     }
@@ -1309,10 +1299,14 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, twoCTs=FA
       n_zeros = n_zeros,
       n_singles = n_singles,
       singles_v_mean = singles_v_mean,
-      zeros_v_mean = zeros_v_mean)
+      zeros_v_mean = zeros_v_mean,
+      
+      n_points = n_points,
+      n_detected = n_detected
+      )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "plotting_data/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
+    save(output, file = paste0(parentfolder, "plotting_data/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
 
@@ -1520,7 +1514,6 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   
   
   ## to do:
-  # fix est plot for p plots if still looks problematic with these data
   # make plots for separate detection zone sections
   # make plots of no. of singles & zeros and mean speeds of singles & zeros against each Mb
   

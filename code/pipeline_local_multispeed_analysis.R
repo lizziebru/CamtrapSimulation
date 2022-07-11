@@ -9,21 +9,28 @@ source("CamtrapSimulation.R", echo=TRUE)
 require(ggplot2)
 require(ggpubr)
 
+parentfolder <- paste0("../Mb_results/08Jul22_1602/")
+
 # set which speed parameters to analyse
-speed_parameters <- c(0.02, 0.04, 0.06, 
-                      0.08, 0.1, 0.25,
-                      0.35, 0.4, 0.5,
-                      0.7, 0.85, 0.95)
-speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
+Mb_range <- c(1, 5, 10,15,20,25,30,35,40,45,50)
 
 # set number of iters for each to analyse
-iters <- c(27, 50, 29,
-           29, 50, 43,
-           45, 48, 41,
-           47, 46, 50)
+iters <- c(5,5,5,5,5,5,5,5,5,5,5)
 
-sp_and_iters <- data.frame(speed_parameter = speed_parameters, 
-                           iter = iters)
+Mb_iters <- data.frame(Mb_range = Mb_range, iter = iters)
 
-# run analysis function
-multispeed_analyse(sp_and_iters)
+# additional parameters:
+# species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
+r = 9
+th = 0.7
+twoCTs = FALSE
+connectedCTs = FALSE
+
+# generate and store plotting variables
+generate_plotting_variables(parentfolder, Mb_iters, r, th)
+
+# make plots using those plotting variables
+make_plots(parentfolder, Mb_iters, r, th,)
+
+
+

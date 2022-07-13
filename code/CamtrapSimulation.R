@@ -1315,7 +1315,8 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
 
 ## make_plots
 # make summary plots using data generated in generate_plotting_variables function
-make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+## NEEDS FIXING THOUGH BC BEHAVES PROBLEMATICALLY WHEN CALLED AS A FUNCTION (EVERYTHING INSIDE RUNS WITHOUT ERRORS THOUGH)
+make_plots <- function(parentfolder, part_of_wedge, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
   # initialise vectors to fill massive dataframe
   Mb <- c()
@@ -1345,11 +1346,13 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   n_singles <- c()
   singles_v_mean <- c()
   zeros_v_mean <- c()
+  n_points <- c()
+  n_detected <- c()
   
   for (i in Mb_range){
     
     # load in data generated in generate_plotting_variables function
-    load(paste0(parentfolder, "plotting_data/Mb", i, "_iters1-", Mb_iters$iter[1], ".RData"))
+    load(paste0(parentfolder, "plotting_data/wedge", part_of_wedge, "/Mb", i, "_iters1-", Mb_iters$iter[1], ".RData"))
     
     # fill vectors
     Mb <- c(Mb, rep(i, times = Mb_iters$iter[1]))
@@ -1379,14 +1382,42 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
     n_singles <- c(n_singles, output$n_singles)
     singles_v_mean <- c(singles_v_mean, output$singles_v_mean)
     zeros_v_mean <- c(zeros_v_mean, output$zeros_v_mean)
-    
+    n_points <- c(n_points, output$n_points)
+    n_detected <- c(n_detected, output$n_detected)
   }
   
-  main_df <- data.frame(Mb=Mb, iter=iter, aMRS=aMRS, amMOS=amMOS, amMOS_sz=amMOS_sz, apMOS=apMOS, apMOS_sz=apMOS_sz, hmean_m=hmean_m,
+  if (part_of_wedge==0){
+    wedgename2 <- "whole"
+  }
+  if (part_of_wedge==1){
+    wedgename2 <- "bottom"
+  }
+  if (part_of_wedge==2){
+    wedgename2 <- "middle"
+  }
+  if (part_of_wedge==3){
+    wedgename2 <- "top"
+  }
+  
+  main_df <- data.frame(wedge=rep(wedgename2, times=length(Mb)) , Mb=Mb, iter=iter, aMRS=aMRS, amMOS=amMOS, amMOS_sz=amMOS_sz, apMOS=apMOS, apMOS_sz=apMOS_sz, hmean_m=hmean_m,
                         hmean_m_sz=hmean_m_sz, hmean_p=hmean_p, hmean_p_sz=hmean_p_sz, lnorm_m=lnorm_m, lnorm_m_sz=lnorm_m_sz,
                         lnorm_p=lnorm_p, lnorm_p_sz=lnorm_p_sz, gamma_m=gamma_m, gamma_m_sz=gamma_m_sz, gamma_p=gamma_p,
                         gamma_p_sz=gamma_p_sz, weibull_m=weibull_m, weibull_m_sz=weibull_m_sz, weibull_p=weibull_p, weibull_p_sz,
-                        n_zeros=n_zeros, n_singles=n_singles, singles_v_mean=singles_v_mean, zeros_v_mean=zeros_v_mean)                        
+                        n_zeros=n_zeros, n_singles=n_singles, singles_v_mean=singles_v_mean, zeros_v_mean=zeros_v_mean, n_points=n_points, n_detected=n_detected)                        
+  # write.csv(main_df, paste0("../Mb_results/08Jul22_1602/plotting_data/wedge", part_of_wedge, "/main_df_wedge", part_of_wedge, ".csv"))
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ## plots:
+  
+  # read back in CSVs - in each wedge folder
   
   # 4 plots ggarranged for errors between MRS-MOS and MRS-EST for each of m and p method
   
@@ -1435,8 +1466,6 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   mrs_est_m_plot
   
   
-  
-  
   ## point-to-point
   
   # MRS-MOS using p method - with both raw and sz
@@ -1483,146 +1512,197 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   
   
   
-  # save separately
-  m_arranged <- ggarrange(mrs_mos_m_plot, mrs_est_m_plot, nrow = 2)
-  m_annotated <- annotate_figure(m_arranged, top = text_grob(paste0("observed speeds (then used to calculate estimates) calculated using mean of means"),
-                                                                                         color = "red", face = "bold", size = 14))
   
-  png(file=paste0(parentfolder, "plots/m_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
-      width=700, height=1000)
-  print(m_annotated)
-  dev.off()
+  ## new plot: combined:
   
-  p_arranged <- ggarrange(mrs_mos_p_plot, mrs_est_p_plot, nrow = 2)
-  p_annotated <- annotate_figure(p_arranged, top = text_grob(paste0("observed speeds (then used to calculate estimates) calculated using point-to-point"),
-                                                             color = "red", face = "bold", size = 14))
+  ## mean of means:
   
-  png(file=paste0(parentfolder, "plots/p_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
-      width=700, height=1000)
-  print(p_annotated)
-  dev.off()
+  m_of_m_df <- data.frame(aMRS = c(rep(aMRS, times = 10)),
+                             error = c((hmean_m-aMRS), (lnorm_m-aMRS), (gamma_m-aMRS), (weibull_m-aMRS), (amMOS-aMRS), (hmean_m_sz-aMRS), (lnorm_m_sz-aMRS), (gamma_m_sz-aMRS), (weibull_m_sz-aMRS), (amMOS_sz-aMRS)),
+                             method = c(rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS)), rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS))),
+                             type = c(rep("raw", times=length(aMRS)*5), rep("with_sz", times=length(aMRS)*5)))
+  
+  m_of_m_plot <- ggplot(m_of_m_df, aes(x = aMRS, y = error, colour = method))+
+    geom_point()+
+    facet_grid(type ~ .)+
+    geom_smooth(alpha = 0.2, se=F)+
+    theme_minimal()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    scale_colour_manual(values = c("#FF0000", "#00FF00", "#00FFFF", "#FF00FF", "#0000FF"))+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error (m/s)",
+         title = "Errors between MRS and estimated speeds\n(+ve: est > MRS)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13),
+          strip.text = element_text(size = 13),
+          legend.position = "bottom")
+  m_of_m_plot
+  
+  
+  ## point-to-point:
+  
+  p_to_p_df <- data.frame(aMRS = c(rep(aMRS, times = 10)),
+                          error = c((hmean_p-aMRS), (lnorm_p-aMRS), (gamma_p-aMRS), (weibull_p-aMRS), (apMOS-aMRS), (hmean_p_sz-aMRS), (lnorm_p_sz-aMRS), (gamma_p_sz-aMRS), (weibull_p_sz-aMRS), (apMOS_sz-aMRS)),
+                          method = c(rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS)), rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS))),
+                          type = c(rep("raw", times=length(aMRS)*5), rep("with_sz", times=length(aMRS)*5)))
+  
+  p_to_p_plot <- ggplot(p_to_p_df, aes(x = aMRS, y = error, colour = method))+
+    geom_point()+
+    facet_grid(type ~ .)+
+    geom_smooth(alpha = 0.2, se=F)+
+    theme_minimal()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    scale_colour_manual(values = c("#FF0000", "#00FF00", "#00FFFF", "#FF00FF", "#0000FF"))+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error (m/s)",
+         title = "Errors between MRS and estimated speeds\n(+ve: est > MRS)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13),
+          strip.text = element_text(size = 13),
+          legend.position = "bottom")
+  p_to_p_plot
+  
+
   
   # save together
+  
+  if (part_of_wedge==0){
+    wedgename <- "whole"
+  }
+  if (part_of_wedge==1){
+    wedgename <- "BOTTOM THIRD"
+  }
+  if (part_of_wedge==2){
+    wedgename <- "MIDDLE THIRD"
+  }
+  if (part_of_wedge==3){
+    wedgename <- "TOP THIRD"
+  }
+  
   mp_arranged <- ggarrange(mrs_mos_m_plot, mrs_mos_p_plot, mrs_est_m_plot, mrs_est_p_plot, nrow = 2, ncol = 2)
-  mp_annotated <- annotate_figure(mp_arranged, top = text_grob(paste0("LEFT: mean of means; RIGHT: point-to-point"),
+  mp_annotated <- annotate_figure(mp_arranged, top = text_grob(paste0("PART OF WEDGE = ", wedgename, "\nLEFT: mean of means; RIGHT: point-to-point"),
                                                              color = "red", face = "bold", size = 14))
   
-  png(file=paste0(parentfolder, "plots/mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+  png(file=paste0(parentfolder, "plots/wedge", part_of_wedge, "/mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
       width=1000, height=1000)
   print(mp_annotated)
   dev.off()
   
   
-  ## to do:
-  # make plots for separate detection zone sections
-  # make plots of no. of singles & zeros and mean speeds of singles & zeros against each Mb
+  
+  
+  ## save new combined plots:
+  
+  comb_mp_arranged <- ggarrange(m_of_m_plot, p_to_p_plot, nrow = 1, ncol = 2)
+  comb_mp_annotated <- annotate_figure(comb_mp_arranged, top = text_grob(paste0("PART OF WEDGE = ", wedgename, "\nLEFT: mean of means; RIGHT: point-to-point"),
+                                                               color = "red", face = "bold", size = 14))
+  
+  png(file=paste0(parentfolder, "plots/wedge", part_of_wedge, "/comb_mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=1000, height=800)
+  print(comb_mp_annotated)
+  dev.off()
   
 
+  # SINGLES, ZEROS & DETECTED POINTS
+  
+  # for the whole wedge
   
   
-  ## stuff below here will be useful for making the plots
   
-  ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST aMRS ################################################################################################################################################
   
-  ## no. of singles & no. of zeros against aMRS
-  n_sz_aMRS_df <- data.frame(aMRS = aMRS,
-                             count = c(n_singles, n_zeros),
-                             type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_sz_aMRS_plot <- ggplot(n_sz_aMRS_df, aes(x = aMRS, y = count, colour = type))+
+  # for different chunks of the wedge
+  
+  # MAKING MAIN_DF_SEPARATE_WEDGES --> WILL NEED TO RE-DO THIS WHEN GENERATE MORE PLOTTING VARIABLES FOR MORE ITERATIONS
+  # wedge1_df <- read.csv("../Mb_results/08Jul22_1602/plotting_data/wedge1/main_df_wedge1.csv")
+  # wedge2_df <- read.csv("../Mb_results/08Jul22_1602/plotting_data/wedge2/main_df_wedge2.csv")
+  # wedge3_df <- read.csv("../Mb_results/08Jul22_1602/plotting_data/wedge3/main_df_wedge3.csv")
+  # 
+  # main_df_separate_wedges <- rbind(wedge1_df, wedge2_df, wedge3_df)
+  # main_df_separate_wedges["percent_det"] <- ((main_df_separate_wedges$n_detected/main_df_separate_wedges$n_points)*100) # % of all points falling into the dz that get detected
+  # main_df_separate_wedges["percent_singles"] <- ((main_df_separate_wedges$n_singles/main_df_separate_wedges$n_detected)*100) # % of detected points that are singles
+  # main_df_separate_wedges["ratio_zeros"] <- main_df_separate_wedges$n_zeros/main_df_separate_wedges$n_detected # ratio of number of zeros to number of detected points
+  # 
+  # write.csv(main_df_separate_wedges, "../Mb_results/08Jul22_1602/plotting_data/main_df_separate_wedges.csv")
+
+  
+  # read in main_df_separate_wedges made so far
+  main_df_separate_wedges <- read.csv("../Mb_results/08Jul22_1602/plotting_data/main_df_separate_wedges.csv")
+  
+  # % of points that get detected - for separate wedges
+  det_percent_plot_separate_wedges <- ggplot(main_df_separate_wedges, aes(x=aMRS, y=percent_det, colour = wedge))+
     geom_point()+
-    geom_smooth(alpha = 0.1)+
+    geom_smooth(alpha=0.3, se=F)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "%",
+         title = "% of all points falling in\nthe dz that get detected")+
     theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  # n_sz_aMRS_plot
-  
-  ## mean speeds of single & zero frame sequences
-  speeds_sz_aMRS_df <- data.frame(aMRS = aMRS,
-                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
-                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_sz_aMRS_plot <- ggplot(speeds_sz_aMRS_df, aes(x = aMRS, y = speed, colour = type))+
+          title = element_text(size = 22),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.position="bottom")
+  det_percent_plot_separate_wedges
+    
+  # % of detected points that are singles - for separate wedges
+  singles_percent_plot_separate_wedges <- ggplot(main_df_separate_wedges, aes(x=aMRS, y=percent_singles, colour = wedge))+
     geom_point()+
-    geom_smooth(alpha = 0.1)+
+    geom_smooth(alpha=0.3, se=F)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "%",
+         title = "% of detected points\nthat are single frames")+
     theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  # speeds_sz_aMRS_plot
+          title = element_text(size = 22),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.position="bottom")
+  singles_percent_plot_separate_wedges
   
-  sz_aMRS_arranged <- ggarrange(n_sz_aMRS_plot, speeds_sz_aMRS_plot, nrow = 2)
   
-  png(file=paste0("../results/PLOTS/sz/aMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(sz_aMRS_arranged)
+  # ratio of zeros to detected points - for separate wedges
+  zeros_ratio_plot_separate_wedges <- ggplot(main_df_separate_wedges, aes(x=aMRS, y=ratio_zeros, colour = wedge))+
+    geom_point()+
+    geom_smooth(alpha=0.3, se=F)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "ratio",
+         title = "Ratio of zero frames\nto detected points")+
+    theme_minimal()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 22),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.position = "bottom")
+  zeros_ratio_plot_separate_wedges
+
+  
+  # save each one separately
+  png(file=paste0(parentfolder, "plots/detected_separate_wedges_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=550, height=550)
+  print(det_percent_plot_separate_wedges)
   dev.off()
   
+  png(file=paste0(parentfolder, "plots/singles_separate_wedges_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=550, height=550)
+  print(singles_percent_plot_separate_wedges)
+  dev.off()
   
-  ## no. of singles & no. of zeros against gMRS
-  n_sz_gMRS_df <- data.frame(gMRS = gMRS,
-                             count = c(n_singles, n_zeros),
-                             type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_sz_gMRS_plot <- ggplot(n_sz_gMRS_df, aes(x = gMRS, y = count, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  # n_sz_gMRS_plot
-  
-  ## mean speeds of single & zero frame sequences
-  speeds_sz_gMRS_df <- data.frame(gMRS = gMRS,
-                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
-                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_sz_gMRS_plot <- ggplot(speeds_sz_gMRS_df, aes(x = gMRS, y = speed, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  # speeds_sz_gMRS_plot
-  
-  sz_gMRS_arranged <- ggarrange(n_sz_gMRS_plot, speeds_sz_gMRS_plot, nrow = 2)
-  
-  png(file=paste0("../results/PLOTS/sz/gMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(sz_gMRS_arranged)
+  png(file=paste0(parentfolder, "plots/zeros_separate_wedges_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=550, height=550)
+  print(zeros_ratio_plot_separate_wedges)
   dev.off()
   
   
   
-  
-  
+  ### TO DO: MAYBE MAKE THE SAME 3 PLOTS BUT WITH DATA FROM JUST THE WHOLE WEDGE? - NEED TO RE-RUN TO GET THIS THOUGH BC GENERATED THOSE RESULTS BEFORE CHANGING THE CODE TO SAVE NO. OF POINTS & DETECTED POINTS
   
 }
 

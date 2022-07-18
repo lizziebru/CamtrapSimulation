@@ -956,7 +956,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0(parentfolder, "seq_dats/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "seq_dats_w_logistic_mix/Mb", i, "iter", j, ".RData"))
       
       load(paste0(parentfolder, "paths/Mb", i, "/iter", j, ".RData"))
       
@@ -1226,7 +1226,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "plotting_data/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
+    save(output, file = paste0(parentfolder, "plotting_data_w_logistic_mix/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
 

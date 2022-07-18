@@ -180,7 +180,7 @@ small_radius <- function(radius){
   return(prob)
 }
 
-# model for large species' radius: hazard rate with logistic mix
+# model for large species' radius: hazard rate
 large_radius <- function(radius){
   prob <- (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
   if (prob > 1){
@@ -458,15 +458,15 @@ reassign_prob <- function(isindz_row){
     return(FALSE)
   }
   else {
-    # if (species == 0){ - only use large species hazard function for now
-    #   prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
-    #   if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
-    #     prob_radius <- 1
-    #   }
-    #   new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-    #   return(new_res)
-    # }
-    # if (species == 1){
+    if (logistic_mix==TRUE){ # if body mass is less than 4kg, use logistic mix hazard function for detection probability
+      prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+      if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
+        prob_radius <- 1
+      }
+      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+      return(new_res)
+    }
+    if (logistic_mix==FALSE){ # if body mass is more than 4kg, use hazard function without logistic mix
       prob_radius <- large_radius(as.numeric(isindz_row[[2]])) * 2.767429 # probability of being detected based on the estimated probability density for the radius
       if (prob_radius > 1){
         prob_radius <- 1
@@ -474,7 +474,9 @@ reassign_prob <- function(isindz_row){
       new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
       return(new_res)
     }
+  }
 }
+
 
 ## is_in_dz - see bottom for original function
 # Defines whether points are within detection zones
@@ -488,7 +490,7 @@ reassign_prob <- function(isindz_row){
 # species = size of the animal (1 = large, 0 = small)
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone){
+is_in_dz <- function(point, dzone, logistic_mix){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -533,73 +535,7 @@ is_in_dz <- function(point, dzone){
 
 
 
-## sequence_data
-# 1. Takes dataframes defining a path and a detection zone (as defined above)
-# 2. Filters the path points falling within the detection zone
-# 3. Assigns each contiguous sequence of points a unique sequence identifier
-# 4. calculates the distances between points with sequences
-# finds which points on the path are in the detection zone
-# and assigns sequence identifiers to each snippet (so there are multiple within one path)
-# returns parts of a path that are in the detection zone
-# INPUT
-# path: a path object
-# a detection zone array
-# species = size of the animal (1 = large, 0 = small)
-# OUTPUT
-# A data frame with columns:
-# x,y: x,y co-ordinates of sequence points in detection zones
-# sequenceID: integer sequence identifier
-# distance: distance traveled for each step between points
-# for small species:
-sequence_data <- function(pth, dzone){
-  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
-  
-  # to get xy, seqID, and dist for those that actually do get detected
-  isin_detected <- as.vector(isin_all$detected)
-  isin_detected[1] <- FALSE
-  isin_detected <- as.logical(isin_detected)
-  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
-  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
-  seqid <- c(0, cumsum(newseq))[isin_detected] ## this is the problem
-  xy <- pth[isin_detected, ] ## THIS LINE TAKES A WHILE
-  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-  newseq <- tail(seqid, -1) > head(seqid, -1)
-  dist[newseq] <- NA
-  dist <- c(NA, dist)
-  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
-  
-  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
-  isin_indz <- as.vector(isin_all$indz)
-  isin_indz[1] <- FALSE
-  isin_indz <- as.logical(isin_indz)
-  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
-  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
-  xy2 <- pth2[isin_indz, ] # THIS ONE TOO
-  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
-  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
-  dist2[newseq2] <- NA
-  dist2 <- c(NA, dist2)
-  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
-  
-  # df2["detected"] <- NA
-  # for (i in 1:nrow(df2)){ # THIS TAKES THE LONGEST
-  #   d <- df2[i,]
-  #   if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
-  #     df2[i,]$detected <- TRUE
-  #   }
-  #   else{
-  #     df2[i,]$detected <- FALSE
-  #   }
-  # }
-  
-  df2["detected"] <- FALSE
-  df2$detected[which(df2$x %in% df1$x & df2$y %in% df1$y)] <- TRUE
-  
-  
-  return(df2)
-}
+
 
 
 ## zero_frame
@@ -663,6 +599,72 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 }
 
 
+## sequence_data
+# 1. Takes dataframes defining a path and a detection zone (as defined above)
+# 2. Filters the path points falling within the detection zone
+# 3. Assigns each contiguous sequence of points a unique sequence identifier
+# 4. calculates the distances between points with sequences
+# finds which points on the path are in the detection zone
+# and assigns sequence identifiers to each snippet (so there are multiple within one path)
+# returns parts of a path that are in the detection zone
+# INPUT
+# path: a path object
+# a detection zone array
+# logistic_mix: whether or not to use logistic mix hazard rate function or just hazard rate function for detection probability
+# OUTPUT
+# A data frame with columns:
+# x,y: x,y co-ordinates of sequence points in detection zones
+# sequenceID: integer sequence identifier
+# distance: distance traveled for each step between points
+sequence_data <- function(pth, dzone, logistic_mix){
+  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+  isin_all <- is_in_dz(pth, dzone, logistic_mix) # returns true or false for whether each position in the path is in the detection zone
+  
+  # to get xy, seqID, and dist for those that actually do get detected
+  isin_detected <- as.vector(isin_all$detected)
+  isin_detected[1] <- FALSE
+  isin_detected <- as.logical(isin_detected)
+  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
+  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
+  seqid <- c(0, cumsum(newseq))[isin_detected] ## this is the problem
+  xy <- pth[isin_detected, ] ## THIS LINE TAKES A WHILE
+  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+  newseq <- tail(seqid, -1) > head(seqid, -1)
+  dist[newseq] <- NA
+  dist <- c(NA, dist)
+  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
+  
+  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
+  isin_indz <- as.vector(isin_all$indz)
+  isin_indz[1] <- FALSE
+  isin_indz <- as.logical(isin_indz)
+  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
+  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
+  xy2 <- pth2[isin_indz, ] # THIS ONE TOO
+  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
+  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
+  dist2[newseq2] <- NA
+  dist2 <- c(NA, dist2)
+  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
+  
+  # df2["detected"] <- NA
+  # for (i in 1:nrow(df2)){ # THIS TAKES THE LONGEST
+  #   d <- df2[i,]
+  #   if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
+  #     df2[i,]$detected <- TRUE
+  #   }
+  #   else{
+  #     df2[i,]$detected <- FALSE
+  #   }
+  # }
+  
+  df2["detected"] <- FALSE
+  df2$detected[which(df2$x %in% df1$x & df2$y %in% df1$y)] <- TRUE
+  
+  
+  return(df2)
+}
 
 # run_simulation
 # runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
@@ -683,12 +685,12 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+run_simulation <- function(path, parentfolder, j, r, th, logistic_mix, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
   
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all <- sequence_data(path, dz, logistic_mix) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -698,9 +700,9 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    posdat_all1 <- sequence_data(path, dz1) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2)
-    posdat_all <- rbind(posdat_all1, posdat_all2)
+    posdat_all1 <- sequence_data(path, dz1, logistic_mix) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, logistic_mix)
+    posdat_all <- rbind(posdat_all1, posdat_all2, logistic_mix)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
   v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
@@ -725,92 +727,7 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
     mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
   })
   
-  # ### speeds of single-frame sequences and number of single-frame sequences - incorrect bc need to use the whole path df -- re-doing this in multispeed_analyse function
-  # singles_speeds <- c()
-  # n_singles <- 0
-  # # select rows in posdat_all which are detected but only in a single frame, as well as the two points above and below each one of those
-  # # select the seqID posdats when you only have one TRUE:
-  # for (i in unique(posdat_all$sequenceID)){
-  #   p <- posdat_all[posdat_all$sequenceID==i,] # subset by sequence ID
-  #   n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
-  #   if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
-  #     
-  #     ## work out the detection probability of that single frame:
-  #     single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
-  #     single_y <- p[p$detected==TRUE,]$y
-  #     single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-  #     if (species == 0){
-  #       prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
-  #     }
-  #     if (species == 1){
-  #       prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
-  #     }
-  #     n_singles <- n_singles + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
-  #     
-  #     
-  #     ## select the row that's TRUE and the row above and below it -- incorrect!!
-  #     # assign row numbers to help with this
-  #     p["rownumber"] <- c(1:nrow(p))
-  #     true_rownumber <- p[p$detected==TRUE,]$rownumber # rownumber of the detected point
-  #     if (true_rownumber == 1){ # if the detected point is the first in that sequence, just use that point and the one after it
-  #       below_rownumber <- true_rownumber + 1
-  #       rownumbers_needed <- c(true_rownumber, below_rownumber)
-  #     }
-  #     if (true_rownumber == nrow(p)){ # if the detected point is the last in that sequence, just use that point and teh one before it
-  #       above_rownumber <- true_rownumber - 1
-  #       rownumbers_needed <- c(true_rownumber, above_rownumber)
-  #     }
-  #     else { # otherwise, use both the points below and above
-  #       above_rownumber <- true_rownumber - 1
-  #       below_rownumber <- true_rownumber + 1
-  #       rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
-  #     }
-  #     rows_needed <- p[rownumbers_needed,]
-  #     speed_single <- calc_speed(rows_needed)
-  #     singles_speeds <- c(singles_speeds, speed_single$speed)
-  #   } 
-  # }
-  # singles_speeds <- singles_speeds[is.finite(singles_speeds)==TRUE] # get rid of the NaNs - occur when the edge of the arena is reached
-  # 
-  # ### number of zero-frame sequences: -- also incorrect - bc of the realised speeds you're using here (my previous wrong way of doing it) -- re-doing this in multispeed analyse
-  # path_df <- path$path
-  # path_df2 <- path_df
-  # path_df <- path_df[-nrow(path_df),] # remove last row
-  # path_df2 <- path_df2[-1,] # remove first row
-  # path_df_paired <- cbind(path_df, path_df2) # paired points
-  # colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-  # max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
-  # if (twoCTs == FALSE){
-  #   dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-  #   zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
-  # }
-  # if (twoCTs == TRUE){
-  #   dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-  #   if (connectedCTs == TRUE){
-  #     dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-  #   }
-  #   if (connectedCTs == FALSE){ 
-  #     dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-  #   }
-  #   zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
-  #   zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
-  #   zeros <- c(zeros1, zeros2)
-  # }
-  # zeros_vals <- zeros[zeros!=0]
-  # n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
-  # 
-  # 
-  # ## speeds of zero-frame sequences
-  # # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
-  # path_df_paired["ZERO"] <- zeros
-  # zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
-  # zeros_speeds <- c()
-  # for (i in 1:nrow(zeros_dat)){
-  #   z <- zeros_dat[i,]
-  #   speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
-  #   zeros_speeds <- c(zeros_speeds, speed)
-  # }
-  # 
+
   # make output list
   output_list <- list(posdat_all = posdat_all,
                       posdat = posdat,
@@ -818,17 +735,12 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
                       realised = realised_spds,
                       observed = observed,
                       obs_lengths = obs_lengths,
-                      # n_singles = n_singles, -- these are all incorrect -- re-doing them in multispeed_analyse
-                      # singles_speeds = singles_speeds,
-                      # n_zeros = n_zeros,
-                      # zeros_speeds = zeros_speeds,
                       n_points = nrow(posdat)) # total number of position datapoints detected by the CT
-                      # singles_prop = n_singles/nrow(posdat),
-                      # zeros_prop = n_zeros/nrow(posdat))
+
 
   # plot path
   if (plot_path == TRUE){
-    png(file= paste0(parentfolder, pathfolder, "plot.png"),
+    png(file= paste0(parentfolder, "Mb", j, "/plot.png"),
         width=700, height=650)
     plot_wrap(path, lineargs = list(col="grey"))
     plot_dzone(dz, border=2)
@@ -846,39 +758,47 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
 # path_nos: range of iter numbers to run the simulation on (vary depending on computational ability of local machine) - e.g. course laptop can take about 10 at once max
 # OUTPUT
 # saved seq_dats.RData files in seq_dats folder
-generate_seqdats <- function(parentfolder, pathfolder, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
-  for (i in path_nos){
-    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
-    if (i == 1){
-      plot_path <- TRUE # only plot the first one to save some time
+generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
+  for (j in Mb_range){
+    for (i in path_nos){
+      load(paste0(parentfolder,"Mb", j, "/iter", i, ".RData"))
+      if (j <= 4){ # if body mass less than 4kg, use logistic mix hazard rate detection function
+        logistic_mix <- TRUE
+      }
+      if (j > 4) { # if body mass greater than 4kg, use hazard rate detection function without logistic mix 
+        logistic_mix <- FALSE
+      }
+      if (i == 1){
+        plot_path <- TRUE # only plot the first one to save some time
+      }
+      else {
+        plot_path <- FALSE
+      }
+      if (path_cutby == 1){
+        seq_dats <- run_simulation(path, parentfolder, j, r=r, th=th, logistic_mix, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      }
+      else { # if want to cut the path short to make it computationally easier:
+        path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
+        seq_dats <- run_simulation(path, parentfolder, j, r=r, th=th, logistic_mix, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      }
+      metadata_sim <- list(datetime = metadata$datetime,
+                           iter = metadata$iter,
+                           Mb = metadata$Mb,
+                           xlim = metadata$xlim,
+                           step_no = metadata$step_no,
+                           #speedSD = metadata$speedSD,
+                           pTurn = metadata$pTurn,
+                           speedCor = metadata$speedCor,
+                           kTurn = metadata$kTurn,
+                           kCor = metadata$kCor,
+                           r = r,
+                           th = th,
+                           twoCTs = twoCTs,
+                           connectedCTs = connectedCTs)
+      
+      save(seq_dats, metadata_sim, file = paste0("../Mb_results/08Jul22_1602/seq_dats_w_logistic_mix/Mb", metadata_sim$Mb, "iter", i, ".RData"))
+      rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
     }
-    else {
-      plot_path <- FALSE
-    }
-    if (path_cutby == 1){
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-    }
-    else { # if want to cut the path short to make it computationally easier:
-      path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-    }
-    metadata_sim <- list(datetime = metadata$datetime,
-                         iter = metadata$iter,
-                         Mb = metadata$Mb,
-                         xlim = metadata$xlim,
-                         step_no = metadata$step_no,
-                         #speedSD = metadata$speedSD,
-                         pTurn = metadata$pTurn,
-                         speedCor = metadata$speedCor,
-                         kTurn = metadata$kTurn,
-                         kCor = metadata$kCor,
-                         r = r,
-                         th = th,
-                         twoCTs = twoCTs,
-                         connectedCTs = connectedCTs)
-    
-    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
-    rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
   }
 }
 

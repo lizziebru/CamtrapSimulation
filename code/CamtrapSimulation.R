@@ -453,7 +453,7 @@ line_arc_cross <- function(line, arc){
 # a row in isindz_df2 dataframe from isindz function
 # OUTPUT
 # vector of TRUE or FALSE for whether that point got detected
-reassign_prob <- function(isindz_row){
+reassign_prob <- function(isindz_row, logistic_mix){
   if (isindz_row[[1]]==FALSE){
     return(FALSE)
   }
@@ -526,7 +526,7 @@ is_in_dz <- function(point, dzone, logistic_mix){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
   
-  new_reses <- apply(isindz_df, 1, reassign_prob)
+  new_reses <- apply(isindz_df, 1, reassign_prob, logistic_mix=logistic_mix)
   
   isindz_all <- data.frame(indz = isindz_df$res,
                            detected = new_reses)

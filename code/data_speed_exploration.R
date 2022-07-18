@@ -14,7 +14,99 @@ data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 
 
-# deciding on speedSD value and truncation parameter ---------------------
+# parameters for bimodal speed modelling: using Pablo's data --------------
+
+# read in Pablo's data from innovations paper
+pablo_spds_raw <- read.csv2("../data/Pablo_spds_raw.txt")
+
+# add column for species:
+# GE (genet), BA (badger), FD (fallow deer), IG (Iberian goat), MA (stone/pine marten), 
+# MO (mouflon), RF (red fox), RO (roe deer), RD (red deer), RS (red squirrel) and WB (wild boar).
+
+RF_group <- c("RF1", "RF2", "RF3", "RF4", "RF5")
+RD_group <- c("RD1", "RD2", "RD3", "RD4", "RD6", "RD7")
+RO_group <- c("RO1", "RO2", "RO3", "RO4", "RO5")
+WB_group <- c("WB1", "WB2", "WB3", "WB4", "WB5", "WB6", "WB7")
+BA_group <- c("BA")
+FD_group <- c("FD1", "FD2")
+GE_group <- c("GE")
+IG_group <- c("IG")
+MA_group <- c("MA")
+MO_group <- c("MO1", "MO2")
+RS_group <- c("RS")
+
+pablo_spds_raw$Code <- as.character(pablo_spds_raw$Code)
+
+species_newcol <- c()
+
+for (i in seq_len(nrow(pablo_spds_raw))){
+  p <- pablo_spds_raw[i,]
+  if (p$Code %in% RF_group){
+   species_newcol <- c(species_newcol, "red_fox")
+  }
+  if (p$Code %in% RD_group){
+    species_newcol <- c(species_newcol, "red_deer")
+  }
+  if (p$Code %in% RO_group){
+    species_newcol <- c(species_newcol, "roe_deer")
+  }
+  if (p$Code %in% WB_group){
+    species_newcol <- c(species_newcol, "wild_boar")
+  }
+  if (p$Code %in% BA_group){
+    species_newcol <- c(species_newcol, "badger")
+  }
+  if (p$Code %in% FD_group){
+    species_newcol <- c(species_newcol, "fallow_deer")
+  }
+  if (p$Code %in% GE_group){
+    species_newcol <- c(species_newcol, "genet")
+  }
+  if (p$Code %in% IG_group){
+    species_newcol <- c(species_newcol, "iberian_goat")
+  }
+  if (p$Code %in% MA_group){
+    species_newcol <- c(species_newcol, "stone/pine_marten")
+  }
+  if (p$Code %in% MO_group){
+    species_newcol <- c(species_newcol, "mouflon")
+  }
+  if (p$Code %in% RS_group){
+    species_newcol <- c(species_newcol, "red_squirrel")
+  }
+}
+
+pablo_spds_raw["species"] <- species_newcol
+
+
+
+## get parameters for two separate lognormal speed distributions: foraging & moving
+
+# standard deviation: have a look at whether sd varies between movement behaviours 
+
+# mean: estimate by fitting lognormal distributions to his data since it's biased CT data (like you did to get mean speed for unimodal lognormal distribution using Panama & RP data)
+
+pablo_lnorm_est <- c()
+
+for (i in unique(pablo_spds_raw$Code)){ # loop through each species
+  v <- data_all_cats_rp[data_all_cats_rp$species==i,]$Speed.m.s
+  v_df <- data.frame(speed = v)
+  mods <- sbm3(speed~1, v_df) # fit all the models
+  lnorm_est <- c(lnorm_est, predict.sbm(mods[[1]]$lnorm)[1,1])
+}
+
+# make new dataframe:
+
+
+
+pablo_spds_raw["lnorm_est"] <- pablo_lnorm_est
+
+
+
+
+
+
+# parameters for unimodal speed modelling: linking body mass to mean speed, sd, & max speed  ---------------------
 
 ### logspeedSD - use the distribution of speed SDs in the data - but exclude bears & takins bc anomalous
 rp_panama_only <- read.csv("../results/rp_panama_only.csv") # everything apart from bears & takins

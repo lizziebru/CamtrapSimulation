@@ -6,6 +6,9 @@ require(ggpubr)
 require(fitdistrplus)
 require(stringr)
 
+source("~/Documents/Project/CamtrapSimulation/code/CamtrapSimulation.R", echo=TRUE)
+
+
 regentspark_mov_data <- read.csv("../data/regentspark_mov_data.csv")
 india_mov_data <- read.csv("../data/india_mov_data.csv")
 panama_data <- read.csv("../data/panama_data.csv")
@@ -16,68 +19,112 @@ data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 # parameters for bimodal speed modelling: using Pablo's data --------------
 
-# read in Pablo's data from innovations paper
-pablo_spds_raw <- read.csv2("../data/Pablo_spds_raw.txt")
+## add columns for species and body mass and format columns correctly
 
-# add column for species:
+# read in Pablo's data from innovations paper
+# pablo_spds_raw <- read.csv2("../data/Pablo_spds_raw.txt")
+
+
+## from info about Pablo's dataset:
 # GE (genet), BA (badger), FD (fallow deer), IG (Iberian goat), MA (stone/pine marten), 
 # MO (mouflon), RF (red fox), RO (roe deer), RD (red deer), RS (red squirrel) and WB (wild boar).
 
-RF_group <- c("RF1", "RF2", "RF3", "RF4", "RF5")
-RD_group <- c("RD1", "RD2", "RD3", "RD4", "RD6", "RD7")
-RO_group <- c("RO1", "RO2", "RO3", "RO4", "RO5")
-WB_group <- c("WB1", "WB2", "WB3", "WB4", "WB5", "WB6", "WB7")
-BA_group <- c("BA")
-FD_group <- c("FD1", "FD2")
-GE_group <- c("GE")
-IG_group <- c("IG")
-MA_group <- c("MA")
-MO_group <- c("MO1", "MO2")
-RS_group <- c("RS")
+## from Pantheria: (in kg)
+# genet: 1.75617
+# badger: 11.88403
+# fallow deer: 57.22461
+# iberian goat: 60.89877
+# stone/pine marten: 1.675 (stone) & 1.29999 (pine) --> mean = 1.487495
+# mouflon: 39.09789
+# red fox: 4.82036
+# roe deer: 22.50201
+# red deer: 240.86713
+# red squirrel: 0.333
+# wild boar: 84.47154
 
-pablo_spds_raw$Code <- as.character(pablo_spds_raw$Code)
 
-species_newcol <- c()
+# RF_group <- c("RF1", "RF2", "RF3", "RF4", "RF5")
+# RD_group <- c("RD1", "RD2", "RD3", "RD4", "RD6", "RD7")
+# RO_group <- c("RO1", "RO2", "RO3", "RO4", "RO5")
+# WB_group <- c("WB1", "WB2", "WB3", "WB4", "WB5", "WB6", "WB7")
+# BA_group <- c("BA")
+# FD_group <- c("FD1", "FD2")
+# GE_group <- c("GE")
+# IG_group <- c("IG")
+# MA_group <- c("MA")
+# MO_group <- c("MO1", "MO2")
+# RS_group <- c("RS")
+# 
+# # also make the columns the right types
+# pablo_spds_raw$Code <- as.character(pablo_spds_raw$Code)
+# pablo_spds_raw$Speed.m.s <- as.numeric(as.character(pablo_spds_raw$Speed.m.s))
+# 
+# species_newcol <- c()
+# Mb_newcol <- c()
+# 
+# for (i in seq_len(nrow(pablo_spds_raw))){
+#   p <- pablo_spds_raw[i,]
+#   if (p$Code %in% RF_group){
+#    species_newcol <- c(species_newcol, "red_fox")
+#    Mb_newcol <- c(Mb_newcol, 4.82036)
+#   }
+#   if (p$Code %in% RD_group){
+#     species_newcol <- c(species_newcol, "red_deer")
+#     Mb_newcol <- c(Mb_newcol, 240.86713)
+#   }
+#   if (p$Code %in% RO_group){
+#     species_newcol <- c(species_newcol, "roe_deer")
+#     Mb_newcol <- c(Mb_newcol, 22.50201)
+#   }
+#   if (p$Code %in% WB_group){
+#     species_newcol <- c(species_newcol, "wild_boar")
+#     Mb_newcol <- c(Mb_newcol, 84.47154)
+#   }
+#   if (p$Code %in% BA_group){
+#     species_newcol <- c(species_newcol, "badger")
+#     Mb_newcol <- c(Mb_newcol, 11.88403)
+#   }
+#   if (p$Code %in% FD_group){
+#     species_newcol <- c(species_newcol, "fallow_deer")
+#     Mb_newcol <- c(Mb_newcol, 57.22461)
+#   }
+#   if (p$Code %in% GE_group){
+#     species_newcol <- c(species_newcol, "genet")
+#     Mb_newcol <- c(Mb_newcol, 1.75617)
+#   }
+#   if (p$Code %in% IG_group){
+#     species_newcol <- c(species_newcol, "iberian_goat")
+#     Mb_newcol <- c(Mb_newcol, 60.89877)
+#   }
+#   if (p$Code %in% MA_group){
+#     species_newcol <- c(species_newcol, "stone/pine_marten")
+#     Mb_newcol <- c(Mb_newcol, 1.487495)
+#   }
+#   if (p$Code %in% MO_group){
+#     species_newcol <- c(species_newcol, "mouflon")
+#     Mb_newcol <- c(Mb_newcol, 39.09789)
+#   }
+#   if (p$Code %in% RS_group){
+#     species_newcol <- c(species_newcol, "red_squirrel")
+#     Mb_newcol <- c(Mb_newcol, 0.333)
+#   }
+# }
+# 
+# pablo_spds_raw["species"] <- as.character(species_newcol)
+# pablo_spds_raw["body_mass"] <- as.character(Mb_newcol)
 
-for (i in seq_len(nrow(pablo_spds_raw))){
-  p <- pablo_spds_raw[i,]
-  if (p$Code %in% RF_group){
-   species_newcol <- c(species_newcol, "red_fox")
-  }
-  if (p$Code %in% RD_group){
-    species_newcol <- c(species_newcol, "red_deer")
-  }
-  if (p$Code %in% RO_group){
-    species_newcol <- c(species_newcol, "roe_deer")
-  }
-  if (p$Code %in% WB_group){
-    species_newcol <- c(species_newcol, "wild_boar")
-  }
-  if (p$Code %in% BA_group){
-    species_newcol <- c(species_newcol, "badger")
-  }
-  if (p$Code %in% FD_group){
-    species_newcol <- c(species_newcol, "fallow_deer")
-  }
-  if (p$Code %in% GE_group){
-    species_newcol <- c(species_newcol, "genet")
-  }
-  if (p$Code %in% IG_group){
-    species_newcol <- c(species_newcol, "iberian_goat")
-  }
-  if (p$Code %in% MA_group){
-    species_newcol <- c(species_newcol, "stone/pine_marten")
-  }
-  if (p$Code %in% MO_group){
-    species_newcol <- c(species_newcol, "mouflon")
-  }
-  if (p$Code %in% RS_group){
-    species_newcol <- c(species_newcol, "red_squirrel")
-  }
-}
 
-pablo_spds_raw["species"] <- species_newcol
+# save as a new df and read in from here from now on:
 
+# write.csv(pablo_spds_raw, file = "../data/pablo_spds_raw.csv")
+
+
+
+## FROM NOW ON: GO FROM HERE:
+
+pablo_spds_raw <- read.csv("../data/pablo_spds_raw.csv")
+
+# 11 species altogether
 
 
 ## get parameters for two separate lognormal speed distributions: foraging & moving
@@ -86,23 +133,364 @@ pablo_spds_raw["species"] <- species_newcol
 
 # mean: estimate by fitting lognormal distributions to his data since it's biased CT data (like you did to get mean speed for unimodal lognormal distribution using Panama & RP data)
 
-pablo_lnorm_est <- c()
+# vmax: use vmax - body mass relationship from Garland 1983 - cause that's the speed limit for that species
 
-for (i in unique(pablo_spds_raw$Code)){ # loop through each species
-  v <- data_all_cats_rp[data_all_cats_rp$species==i,]$Speed.m.s
-  v_df <- data.frame(speed = v)
-  mods <- sbm3(speed~1, v_df) # fit all the models
-  lnorm_est <- c(lnorm_est, predict.sbm(mods[[1]]$lnorm)[1,1])
+# means:
+pablo_lnorm_est_mov <- c()
+pablo_lnorm_est_feed <- c()
+
+# sd:
+pablo_lnorm_sd_mov <- c()
+pablo_lnorm_sd_feed <- c()
+
+# subset by feeding behaviour
+pablo_mov <- pablo_spds_raw[pablo_spds_raw$Behaviour=="Moving",]
+pablo_feed <- pablo_spds_raw[pablo_spds_raw$Behaviour=="Feeding",]
+
+for (i in unique(pablo_spds_raw$species)){ # loop through each species
+  
+  ## moving speed estimate:
+  v_mov <- na.omit(pablo_mov[pablo_mov$species==i,]$Speed.m.s)
+  if (length(v_mov) <= 1 || i == "iberian_goat"){ # if there are no moving speeds for that animal or just one, can't fit the model so assign the estimate as NA -- and also if it's an iberian goat - optimisation algorithm can't do it so just skip it
+    pablo_lnorm_est_mov <- c(pablo_lnorm_est_mov, NA)
+    pablo_lnorm_sd_mov <- c(pablo_lnorm_sd_mov, NA)
+  }
+  else{ # otherwise, fit the models
+    v_df_mov <- data.frame(speed = v_mov)
+    mods_mov <- sbm3(speed~1, v_df_mov) # fit all the models
+    pablo_lnorm_est_mov <- c(pablo_lnorm_est_mov, predict.sbm(mods_mov[[1]]$lnorm)[1,1])
+    pablo_lnorm_sd_mov <- c(pablo_lnorm_sd_mov, predict.sbm(mods_mov[[1]]$lnorm)[1,2])
+  }
+  
+  ## feeding speed estimate:
+  v_feed <- na.omit(pablo_feed[pablo_feed$species==i,]$Speed.m.s)
+  if (length(v_feed) <= 1 || i == "fallow_deer"){ # if there are no feeding speeds for that animal or just one, can't fit the model so assign the estimate as NA - also if it's a fallow deer - optim also doesn't work with this so just skip this
+    pablo_lnorm_est_feed <- c(pablo_lnorm_est_feed, NA)
+    pablo_lnorm_sd_feed <- c(pablo_lnorm_sd_feed, NA)
+  }
+  else{ # otherwise, fit the models
+    v_df_feed <- data.frame(speed = v_feed)
+    mods_feed <- sbm3(speed~1, v_df_feed) # fit all the models
+    pablo_lnorm_est_feed <- c(pablo_lnorm_est_feed, predict.sbm(mods_feed[[1]]$lnorm)[1,1])
+    pablo_lnorm_sd_feed <- c(pablo_lnorm_sd_feed, predict.sbm(mods_feed[[1]]$lnorm)[1,2])
+  }
 }
 
+
 # make new dataframe:
+pablo_main <- data.frame(species = rep(unique(pablo_spds_raw$species), times = 2),
+                         body_mass = rep(unique(pablo_spds_raw$body_mass), times = 2),
+                         behav = c(rep("moving", times = length(pablo_lnorm_est_mov)), rep("feeding", times = length(pablo_lnorm_est_feed))),
+                         v_mean = c(pablo_lnorm_est_mov, pablo_lnorm_est_feed),
+                         v_sd = c(pablo_lnorm_sd_mov, pablo_lnorm_sd_feed))
+
+
+# check for whether speed sd varies with body mass:
+ggplot(pablo_main, aes(x = body_mass, y = v_sd, colour = behav))+
+  geom_point()
+
+# no clear trend with body mass - esp if only look up until 50kg
+
+# but sd is higher for moving than feeding behaviours - so use a fixed sd for each behaviour
+pablo_sd_mov <- mean(na.omit(pablo_main[pablo_main$behav=="moving",]$v_sd)) # = 0.0465557
+pablo_sd_feed <- mean(na.omit(pablo_main[pablo_main$behav=="feeding",]$v_sd)) # = 0.01015985
+
+
+# get relationship between body mass (kg) and mean_v (m/s) for each behaviour:
+
+# need this on a log scale:
+v_bodymass_relat_pablo <- ggplot(pablo_main, aes(x = log10(body_mass), y = log10(v_mean), colour = behav))+
+  geom_point()
+v_bodymass_relat_pablo
+
+# (this plot produces the same plot -- just for my sake of understanding this):
+v_bodymass_relat2_pablo <- ggplot(pablo_main, aes(x = body_mass, y = v_mean, colour = behav))+
+  geom_point()+
+  scale_y_log10()+
+  scale_x_log10()
+v_bodymass_relat2_pablo
+
+# fit regression model:
+v_bodymass_lm_fit_pablo_mov <- lm(log(v_mean) ~ log(body_mass), data = pablo_main[pablo_main$behav=="moving",])
+v_bodymass_lm_fit10_pablo_mov <- lm(log10(v_mean) ~ log10(body_mass), data = pablo_main[pablo_main$behav=="moving",])
+summary(v_bodymass_lm_fit_pablo_mov)
+
+cfs1 <- coef(v_bodymass_lm_fit_pablo_mov)
+cfs2 <- coef(v_bodymass_lm_fit10_pablo_mov)
+
+exp(cfs1[1])
+10^cfs2[1]
+# --> both of these give you the same bc the back-transform corresponds to which way you logged it originally
+
+
+v_bodymass_lm_fit_pablo_feed <- lm(log(v_mean) ~ log(body_mass), data = pablo_main[pablo_main$behav=="feeding",])
+summary(v_bodymass_lm_fit_pablo_feed)
+
+cfs_feed <- coef(v_bodymass_lm_fit_pablo_feed)
+
+exp(cfs_feed[1])
+
+# coefficients:
+# moving: 
+# intercept = 0.396163, slope = 0.04714894
+# feeding: 
+# intercept = 0.03414077, slope = 0.1410986
+
+# power law eqns to use in pathgen:
+# c = 10^intercept
+# b = slope
+
+# moving:
+# v_av = 2.489792*(Mb^0.04714894)
+# feeding:
+# v_av = 1.081785*(Mb^0.1410986)
+
+##----------------------------------------------------------------##
+
+## time spent feeding vs moving
+
+# time spent feeding: draw from a normal distribution with mean dependent on body mass
+
+# use scaling relationship between handling time and body mass from Pawar et al. 2012
+
+## mean:
+# th = 8912.509*(Mb^-1.02) -- from supp fig 2e Pawar et al. 2012
+# th measured in s/kg though - where the kg is for resource mass - don't have this though...
+# to get into hours: th = (8912.509*(Mb^-1.02))/3600
+
+## sd:
+# exponent is -1.02 plus or minus 0.08, so could just use 0.08 as the standard deviation?
+
+
+# test it out:
+# Mb = 10 kg
+# th*Mb = 8511.38 s
+# sd = 0.08
+
+plot(density(rnorm(1000, mean = 8511.38, sd = 0.08)))
+# sd feels a bit small though - maybe should multiply it by Mb^2? Cause its units are technically s/kg^2..?
+
+# if use sd = 8 (i.e. multiplied by Mb^2), increases the range a bit but still not by much
 
 
 
-pablo_spds_raw["lnorm_est"] <- pablo_lnorm_est
+
+## things to figure out:
+
+# 1. can I equate th in s/kg to just seconds if assume 1kg of resource mass -- i.e. just define my feeding time as handling time for 1kg resource mass? - then could just have that in the discussion as a limitation of the model is that it I haven't modelled how resource mass varies with consumer mass?
+# 2. standard deviation: seems too small to use 0.08...?
+# 3. what's the probability of switching from moving into feeding? 10%?
+
+# 1:
+# using 1kg of resource mass means that time decreases way too much for larger body masses:
+# 1kg: 2.48 hours
+# 10kg: 14.2 min
+# 20kg: 7 min
+# 30kg: 4.63 min
+# 40kg: 3.45 min
+# 50kg: 2.75 min
+
+# would be good to find a scaling trend of resource mass with consumer mass...
+
+# there is one in Pawar et al. 2012 too! - supp fig 2g
+# Mr = 10^(-2.76)*Mc^(0.73)
+# where Mr = resource mass, Mc = consumer mass
+
+# so th in seconds would be the th equation above multiplied by the resource mass for that consumer mass:
+# th = 10^(3.95)*Mb^(-1.02) * 10^(-2.76)*Mb^(0.73)
+# th = 10^(1.19)*Mb^(-0.29)
+# --> is it ok to do this though?
+
+# does this generate more legit times?
+# 1kg: 15.48817 s
+# 10kg: 7.943282 s
+# 20kg: 6.496827 s
+# 30kg: 5.776102 s
+# 40kg: 5.313768 s
+# 50kg: 4.980795 s
+# --> seem way to small now...
+# bc resource masses are pretty small for consumer masses up to 50kg
+# but why is the time decreasing? doesn't look right
+
+# maybe it's a units issue?
+# no, everything's in kg
+
+# need to discuss q1 with Samraat
+# and q2 (sd issue) too
+
+# and also q3: discuss with Samraat or Chris: any work which could inform probability of switching from moving to feeding?
+# (or proportion of time spent moving vs feeding?)
 
 
 
+##-----------------------------------------------##
+
+# turnangle for feeding vs moving:
+
+# in my unimodal simulation:
+# pTurn (prob of turning at each step) = 0.5
+# kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) = 2
+
+# what I probably need to change for moving vs feeding: pTurn
+# could just keep kTurn the same to keep things more constant? - discuss with M though
+
+# Pablo doesn't use pTurn - he just varies kTurn
+
+# pTurn in pathgen: used here:
+tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+# try out various values of pTurn:
+# could say that feeding behaviour = more likely to turn = pTurn==0.75??
+# and moving behaviour = pTurn==0.25??
+
+# does kappa need changing?
+
+
+## ------------------------------------------------##
+
+# test all this out
+
+## pathgen - new version with extra option to simulate bimodal movement
+## generates a path of x, y positions using a correlated random walk
+# INPUTS:
+# n: number of steps
+# pTurn: probability of turning at each step
+# kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
+# Mb: body mass - then defines meanlogspeed and maxlogspeed
+# speedCor: autocorrelation in speed
+# kCor: whether to correlate kappa with speed
+# xlim, ylim: x and y axis limits within which to pick the starting point
+# wrapped: whether to wrap the path
+# bimodal: whether to simulate bimodal movement (moving & feeding behaviours)
+# OUTPUT:
+# A list with elements:
+# path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
+# turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
+# speed: step speeds
+pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE, bimodal=FALSE){
+  
+  vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb))) # set maxspeed - using body mass relationship from Garland 1983
+  
+  if (bimodal==FALSE){ # for unimodal movement:
+    logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
+    
+    logspeed <- log(0.1357288*(Mb^0.197178)) # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
+    
+    spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    
+    spds <- spds[spds<vmax] # cap those spds at the max speed
+    
+    n_capped <- length(spds) # set new number of steps based on how may speeds you now have
+    
+    tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas <- kTurn * spds / mean(spds)
+      deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
+      deviates <- as.numeric(rvonmises(n_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+    deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
+    
+    x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
+    absdevs <- deviates
+    i <- absdevs>pi
+    absdevs[i] <- 2*pi-absdevs[i]
+    absdevs <- abs(absdevs)
+    res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
+    if(wrapped) res <- wrap(res, xlim, ylim)
+    res
+  }
+  
+  if (bimodal==TRUE){ # for bimodal movement:
+    
+    # need to generate a set of speeds where you're drawing from either distribution of speeds (moving or feeding) then switching back and forth between each behaviour
+    
+    
+    # lognormal distributions for each behaviour:
+    # moving:
+    # v_av = 2.489792*(Mb^0.04714894)
+    # sd = 
+    # feeding:
+    # v_av = 1.081785*(Mb^0.1410986)
+    
+
+    
+    
+    
+    
+  }
+
+  
+    
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## probability of switching between the two behaviours:
+
+## while moving: fixed probability of switching to feeding behaviour of 10%
+# simplifies things - means don't go into modelling the environment and needs -- just average out to roughly 10%
+# but have a look at the kind of trajectories this generates and if they look right
+# OR: could model search rate with body size also using Pawar et al. 2012
+# BUT: movement isn't JUST about searching for food: also for mates, territory, fleeing disturbance/danger etc
+# so summarise this as 10% for simplicity for now
+
+
+## while feeding: draw length of feeding time from a distribution with parameters defined by body mass:
+# normal distribution with mean & sd
+
+# relationship between mean feeding time and body mass:
+# from Pawar et al. 2012 (Nature):
+# consumption rates scale sublinearly with consumer body mass (exponent of approximately 0.85) for 2D interactions (terrestrial)
+# I want the scaling relationship for th (handling time)
+
+
+# relationship between sd of feeding time and body mass:
+# is there one?
+# maybe use a fixed sd?
+
+
+
+
+
+
+## tortuosity parameters for the two behaviours:
+
+
+
+
+
+
+
+## summary of all parameters:
+
+# moving:
+# v_av = 2.489792*(Mb^0.04714894)
+# v_sd = 0.0465557
+# vmax = (8.356367*(Mb^0.25892))/(M^(0.06237*log10(Mb))) (from Garland 1983)
+
+# feeding:
+# v_av = 1.081785*(Mb^0.1410986)
+# v_sd = 0.01015985
+# vmax = (8.356367*(Mb^0.25892))/(M^(0.06237*log10(Mb))) (from Garland 1983)
 
 
 
@@ -120,8 +508,6 @@ sd_log_density
 # use the mean of this as the fixed speed SD - bc there's no literature on the variation of speedSD with body size
 # and empirical data suggest it remains relatively constant across body masses too
 fixed_logspeedSD <- mean(rp_panama_only$sd_log_v) ## == 0.8546151
-
-
 
 
 

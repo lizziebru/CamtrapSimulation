@@ -142,6 +142,8 @@ pablo_lnorm_est_feed <- c()
 # sd:
 pablo_lnorm_sd_mov <- c()
 pablo_lnorm_sd_feed <- c()
+pablo_lnorm_sd_log_mov <- c() # for speeds on a log scale
+pablo_lnorm_sd_log_feed <- c() # ditto
 
 # subset by feeding behaviour
 pablo_mov <- pablo_spds_raw[pablo_spds_raw$Behaviour=="Moving",]
@@ -154,12 +156,14 @@ for (i in unique(pablo_spds_raw$species)){ # loop through each species
   if (length(v_mov) <= 1 || i == "iberian_goat"){ # if there are no moving speeds for that animal or just one, can't fit the model so assign the estimate as NA -- and also if it's an iberian goat - optimisation algorithm can't do it so just skip it
     pablo_lnorm_est_mov <- c(pablo_lnorm_est_mov, NA)
     pablo_lnorm_sd_mov <- c(pablo_lnorm_sd_mov, NA)
+    pablo_lnorm_sd_log_mov <- c(pablo_lnorm_sd_log_mov, NA)
   }
   else{ # otherwise, fit the models
     v_df_mov <- data.frame(speed = v_mov)
     mods_mov <- sbm3(speed~1, v_df_mov) # fit all the models
     pablo_lnorm_est_mov <- c(pablo_lnorm_est_mov, predict.sbm(mods_mov[[1]]$lnorm)[1,1])
     pablo_lnorm_sd_mov <- c(pablo_lnorm_sd_mov, predict.sbm(mods_mov[[1]]$lnorm)[1,2])
+    pablo_lnorm_sd_log_mov <- c(pablo_lnorm_sd_log_mov, mean(sd(log(v_mov))))
   }
   
   ## feeding speed estimate:
@@ -167,12 +171,14 @@ for (i in unique(pablo_spds_raw$species)){ # loop through each species
   if (length(v_feed) <= 1 || i == "fallow_deer"){ # if there are no feeding speeds for that animal or just one, can't fit the model so assign the estimate as NA - also if it's a fallow deer - optim also doesn't work with this so just skip this
     pablo_lnorm_est_feed <- c(pablo_lnorm_est_feed, NA)
     pablo_lnorm_sd_feed <- c(pablo_lnorm_sd_feed, NA)
+    pablo_lnorm_sd_log_feed <- c(pablo_lnorm_sd_log_feed, NA)
   }
   else{ # otherwise, fit the models
     v_df_feed <- data.frame(speed = v_feed)
     mods_feed <- sbm3(speed~1, v_df_feed) # fit all the models
     pablo_lnorm_est_feed <- c(pablo_lnorm_est_feed, predict.sbm(mods_feed[[1]]$lnorm)[1,1])
     pablo_lnorm_sd_feed <- c(pablo_lnorm_sd_feed, predict.sbm(mods_feed[[1]]$lnorm)[1,2])
+    pablo_lnorm_sd_log_feed <- c(pablo_lnorm_sd_log_feed, mean(sd(log(v_feed))))
   }
 }
 
@@ -182,18 +188,18 @@ pablo_main <- data.frame(species = rep(unique(pablo_spds_raw$species), times = 2
                          body_mass = rep(unique(pablo_spds_raw$body_mass), times = 2),
                          behav = c(rep("moving", times = length(pablo_lnorm_est_mov)), rep("feeding", times = length(pablo_lnorm_est_feed))),
                          v_mean = c(pablo_lnorm_est_mov, pablo_lnorm_est_feed),
-                         v_sd = c(pablo_lnorm_sd_mov, pablo_lnorm_sd_feed))
+                         v_sd_log = c(pablo_lnorm_sd_log_mov, pablo_lnorm_sd_log_feed))
 
 
 # check for whether speed sd varies with body mass:
-ggplot(pablo_main, aes(x = body_mass, y = v_sd, colour = behav))+
+ggplot(pablo_main, aes(x = body_mass, y = v_sd_log, colour = behav))+
   geom_point()
 
 # no clear trend with body mass - esp if only look up until 50kg
 
 # but sd is higher for moving than feeding behaviours - so use a fixed sd for each behaviour
-pablo_sd_mov <- mean(na.omit(pablo_main[pablo_main$behav=="moving",]$v_sd)) # = 0.0465557
-pablo_sd_feed <- mean(na.omit(pablo_main[pablo_main$behav=="feeding",]$v_sd)) # = 0.01015985
+pablo_sd_log_mov <- mean(na.omit(pablo_main[pablo_main$behav=="moving",]$v_sd_log)) 
+pablo_sd_log_feed <- mean(na.omit(pablo_main[pablo_main$behav=="feeding",]$v_sd_log)) 
 
 
 # get relationship between body mass (kg) and mean_v (m/s) for each behaviour:
@@ -349,100 +355,6 @@ tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers e
 
 # test all this out
 
-## pathgen - new version with extra option to simulate bimodal movement
-## generates a path of x, y positions using a correlated random walk
-# INPUTS:
-# n: number of steps
-# pTurn: probability of turning at each step
-# kTurn: mean vonMises concentration parameter (kappa) for turn angle (higher = more concentrated) -- just like SD for normal distribution: how concentrated it is about the mean
-# Mb: body mass - then defines meanlogspeed and maxlogspeed
-# speedCor: autocorrelation in speed
-# kCor: whether to correlate kappa with speed
-# xlim, ylim: x and y axis limits within which to pick the starting point
-# wrapped: whether to wrap the path
-# bimodal: whether to simulate bimodal movement (moving & feeding behaviours)
-# OUTPUT:
-# A list with elements:
-# path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
-# turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
-# speed: step speeds
-pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE, bimodal=FALSE){
-  
-  vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb))) # set maxspeed - using body mass relationship from Garland 1983
-  
-  if (bimodal==FALSE){ # for unimodal movement:
-    logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
-    
-    logspeed <- log(0.1357288*(Mb^0.197178)) # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
-    
-    spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
-    
-    spds <- spds[spds<vmax] # cap those spds at the max speed
-    
-    n_capped <- length(spds) # set new number of steps based on how may speeds you now have
-    
-    tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
-    if(kCor==TRUE){ # if we want to correlate kappa with speed:
-      kappas <- kTurn * spds / mean(spds)
-      deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
-    } 
-    else 
-      deviates <- as.numeric(rvonmises(n_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
-    deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
-    angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
-    
-    x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
-    y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
-    absdevs <- deviates
-    i <- absdevs>pi
-    absdevs[i] <- 2*pi-absdevs[i]
-    absdevs <- abs(absdevs)
-    res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
-    if(wrapped) res <- wrap(res, xlim, ylim)
-    res
-  }
-  
-  if (bimodal==TRUE){ # for bimodal movement:
-    
-    # need to generate a set of speeds where you're drawing from either distribution of speeds (moving or feeding) then switching back and forth between each behaviour
-    
-    
-    # lognormal distributions for each behaviour:
-    # moving:
-    # v_av = 2.489792*(Mb^0.04714894)
-    # sd = 
-    # feeding:
-    # v_av = 1.081785*(Mb^0.1410986)
-    
-
-    
-    
-    
-    
-  }
-
-  
-    
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ## probability of switching between the two behaviours:
 
@@ -469,13 +381,7 @@ pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0),
 
 
 
-
-
-
 ## tortuosity parameters for the two behaviours:
-
-
-
 
 
 
@@ -499,6 +405,7 @@ pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0),
 ### logspeedSD - use the distribution of speed SDs in the data - but exclude bears & takins bc anomalous
 rp_panama_only <- read.csv("../results/rp_panama_only.csv") # everything apart from bears & takins
 plot(density(rp_panama_only$sd_log_v))
+plot(density(rp_panama_only$sd_v))
 
 sd_log_density <- ggplot(rp_panama_only, aes(x = sd_log_v))+
   geom_density()+
@@ -508,6 +415,15 @@ sd_log_density
 # use the mean of this as the fixed speed SD - bc there's no literature on the variation of speedSD with body size
 # and empirical data suggest it remains relatively constant across body masses too
 fixed_logspeedSD <- mean(rp_panama_only$sd_log_v) ## == 0.8546151
+
+
+## maybe there is literature on this though - how speed SD scales with body mass
+# or how it scales with mean speed?
+ggplot(rp_panama_only, aes(x = mean_v, y= sd_v))+
+  geom_point()
+
+
+
 
 
 

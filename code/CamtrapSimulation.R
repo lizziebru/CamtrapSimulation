@@ -48,6 +48,7 @@ rautonorm <- function(n,mean=0,sd=1,r){
   }
 
 
+
 ## pathgen
 ## generates a path of x, y positions using a correlated random walk
 # INPUTS:
@@ -59,51 +60,117 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
 # wrapped: whether to wrap the path
+# bimodal: whether to simulate bimodal movement (moving & feeding behaviours)
+# mov_prop: proportion of time spent moving (decimal between 0 and 1)
 # OUTPUT:
 # A list with elements:
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
-pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
-  # set fixed logspeedSD (calculated using regent's park & panama data)
-  logspeedSD <- 0.8546151
+pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=0.5, xlim=c(0,0), ylim=xlim, wrapped=TRUE, bimodal=FALSE, mov_prop=1, pTurn_mov=0.3, pTurn_feed=0.8){
   
-  # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
-  logspeed <- log(0.1357288*(Mb^0.197178)) 
-
-  # set maxspeed - using body mass relationship from Garland 1983
-  vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb)))
+  vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb))) # set maxspeed - using body mass relationship from Garland 1983
   
-  spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates
-  
-  # cap those spds at the max speed
-  spds <- spds[spds<vmax]
-  
-  # set new number of steps based on how may speeds you now have:
-  n_capped <- length(spds)
-  
-  # exp bc: the speed chunks we see tend to be log normally distributed (therefore need natural logarithms not log10!!)
-  # so you're generating a normal distribution of variates on the log scale (using logspeed)
-  # so take exp to get them back to linear scale
-  tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
-  if(kCor==TRUE){ # if we want to correlate kappa with speed:
-    kappas <- kTurn * spds / mean(spds)
-    deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
-  } 
-  else 
+  if (bimodal==FALSE){ # for unimodal movement:
+    pTurn = 0.5
+    logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
+    logspeed <- log(0.1357288*(Mb^0.197178)) # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
+    spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds <- spds[spds<vmax] # cap those spds at the max speed
+    n_capped <- length(spds) # set new number of steps based on how may speeds you now have
+    tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas <- kTurn * spds / mean(spds)
+      deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
       deviates <- as.numeric(rvonmises(n_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
-  deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
-  angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
-  x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
-  y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
-  absdevs <- deviates
-  i <- absdevs>pi
-  absdevs[i] <- 2*pi-absdevs[i]
-  absdevs <- abs(absdevs)
-  res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
-  if(wrapped) res <- wrap(res, xlim, ylim)
-  res
+    deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
+    
+    x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
+    absdevs <- deviates
+    i <- absdevs>pi
+    absdevs[i] <- 2*pi-absdevs[i]
+    absdevs <- abs(absdevs)
+    res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
+    if(wrapped) res <- wrap(res, xlim, ylim)
+  }
+  
+  if (bimodal==TRUE){ # for bimodal movement:
+    
+    # number of steps to do in each behaviour:
+    n_mov <- mov_prop*n
+    n_feed <- n-n_mov
+    
+    # parameters for each distribution
+    logspeedSD_mov <- 0.8656343 # set fixed logspeedSD (calculated using Pablo's data)
+    logspeed_mov <- log(2.489792*(Mb^0.04714894)) # set logspeed - using body mass relationship derived from Pablo's data (fitting lnorm)
+    logspeedSD_feed <- 1.04981 
+    logspeed_feed <- log(1.081785*(Mb^0.1410986))
+    
+    # generate and cap speeds for each distribution
+    spds_mov <- exp(rautonorm(n_mov, logspeed_mov, logspeedSD_mov, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds_mov <- spds_mov[spds_mov<vmax] # cap those spds at the max speed
+    n_mov_capped <- length(spds_mov) # set new number of steps based on how may speeds you now have
+    
+    spds_feed <- exp(rautonorm(n_feed, logspeed_feed, logspeedSD_feed, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds_feed <- spds_feed[spds_feed<vmax] # cap those spds at the max speed
+    n_feed_capped <- length(spds_feed) # set new number of steps based on how may speeds you now have
+    
+    
+    # generate path for each distribution:
+    
+    # moving:
+    tTurn_mov <- rbinom(n_mov_capped,1,pTurn_mov) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas_mov <- kTurn * spds_mov / mean(spds_mov)
+      deviates_mov <- sapply(kappas_mov, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
+      deviates_mov <- as.numeric(rvonmises(n_mov_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+    deviates_mov[tTurn_mov==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles_mov <- runif(1)*2*pi + cumsum(deviates_mov) # transforms deviates into angles corresponding to the amount you turn at each step
+    x_mov <- c(0, cumsum(spds_mov*sin(angles_mov))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y_mov <- c(0, cumsum(spds_mov*cos(angles_mov))) + runif(1,ylim[1],ylim[2])
+    absdevs_mov <- deviates_mov
+    i <- absdevs_mov>pi
+    absdevs_mov[i] <- 2*pi-absdevs_mov[i]
+    absdevs_mov <- abs(absdevs_mov)
+    
+    # feeding:
+    tTurn_feed <- rbinom(n_feed_capped,1,pTurn_feed) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas_feed <- kTurn * spds_feed / mean(spds_feed)
+      deviates_feed <- sapply(kappas_feed, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
+      deviates_feed <- as.numeric(rvonmises(n_feed_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+    deviates_feed[tTurn_feed==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles_feed <- runif(1)*2*pi + cumsum(deviates_feed) # transforms deviates into angles corresponding to the amount you turn at each step
+    x_feed <- c(0, cumsum(spds_feed*sin(angles_feed))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y_feed <- c(0, cumsum(spds_feed*cos(angles_feed))) + runif(1,ylim[1],ylim[2])
+    absdevs_feed <- deviates_feed
+    i <- absdevs_feed>pi
+    absdevs_feed[i] <- 2*pi-absdevs_feed[i]
+    absdevs_feed <- abs(absdevs_feed)
+    
+    
+    # combine the 2 into the final list
+    x <- c(x_mov, x_feed)
+    y <- c(y_mov, y_feed)
+    deviates <- c(deviates_mov, deviates_feed)
+    absdevs <- c(deviates_mov, deviates_feed)
+    spds <- c(spds_mov, spds_feed)
+    res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
+    if(wrapped) res <- wrap(res, xlim, ylim)
+  }
+  return(res)
 }
+
+
+
 
 
 ## wrap

@@ -156,7 +156,6 @@ pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=0.5, xlim=c(0,0
     absdevs_feed[i] <- 2*pi-absdevs_feed[i]
     absdevs_feed <- abs(absdevs_feed)
     
-    
     # combine the 2 into the final list
     x <- c(x_mov, x_feed)
     y <- c(y_mov, y_feed)
@@ -235,9 +234,9 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 }
 
 
-# model for small species' radius: hazard rate with logistic mix
+# model for small species' radius: hazard rate with logistic mix - now correct and using only panama data
 small_radius <- function(radius){
-  prob <- (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
+  prob <- (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius)))
   if (prob > 1){
     prob <- 1
   }
@@ -247,9 +246,9 @@ small_radius <- function(radius){
   return(prob)
 }
 
-# model for large species' radius: hazard rate
+# model for large species' radius: hazard rate - now correct and using only panama data
 large_radius <- function(radius){
-  prob <- (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
+  prob <- 1 - exp(-(0.1219941/radius)^0.4477139)
   if (prob > 1){
     prob <- 1
   }

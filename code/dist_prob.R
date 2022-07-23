@@ -97,12 +97,14 @@ coef(hzlog_s_r)
 
 # adding scaling of maximum effective detection distance: scale radius of initial fixed dz boundary with body mass -------------------------------------
 
-# just use max distance for each species:
-panama_max_dists <- data.frame(distance = )
+# need to work out effective detection distance for each species then correlate this with body mass
+# could use either standard detection model function or linear covariate method (alternatives in M's code)
+# seems to be they used covariate method in their paper 
+# but they discuss pros & cons of using it in the discussion -- if you use this you should discuss these too
+# need to decide between which one to use - resume on this tomorrow
 
 ggplot(panama, aes(x = Body_mass_g, y = distance))+
   geom_point()
-  
 
 
 

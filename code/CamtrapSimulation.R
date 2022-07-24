@@ -3218,3 +3218,156 @@ round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k))
 # ## to finish if decide it would be useful -- for now just use multi-speed plots though
 
 
+
+
+
+
+
+
+
+
+# # Example of how to run the simulation -- provided by M at the start -----------------------------------------------------------------
+# 
+# # Create a correlated random walk movement path
+# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                 logspeed=-2, speedSD=1, speedCor=0, 
+#                 xlim=c(0,10), wrap=TRUE)
+# 
+# # Create a camera detection zone
+# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# 
+# # Visualise
+# plot_wrap(path, lineargs = list(col="grey"))
+# plot_dzone(dz, border=2)
+# 
+# # Create position data for sequences falling within the detection zone
+# posdat <- sequence_data(path, dz)
+# points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+# 
+# # Create speed data summarised for each sequence
+# seqdat <- calc_speed(posdat)
+
+
+
+
+# # initial exploration of how use the simulation to investigate bias 2 -------------------------------------------
+# 
+# # simulate animal movements with varying speeds
+# 
+# # high speeds: 
+# # hedgehogs: max ~ 1.7m/s
+# # foxes: max ~ 13.9m/s
+# 
+# # Create a correlated random walk movement path
+# path2 <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                  logspeed=-1, speedSD=1, speedCor=0, 
+#                  xlim=c(0,10), wrap=TRUE)
+# 
+# # Create a camera detection zone
+# dz2 <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# 
+# # Visualise
+# plot_wrap(path2, lineargs = list(col="grey"))
+# plot_dzone(dz2, border=2)
+# 
+# # Create position data for sequences falling within the detection zone
+# posdat2 <- sequence_data(path2, dz2)
+# points(posdat2$x, posdat2$y, col=2, pch=16, cex=0.5)
+# 
+# # Create speed data summarised for each sequence
+# seqdat2 <- calc_speed(posdat2)
+# 
+# # visualise how the measured speeds relate to what it's meant to be
+# 
+# ggplot()+
+#   geom_density(aes(x = seqdat2$speed))+
+#   geom_vline(xintercept = exp(-1), colour = 'blue', size = 1)+
+#   theme_minimal()+
+#   geom_text(aes(x=exp(-1), label="true speed", y=0.5), colour="blue", angle=90, vjust = 1.2, text=element_text(size=11))
+# 
+# 
+# # plot how this relationship changes as you up the speed
+# 
+# # make function to do everything with varying speed as an input:
+# 
+# speeds_plot <- function(speed) {
+#   path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                   logspeed=speed, speedSD=1, speedCor=0, 
+#                   xlim=c(0,10), wrap=TRUE)
+#   
+#   dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+#   
+#   plot_wrap(path, lineargs = list(col="grey"))
+#   plot_dzone(dz, border=2)
+#   
+#   posdat <- sequence_data(path, dz)
+#   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+#   
+#   seqdat <- calc_speed(posdat)
+#   
+#   # p <- ggplot()+
+#   #   geom_density(aes(x = seqdat$speed))+
+#   #   geom_vline(xintercept = exp(speed), colour = 'blue', size = 1)+
+#   #   theme_minimal()
+#   
+#   colours <- c("real" = "blue", "measured" = "red")
+#   p <- ggplot()+
+#     geom_density(aes(x = seqdat$speed, colour = 'measured'))+
+#     geom_density(aes(x = path$speed, colour = 'real'))+
+#     theme_minimal()+
+#     scale_color_manual(values = colours)+
+#     labs(x = "speed",
+#          colour = "speed")
+#   
+#   return(plot(p))
+#   
+# }
+# 
+# 
+# # plot how the relationship changes as you get higher speeds:
+# 
+# # make vector of some speeds to compare:
+# speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes
+# 
+# # run the simulation on each speed
+# plots <- lapply(speeds, speeds_plot)
+# 
+# # arrange all the plots in one panel
+# m <- marrangeGrob(plots, nrow = 7, ncol = 3)
+# 
+# ggsave(filename = "high_speeds3.png", plot = m, path = "plots", width = 10, height = 18)
+# 
+# 
+# # would be good to look at the proportion of frame numbers equal to 1 - how those change with increasing speeds (expect them to just increase)
+# 
+# ## plot how the number of frame numbers equal to 1 increases as speeds increase
+# # then could investigate factors that affect this 
+# # e.g. camera settings, tortuosity
+# 
+# single_frames <- function(speed) {
+#   path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                   logspeed=speed, speedSD=1, speedCor=0, 
+#                   xlim=c(0,10), wrap=TRUE)
+#   
+#   dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+#   
+#   plot_wrap(path, lineargs = list(col="grey"))
+#   plot_dzone(dz, border=2)
+#   
+#   posdat <- sequence_data(path, dz)
+#   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+#   
+#   seqdat <- calc_speed(posdat)
+#   
+#   seqdat2 <- cbind(seqdat, rep(speed, length(nrow(seqdat))))
+#   
+#   single_frames <- nrow(seqdat2[seqdat2$points==1,])
+#   
+#   return(c(speed, single_frames))
+# }
+# 
+# speeds2 <- seq(-3, 2, by = 0.01)
+# 
+# lapply(speeds2, single_frames) # takes absolutely ages!
+# 
+# # plot speed against single frame number

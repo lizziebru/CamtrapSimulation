@@ -16,9 +16,6 @@ panama_data <- read.csv("../data/panama_data.csv")
 data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 
-
-
-
 # parameters for bimodal speed modelling: using Pablo's data --------------
 
 ## add columns for species and body mass and format columns correctly

@@ -25,10 +25,11 @@ th = 0.7
 twoCTs = FALSE
 connectedCTs = FALSE
 path_cutby = 1
+effdist=FALSE
 
 
 # run the simulation to save as seq_dats:
-generate_seqdats(parentfolder=parentfolder, Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby)
+generate_seqdats(parentfolder=parentfolder, Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby, effdist=effdist)
 
 # # run the simulation and analyse the results:
 # run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, n_cores=4)

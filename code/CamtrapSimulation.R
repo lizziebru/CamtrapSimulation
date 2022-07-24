@@ -534,10 +534,10 @@ reassign_prob <- function(isindz_row, logistic_mix){
 #           x,y: x,y coordinates of camera
 #           r, th: detection zone radius and angle
 #           dir: radian direction in which the camera is facing
-# species = size of the animal (1 = large, 0 = small)
+# effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone, logistic_mix){
+is_in_dz <- function(point, dzone, effdist){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -573,7 +573,7 @@ is_in_dz <- function(point, dzone, logistic_mix){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
   
-  new_reses <- apply(isindz_df, 1, reassign_prob, logistic_mix=logistic_mix)
+  new_reses <- apply(isindz_df, 1, reassign_prob, effdist=effdist)
   
   isindz_all <- data.frame(indz = isindz_df$res,
                            detected = new_reses)
@@ -657,15 +657,15 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # INPUT
 # path: a path object
 # a detection zone array
-# logistic_mix: whether or not to use logistic mix hazard rate function or just hazard rate function for detection probability
+# effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # A data frame with columns:
 # x,y: x,y co-ordinates of sequence points in detection zones
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
-sequence_data <- function(pth, dzone, logistic_mix){
+sequence_data <- function(pth, dzone, effdist){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone, logistic_mix) # returns true or false for whether each position in the path is in the detection zone
+  isin_all <- is_in_dz(pth, dzone, effdist) # returns true or false for whether each position in the path is in the detection zone
   
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
@@ -723,6 +723,7 @@ sequence_data <- function(pth, dzone, logistic_mix){
 # th = angle of detection zone
 # plot_path = TRUE or FALSE - if TRUE, plots the path & dz
 # twoCTs = TRUE or FALSE - if TRUE, sets up 2 CTs next to each other
+# effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT:
 # dataframe containing: 
 # realised speeds
@@ -732,12 +733,12 @@ sequence_data <- function(pth, dzone, logistic_mix){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, parentfolder, j, r, th, logistic_mix, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+run_simulation <- function(path, parentfolder, j, r, th, effdist, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
   
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz, logistic_mix) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all <- sequence_data(path, dz, effdist) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -747,9 +748,9 @@ run_simulation <- function(path, parentfolder, j, r, th, logistic_mix, plot_path
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    posdat_all1 <- sequence_data(path, dz1, logistic_mix) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2, logistic_mix)
-    posdat_all <- rbind(posdat_all1, posdat_all2, logistic_mix)
+    posdat_all1 <- sequence_data(path, dz1, effdist) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, effdist)
+    posdat_all <- rbind(posdat_all1, posdat_all2, effdist)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
   v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
@@ -803,18 +804,13 @@ run_simulation <- function(path, parentfolder, j, r, th, logistic_mix, plot_path
 # run the simulation on each of the 100 paths for each repeat and save the seq_dats outputs to the seq_dats folder
 # INPUTS
 # path_nos: range of iter numbers to run the simulation on (vary depending on computational ability of local machine) - e.g. course laptop can take about 10 at once max
+# effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # saved seq_dats.RData files in seq_dats folder
-generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
+generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, effdist){
   for (j in Mb_range){
     for (i in path_nos){
       load(paste0(parentfolder,"Mb", j, "/iter", i, ".RData"))
-      if (j <= 4){ # if body mass less than 4kg, use logistic mix hazard rate detection function
-        logistic_mix <- TRUE
-      }
-      if (j > 4) { # if body mass greater than 4kg, use hazard rate detection function without logistic mix 
-        logistic_mix <- FALSE
-      }
       if (i == 1){
         plot_path <- TRUE # only plot the first one to save some time
       }
@@ -822,7 +818,7 @@ generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, co
         plot_path <- FALSE
       }
       if (path_cutby == 1){
-        seq_dats <- run_simulation(path, parentfolder, j, r=r, th=th, logistic_mix, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+        seq_dats <- run_simulation(path, parentfolder, j, r=r, th=th, effdist, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
       }
       else { # if want to cut the path short to make it computationally easier:
         path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])

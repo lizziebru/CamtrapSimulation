@@ -17,6 +17,8 @@ data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 
 
+
+
 # parameters for bimodal speed modelling: using Pablo's data --------------
 
 ## add columns for species and body mass and format columns correctly
@@ -997,4 +999,83 @@ small_large_speeds
 # small_large_speeds
 # dev.off()
 
+
+
+
+
+# exploring speeds of small/large herbivores/carnivores -------------------
+
+### small herbivores
+
+# mouse
+# spiny rat
+# squirrel
+# hedgehog
+# agouti
+# coati
+
+sh_df <- read.csv("data/sh_df.csv")
+
+
+
+# distribution of speeds
+sh_speeds <- ggplot(sh_df, aes(x = speed, colour = species))+
+  geom_density()+
+  labs(title = "Small herbivores")+
+  theme_minimal()
+
+
+### large herbivores
+
+# paca
+# red brocket deer
+# collared peccary
+# takin
+
+lh_df <- read.csv("data/lh_df.csv")
+
+# distribution of speeds
+lh_speeds <- ggplot(lh_df, aes(x = speed, colour = species))+
+  geom_density()+
+  labs(title = "Large herbivores")+
+  theme_minimal()
+
+
+### small carnivores
+
+# armadillo
+# tamandua
+# opossum
+# fox
+# ocelot
+
+sc_df <- read.csv("data/sc_df.csv")
+
+# distribution of speeds
+sc_speeds <- ggplot(sc_df, aes(x = speed, colour = species))+
+  geom_density()+
+  labs(title = "Small carnivores")+
+  theme_minimal()
+
+
+### large carnivores
+
+# Himalayan black bear
+
+
+lc_df <- read.csv("../data/lc_df.csv")
+
+# distribution of speeds
+lc_speeds <- ggplot(lc_df, aes(x = speed, colour = species))+
+  geom_density()+
+  labs(title = "Large carnivores")+
+  theme_minimal()
+
+
+speeds_all <- ggarrange(sh_speeds, lh_speeds, sc_speeds, lc_speeds)
+
+png(file="4spp_speeds_all.png",
+    width=700, height=600)
+speeds_all
+dev.off()
 

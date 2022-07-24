@@ -1,5 +1,7 @@
 ## DISTANCE FROM CT PROBABILITY DENSITY OF BEING DETECTED ##
 
+# all the modelling done on detection probability stuff
+
 require(stats4)
 require(minpack.lm)
 
@@ -836,6 +838,42 @@ persp(den3d_h,
 # - make into the shape of a detection zone
 # - do a heated surface or something instead (what Francis was describing - ask him again)
 # - make sure you can actually see the CT/where it's meant to be
+
+
+
+# deciding on sizing parameters -------------------------------------------
+
+## choosing sizing parameters for the simulation based on Regent's Park & Panama data ##
+
+require(ggplot2)
+
+panama_06 <- read.table("data/rse217-sup-0006-speeddatapublished.txt")
+
+posdata <- read.csv("data/posdat.csv")
+
+# Radii and angles --------------------------------------------------------
+
+## distribution of radii and angles:
+
+ggplot(posdata, aes(x = radius))+
+  geom_density()+
+  ggtitle("Regent's Park")
+
+# don't have radii and angles in Panama data
+
+# --> looks like radius of 10m would be good (it's the max in the regent's park data)
+
+
+ggplot(posdata, aes(x = angle))+
+  geom_density()
+
+min(posdata$angle)
+max(posdata$angle)
+
+# --> looks like angle of around 0.82 x 2 (= 1.64) would be good
+
+
+
 
 
 

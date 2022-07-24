@@ -1,9 +1,7 @@
 #!/bin/sh
-# rename path results to be just iter1.RData, iter2.RData etc once they're in the right folder
+# rename path results to be just iter1.RData, iter2.RData etc once after putting them in the right folder
 
 # arguments: name of folder containing the set of 100 path runs
-
-cd ../results
 
 mkdir $1
 
@@ -13,22 +11,15 @@ cd $1
 
 tar xzvf *.tgz
 
-for i in {1..50..1}
+files=(*.RData) # so that can more easily index out elements in the folder
+
+for i in {0..19..1} # for each file (there are 20) in the folder
 do
-	mv *iter${i}.RData iter${i}.RData
+	mv ${files[i]} iter${i}.RData
 done
 
-<<<<<<< HEAD
-#rm *.tgz   # learnt from mistakes: don't do this until you've checked that the untarred files are ok
-=======
-#rm *.tgz # learnt from mistakes - don't do this until you've checked the .RData files
->>>>>>> master
+mv iter0.RData iter20.RData # bc bash indexes from 0 but I prefer indexing from 1
 
-#counter=0
-#for file in *.RData; do
-#counter=counter+1
-#    mv "$file" "iter${counter}.RData"
-#done
 
 
 

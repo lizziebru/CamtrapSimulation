@@ -1,3 +1,9 @@
+## CamtrapSimulation.R ##
+
+# contains all functions needed to run the simulation and analyses its results wrt the 2 biases in average speed estimation being investigated
+
+# TO DO: 
+# - go through each function and check its description isn't missing any recent additions
 
 require(circular)
 require(parallel)
@@ -5,31 +11,6 @@ require(rlist)
 require(future.apply)
 require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
 require(ggnewscale)
-
-# to test things:
-
-
-# # # set speed parameter
-# # speed_parameter <- log(0.02) # list whatever speeds you want (can be multiple) - and if you want 10 of each need -J 1-40 (needs to be a multiple of number of speeds)
-# # #
-# # # # set parameters
-# # xlim = c(0,40)
-# step_no = 5e4
-# # size = 0
-# # pTurn = 0.5
-# # speedCor = 0.9
-# # kTurn = 2
-# # kCor = TRUE
-# # #
-# path <- pathgen(n=step_no, kTurn=kTurn, kCor=kCor, pTurn=pTurn, logspeed=speed_parameter, size=size, speedCor=speedCor, xlim=xlim)
-
-
-# path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
-#                 logspeed=-2, speedSD=1, speedCor=0.9,
-#                 xlim=c(0,40), wrap=TRUE)
-# point <- path$path[,1:2]
-#
-# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
 
 
 ## rautonorm
@@ -2662,15 +2643,6 @@ round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k))
 #                   y = 4,
 #                   r = 10,
 #                   th = pi/4)
-
-# AIMS
-# we wanna simulate where we know the actual speeds
-# then be able to detect the biases
-# currently: these simulations don't monitor all the potential biases
-# e.g. missing high speeds
-# it's all about quantifying bias
-# comparing estimation outcomes with the truth
-
 
 
 # seq_dat - ORIGINAL

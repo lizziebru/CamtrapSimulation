@@ -15,10 +15,96 @@ require(minpack.lm)
 data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 # panama-only dataset with speeds, distances & avg duration
-panama <- read.csv("../data/panama_full.csv")
+panama <- read.csv("../data/panama/panama_full.csv")
+
+# fitting hz rate only with and without scaling of effective detection distance  -------------------------------------
+
+## fit hz only using all body masses:
+# function:
+# 1 - exp(-(a/dist)^g)
+# where a (alpha) describes width and g (gamma) describes shape
+l_r_dens_approxfun <- approxfun(density(panama$distance)) 
+l_r_density <- l_r_dens_approxfun(panama$distance) # == y values
+l_r <- panama$distance
+# fit the model and plot the fit
+hz_l_r <- nlsLM(l_r_density ~ (1 - exp(-(a/l_r)^g)), start = list(a = 1, g = 1))
+hz_l_r_plot <- ggplot()+ 
+  geom_point(aes(x=panama$distance, y=l_r_density))+
+  geom_point(aes(x=panama$distance, y=predict(hz_l_r)), colour = "red")+
+  theme_minimal()+
+  labs(title = "hazard rate - all body sizes",
+       x = "radius (m)",
+       y = "density")+
+  theme(axis.title = element_text(size = 18),
+        title = element_text(size = 20),
+        axis.text = element_text(size = 15))
+hz_l_r_plot
+coef(hz_l_r)
+# coefficients:
+# a = 0.4255583
+# g = 0.7369158
+# to use in pathgen: 1 - exp(-(0.4255583/radius)^0.7369158)
 
 
-# fitting hazard rate functions for large vs small categories --------
+# fit for diff body masses to get scaling relationship for each coefficient:
+Mb <- c()
+a_coeffs <- c()
+g_coeffs <- c()
+for (i in unique(panama$Body_mass_g)){ # loop through each body mass
+  Mb <- c(Mb, i/1000) # store body mass in kg
+  l_r_dens_approxfun <- approxfun(density(panama[panama$Body_mass_g==i,]$distance)) 
+  l_r_density <- l_r_dens_approxfun(panama[panama$Body_mass_g==i,]$distance) # == y values
+  l_r <- panama[panama$Body_mass_g==i,]$distance
+  # fit the model and plot the fit
+  hz_l_r <- nlsLM(l_r_density ~ (1 - exp(-(a/l_r)^g)), start = list(a = 1, g = 1))
+  a_coeffs <- c(a_coeffs, coef(hz_l_r)[[1]])
+  g_coeffs <- c(g_coeffs, coef(hz_l_r)[[2]])
+}
+
+coeffs_scaling_df <- data.frame(Mb = Mb, a = a_coeffs, g = g_coeffs)
+
+# get scaling relationships for each coefficient:
+
+# from path_modelling:
+# get relationship between body mass (kg) and mean_v (m/s) for each behaviour:
+
+# need this on a log scale:
+Mb_a_scaling <- ggplot(coeffs_scaling_df, aes(x = log(Mb), y = log(a)))+
+  geom_point()
+Mb_a_scaling
+# negative relationship
+
+Mb_g_scaling <- ggplot(coeffs_scaling_df, aes(x = log(Mb), y = log(g)))+
+  geom_point()
+Mb_g_scaling
+# negative relationship
+
+# fit regression model:
+Mb_a_lm <- lm(log(a) ~ log(Mb), data = coeffs_scaling_df)
+summary(Mb_a_lm)
+cfs_a <- coef(Mb_a_lm)
+exp(cfs_a[1]) # intercept for a = 0.339065 
+exp(cfs_a[2]) # slope for a = 0.5214121
+
+Mb_g_lm <- lm(log(g) ~ log(Mb), data = coeffs_scaling_df)
+summary(Mb_g_lm)
+cfs_g <- coef(Mb_g_lm)
+exp(cfs_g[1]) # intercept for g = 1.505105 
+exp(cfs_g[2]) # slope for g = 0.5784485 
+
+# power law eqns to use:
+
+# power law eqns to use in pathgen:
+# c = 10^intercept
+# b = slope
+
+# a:
+# a = 2.183057*(Mb^0.5214121)
+# g:
+# g = 31.99669*(Mb^0.5784485)
+
+
+# fitting hazard rate (+ log mix for small spp) functions for large vs small categories --------
 
 # different parameters for large vs small, and added logistic mix for small
 # large: over 4kg
@@ -130,16 +216,7 @@ max(y_small) # max for small == 0.7260668 --> so need to multiply everything by 
 
 
 
-# adding scaling of maximum effective detection distance: scale radius of initial fixed dz boundary with body mass -------------------------------------
 
-# need to work out effective detection distance for each species then correlate this with body mass
-# could use either standard detection model function or linear covariate method (alternatives in M's code)
-# seems to be they used covariate method in their paper 
-# but they discuss pros & cons of using it in the discussion -- if you use this you should discuss these too
-# need to decide between which one to use - resume on this tomorrow
-
-ggplot(panama, aes(x = Body_mass_g, y = distance))+
-  geom_point()
 
 
 

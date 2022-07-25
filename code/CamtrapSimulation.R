@@ -215,30 +215,6 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
 }
 
 
-# model for small species' radius: hazard rate with logistic mix - now correct and using only panama data
-small_radius <- function(radius){
-  prob <- (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius)))
-  if (prob > 1){
-    prob <- 1
-  }
-  if (prob < 0){
-    prob <- 0
-  }
-  return(prob)
-}
-
-# model for large species' radius: hazard rate - now correct and using only panama data
-large_radius <- function(radius){
-  prob <- 1 - exp(-(0.1219941/radius)^0.4477139)
-  if (prob > 1){
-    prob <- 1
-  }
-  if (prob < 0){
-    prob <- 0
-  }
-  return(prob)
-}
-
 
 
 # plot_dzone
@@ -493,6 +469,31 @@ line_arc_cross <- function(line, arc){
 }
 
 
+# model for small species' radius: hazard rate with logistic mix - now correct and using only panama data
+small_radius <- function(radius){
+  prob <- (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius)))
+  if (prob > 1){
+    prob <- 1
+  }
+  if (prob < 0){
+    prob <- 0
+  }
+  return(prob)
+}
+
+# model for large species' radius: hazard rate - now correct and using only panama data
+large_radius <- function(radius){
+  prob <- 1 - exp(-(0.1219941/radius)^0.4477139)
+  if (prob > 1){
+    prob <- 1
+  }
+  if (prob < 0){
+    prob <- 0
+  }
+  return(prob)
+}
+
+
 
 ## reassign_prob
 # for all the points that cross the dz, reassign them as TRUE or FALSE based on probability of getting detected at that distance from the CT
@@ -500,21 +501,21 @@ line_arc_cross <- function(line, arc){
 # a row in isindz_df2 dataframe from isindz function
 # OUTPUT
 # vector of TRUE or FALSE for whether that point got detected
-reassign_prob <- function(isindz_row, logistic_mix){
+reassign_prob <- function(isindz_row, Mb){
   if (isindz_row[[1]]==FALSE){
     return(FALSE)
   }
   else {
-    if (logistic_mix==TRUE){ # if body mass is less than 4kg, use logistic mix hazard function for detection probability
-      prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
+    if (Mb <= 5){ # if body mass is less than 5kg, use logistic mix hazard function for detection probability
+      prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 1.377284 # probability of being detected based on the estimated probability density for the radius - need to multiply by 1.377284 bc the max probability in the PDF is 0.7260668 so need to scale everything so that max probability of detection is 1
       if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
         prob_radius <- 1
       }
       new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
       return(new_res)
     }
-    if (logistic_mix==FALSE){ # if body mass is more than 4kg, use hazard function without logistic mix
-      prob_radius <- large_radius(as.numeric(isindz_row[[2]])) * 2.767429 # probability of being detected based on the estimated probability density for the radius
+    if (Mb > 5){ # if body mass is more than 5kg, use hazard function without logistic mix
+      prob_radius <- large_radius(as.numeric(isindz_row[[2]])) # probability of being detected based on the estimated probability density for the radius - don't need to multiply by anything bc max value in this PDF is already 1
       if (prob_radius > 1){
         prob_radius <- 1
       }
@@ -537,7 +538,7 @@ reassign_prob <- function(isindz_row, logistic_mix){
 # effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone, effdist){
+is_in_dz <- function(point, dzone, Mb){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -573,7 +574,7 @@ is_in_dz <- function(point, dzone, effdist){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
   
-  new_reses <- apply(isindz_df, 1, reassign_prob, effdist=effdist)
+  new_reses <- apply(isindz_df, 1, reassign_prob, Mb=Mb)
   
   isindz_all <- data.frame(indz = isindz_df$res,
                            detected = new_reses)
@@ -663,9 +664,9 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # x,y: x,y co-ordinates of sequence points in detection zones
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
-sequence_data <- function(pth, dzone, effdist){
+sequence_data <- function(pth, dzone, Mb){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone, effdist) # returns true or false for whether each position in the path is in the detection zone
+  isin_all <- is_in_dz(pth, dzone, Mb) # returns true or false for whether each position in the path is in the detection zone
   
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
@@ -733,12 +734,15 @@ sequence_data <- function(pth, dzone, effdist){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, parentfolder, j, r, th, effdist, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+run_simulation <- function(path, parentfolder, Mb, r, th, effdist, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+  
+  ## effdist argument comes in here --> scales the dz dimensions to body mass
+  
   
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz, effdist) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all <- sequence_data(path, dz, Mb) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -748,9 +752,9 @@ run_simulation <- function(path, parentfolder, j, r, th, effdist, plot_path = TR
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    posdat_all1 <- sequence_data(path, dz1, effdist) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2, effdist)
-    posdat_all <- rbind(posdat_all1, posdat_all2, effdist)
+    posdat_all1 <- sequence_data(path, dz1, Mb) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, Mb)
+    posdat_all <- rbind(posdat_all1, posdat_all2)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
   v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
@@ -788,7 +792,7 @@ run_simulation <- function(path, parentfolder, j, r, th, effdist, plot_path = TR
 
   # plot path
   if (plot_path == TRUE){
-    png(file= paste0(parentfolder, "Mb", j, "/plot.png"),
+    png(file= paste0(parentfolder, "Mb", Mb, "/plot.png"),
         width=700, height=650)
     plot_wrap(path, lineargs = list(col="grey"))
     plot_dzone(dz, border=2)
@@ -807,7 +811,7 @@ run_simulation <- function(path, parentfolder, j, r, th, effdist, plot_path = TR
 # effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # saved seq_dats.RData files in seq_dats folder
-generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, effdist){
+generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, effdist){
   for (j in Mb_range){
     for (i in path_nos){
       load(paste0(parentfolder,"Mb", j, "/iter", i, ".RData"))
@@ -818,11 +822,11 @@ generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, co
         plot_path <- FALSE
       }
       if (path_cutby == 1){
-        seq_dats <- run_simulation(path, parentfolder, j, r=r, th=th, effdist, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, effdist=effdist, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
       }
       else { # if want to cut the path short to make it computationally easier:
         path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-        seq_dats <- run_simulation(path, parentfolder, j, r=r, th=th, logistic_mix, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, effdist=effdist, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
       }
       metadata_sim <- list(datetime = metadata$datetime,
                            iter = metadata$iter,
@@ -837,9 +841,10 @@ generate_seqdats <- function(parentfolder, Mb_range, path_nos, r, th, twoCTs, co
                            r = r,
                            th = th,
                            twoCTs = twoCTs,
-                           connectedCTs = connectedCTs)
+                           connectedCTs = connectedCTs,
+                           effdist=effdist)
       
-      save(seq_dats, metadata_sim, file = paste0("../Mb_results/08Jul22_1602/seq_dats_w_logistic_mix/Mb", metadata_sim$Mb, "iter", i, ".RData"))
+      save(seq_dats, metadata_sim, file = paste0(outputfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
       rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
     }
   }

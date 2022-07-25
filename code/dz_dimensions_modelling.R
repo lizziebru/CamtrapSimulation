@@ -2,7 +2,9 @@
 
 # TO DO:
 # go through all the data csvs and check which ones you actually need vs not
-# also regentspark_data folder - probs lots you don't need there
+# go through this script and the path modelling one to tidy up and add things to discussion section if needed, and also any packages that need to go in README
+
+
 
 # all the modelling done on detection probability stuff
 
@@ -96,6 +98,33 @@ coef(hzlog_s_r)
 # (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius))
 # large:
 # 1 - exp(-(0.1219941/radius)^0.4477139)
+
+
+## need to scale detection probability density so that max probability = 1
+
+# currently max detection probability = max density in the density curves from distribution of radii in real datas
+
+# find the max and divide 1 by it to work out how much need to scale everything by
+
+# model for large species' radius: hazard rate with logistic mix
+large_radius <- function(radius){
+  (1 - exp(-(0.1219941/radius)^0.4477139))
+}
+
+small_radius <- function(radius){
+  (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius)))
+}
+
+x <- seq(0,10, length = 1000)
+y_large <- sapply(x, large_radius)
+y_small <- sapply(x, small_radius)
+
+ggplot()+
+  geom_smooth(aes(x = x, y = y_large, colour = "large"))+
+  geom_smooth(aes(x = x, y = y_small, colour = "small"))
+
+max(y_large) # max for large == 1 so don't need to multiply by anything
+max(y_small) # max for small == 0.7260668 --> so need to multiply everything by 1.377284
 
 
 
@@ -662,38 +691,6 @@ sapply(1:ii, EDDrep, s=s,b=b,s0=s0,b0=b0)
 
 
 
-# scaling detection probability density -----------------------------------
-
-# currently max detection probability = max density in the density curves from distribution of radii in real data
-
-# need the max probability to be 1 though
-
-
-# find the max and divide 1 by it to work out how much need to scale everything by
-
-# model for large species' radius: hazard rate with logistic mix
-large_radius <- function(radius){
-  (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
-}
-
-small_radius <- function(radius){
-  (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
-}
-
-x <- seq(0,10, length = 1000)
-y_large <- sapply(x, large_radius)
-y_small <- sapply(x, small_radius)
-
-ggplot()+
-  geom_smooth(aes(x = x, y = y_large, colour = "red"))+
-  geom_smooth(aes(x = x, y = y_small, colour = "blue"))
-
-max(y_large) # max for large == 0.3613462
-max(y_small) # max for small == 0.299322
-
-# so for large: need to multiply every probability by 1/0.3613462 == 2.767429
-
-# for small: multiply by 3.340884
 
 
 

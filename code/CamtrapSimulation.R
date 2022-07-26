@@ -9,7 +9,7 @@ require(circular)
 require(parallel)
 require(rlist)
 require(future.apply)
-require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
+# require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
 require(ggnewscale)
 
 
@@ -826,7 +826,6 @@ generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, 
       save(seq_dats, metadata_sim, file = paste0(outputfolder, "Mb", metadata_sim$Mb, "iter", i, ".RData"))
       rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
     }
-<<<<<<< HEAD
     metadata_sim <- list(datetime = metadata$datetime,
                          iter = metadata$iter,
                          Mb = metadata$Mb,
@@ -844,8 +843,6 @@ generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, 
     
     save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
     rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
-=======
->>>>>>> master
   }
 }
 
@@ -956,7 +953,7 @@ estimates_calc <- function(seq_dats){
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # big list of variables which will be used for plotting
-generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE, scaling){
+generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE, scaling, bimodal){
   
   for (n in 1:length(Mb_iters$Mb_range)){ # loop through each body mass
     i <- Mb_iters$Mb_range[n]
@@ -1004,17 +1001,29 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0(parentfolder, "uni_hz_scaling/seq_dats/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "bi_hz_scaling/seq_dats/mov0.25/Mb", i, "iter", j, ".RData"))
       
-      load(paste0(parentfolder, "paths_uni/Mb", i, "/iter", j, ".RData"))
+      load(paste0(parentfolder, "paths_bi/mov0.25/Mb", i, "/iter", j, ".RData"))
       
       
       ## number of single frames and speeds of single frame sequences #######################################################################
       
       # make df with all xy coords of the path and their speeds:
-      path_xy_v <- data.frame(x = path$path$x[-1], # no speed for the first point
-                              y = path$path$y[-1],
-                              v = path$speed)
+      if (bimodal==TRUE){ # need to remove 2 coords to match up with speeds length bc stuck 2 paths together
+        path_x <- path$path$x[-1]
+        path_x <- path_x[-(length(path_x))]
+        path_y <- path$path$y[-1]
+        path_y <- path_y[-(length(path_y))]
+        path_xy_v <- data.frame(x = path_x, # no speed for the first point nor the first of the second chunk stuck together - but just remove the last set of coords too bc that way each speed is at least matched up to one of the coords it's between
+                                y = path_y, # doing this isn't a problem bc don't actually ever need to match up speeds with their exact coords in the right order
+                                v = path$speed)
+      }
+      if (bimodal==FALSE){
+        path_xy_v <- data.frame(x = path$path$x[-1], # no speed for the first point
+                                y = path$path$y[-1],
+                                v = path$speed) 
+      }
+
       
       # store posdat_all as a df too:
       
@@ -1274,7 +1283,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "uni_hz_scaling/plotting_variables/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
+    save(output, file = paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.25/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
 

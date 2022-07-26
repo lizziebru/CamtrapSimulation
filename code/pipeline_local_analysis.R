@@ -26,12 +26,13 @@ th = 0.7
 part_of_wedge = 0 # which section of the wedge to use points from (0 = all, 1 = bottom third, 2 = middle third, 3 = top third)
 twoCTs = FALSE
 connectedCTs = FALSE
+bimodal=TRUE # bc if it's bimodal need to remove the last set of coords from path_xy too bc otherwise doesn't match up with no. of speeds (bc merge 2 chunks of paths together)
 
 # whether to scale hz function for detection probability with body mass
 scaling=TRUE
 
 # generate and store plotting variables
-generate_plotting_variables(parentfolder, Mb_iters, r, th, part_of_wedge, scaling=scaling)
+generate_plotting_variables(parentfolder, Mb_iters, r, th, part_of_wedge, scaling=scaling, bimodal=bimodal)
 
 # make plots using those plotting variables
 # make_plots(parentfolder, part_of_wedge, Mb_iters, r, th,)

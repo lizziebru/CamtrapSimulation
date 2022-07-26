@@ -1001,9 +1001,9 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0(parentfolder, "bi_hz_scaling/seq_dats/mov0.25/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "bi_hz_scaling/seq_dats/mov0.9/Mb", i, "iter", j, ".RData"))
       
-      load(paste0(parentfolder, "paths_bi/mov0.25/Mb", i, "/iter", j, ".RData"))
+      load(paste0(parentfolder, "paths_bi/mov0.9/Mb", i, "/iter", j, ".RData"))
       
       
       ## number of single frames and speeds of single frame sequences #######################################################################
@@ -1283,8 +1283,8 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.25/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
-    
+    # save(output, file = paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.25/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData"))
+    save(output, file = paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.9/wedge", part_of_wedge,  "/Mb", i, "_iters1-5.RData"))# make it manual for now to generate results quickly for M    
   }
 
 }
@@ -1294,6 +1294,336 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
 # make summary plots using data generated in generate_plotting_variables function
 ## NEEDS FIXING THOUGH BC BEHAVES PROBLEMATICALLY WHEN CALLED AS A FUNCTION (EVERYTHING INSIDE RUNS WITHOUT ERRORS THOUGH)
 make_plots <- function(parentfolder, part_of_wedge, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+  
+  ## new set of plots:
+  
+  # plots comparing biases across uni/bimodal scenarios - incl raw data errors, sz data errors, and percentage singles
+  
+  aMRS <- c()
+  Mb <- c()
+  aMOS_MRS_err <- c() # aMOS/aMRS using mean of means
+  aMOS_MRS_err_sz <- c() # aMOS/aMRS using mean of means + incl sz
+  hmean_MRS_err <- c() # hmean/aMRS using mean of means
+  hmean_MRS_err_sz <- c() # hmean/aMRS using mean of means + incl sz
+  lnorm_MRS_err <- c() # same for lnorm
+  lnorm_MRS_err_sz <- c() # same for lnorm
+  gamma_MRS_err <- c() 
+  gamma_MRS_err_sz <- c() 
+  weibull_MRS_err <- c()
+  weibull_MRS_err_sz <- c()
+  uni_bi <- c() # whether it's unimodal or bimodal (and if so which one - mov0.1 etc)
+  singles_percent <- c() # percentage of detected points which are singles
+  
+  # fill these variables
+  # should have 4 reps (some of them didn't fit the models for all 5) for each 11 body masses for each of uni, bi0.25, and bi0.9 --i.e. 132 of each
+  uni_bi <- c(rep("uni", times =44), rep("bi0.25", times=44), rep("bi0.9", times=44))
+  Mb <- c(rep(c(1,5,10,15,20,25,30,35,40,45,50), times=3))
+  
+  
+  # for unimodal:
+  aMRS_uni <- c()
+  aMOS_MRS_err_uni <- c()
+  aMOS_MRS_err_uni_sz <- c()
+  hmean_MRS_err_uni <- c()
+  hmean_MRS_err_uni_sz <- c()
+  lnorm_MRS_err_uni <- c()
+  lnorm_MRS_err_uni_sz <- c()
+  gamma_MRS_err_uni <- c()
+  gamma_MRS_err_uni_sz <- c()
+  weibull_MRS_err_uni <- c()
+  weibull_MRS_err_uni_sz <- c()
+  singles_percent_uni <- c()
+  for (i in Mb_range){
+    load(paste0(parentfolder, "uni_hz_scaling/plotting_variables/wedge0/Mb", i, "_iters1-5.RData"))
+    
+    mos_errors <- output$amMOS - output$aMRS
+    mos_errors_sz <- output$amMOS_sz - output$aMRS
+    
+    hmean_errors <- output$hmean_m - output$aMRS
+    hmean_errors_sz <- output$hmean_m_sz - output$aMRS
+    
+    lnorm_errors <- output$lnorm_m - output$aMRS
+    lnorm_errors_sz <- output$lnorm_m_sz - output$aMRS
+    
+    gamma_errors <- output$gamma_m - output$aMRS
+    gamma_errors_sz <- output$gamma_m_sz - output$aMRS
+    
+    weibull_errors <- output$weibull_m - output$aMRS
+    weibull_errors_sz <- output$weibull_m_sz - output$aMRS
+    
+    s_perc <- (output$n_singles/output$n_detected)*100
+    
+    if (length(output$aMRS)==5){ # if there were 5 fitted models, just use the first 4
+      
+      aMRS_uni <- c(aMRS_uni, output$aMRS[-5])
+      
+      aMOS_MRS_err_uni <- c(aMOS_MRS_err_uni, mos_errors[-5])
+      aMOS_MRS_err_uni_sz <- c(aMOS_MRS_err_uni_sz, mos_errors_sz[-5])
+      
+      hmean_MRS_err_uni <- c(hmean_MRS_err_uni, hmean_errors[-5])
+      hmean_MRS_err_uni_sz <- c(hmean_MRS_err_uni_sz, hmean_errors_sz[-5])
+      
+      lnorm_MRS_err_uni <- c(lnorm_MRS_err_uni, lnorm_errors[-5])
+      lnorm_MRS_err_uni_sz <- c(lnorm_MRS_err_uni_sz, lnorm_errors_sz[-5])
+      
+      gamma_MRS_err_uni <- c(gamma_MRS_err_uni, gamma_errors[-5])
+      gamma_MRS_err_uni_sz <- c(gamma_MRS_err_uni_sz, gamma_errors[-5])
+      
+      weibull_MRS_err_uni <- c(weibull_MRS_err_uni, weibull_errors[-5])
+      weibull_MRS_err_uni_sz <- c(weibull_MRS_err_uni_sz, weibull_errors_sz[-5])
+      
+      singles_percent_uni <- c(singles_percent_uni, s_perc[-5])
+    }
+    else {
+      aMRS_uni <- c(aMRS_uni, output$aMRS)
+      
+      aMOS_MRS_err_uni <- c(aMOS_MRS_err_uni, mos_errors)
+      aMOS_MRS_err_uni_sz <- c(aMOS_MRS_err_uni_sz, mos_errors_sz)
+      
+      hmean_MRS_err_uni <- c(hmean_MRS_err_uni, hmean_errors)
+      hmean_MRS_err_uni_sz <- c(hmean_MRS_err_uni_sz, hmean_errors_sz)
+      
+      lnorm_MRS_err_uni <- c(lnorm_MRS_err_uni, lnorm_errors)
+      lnorm_MRS_err_uni_sz <- c(lnorm_MRS_err_uni_sz, lnorm_errors_sz)
+      
+      gamma_MRS_err_uni <- c(gamma_MRS_err_uni, gamma_errors)
+      gamma_MRS_err_uni_sz <- c(gamma_MRS_err_uni_sz, gamma_errors)
+      
+      weibull_MRS_err_uni <- c(weibull_MRS_err_uni, weibull_errors)
+      weibull_MRS_err_uni_sz <- c(weibull_MRS_err_uni_sz, weibull_errors_sz)
+      
+      singles_percent_uni <- c(singles_percent_uni, s_perc)
+    }
+  }
+  
+  # for bimodal0.25:
+  aMRS_bi0.25 <- c()
+  aMOS_MRS_err_bi0.25 <- c()
+  aMOS_MRS_err_bi0.25_sz <- c()
+  hmean_MRS_err_bi0.25 <- c()
+  hmean_MRS_err_bi0.25_sz <- c()
+  lnorm_MRS_err_bi0.25 <- c()
+  lnorm_MRS_err_bi0.25_sz <- c()
+  gamma_MRS_err_bi0.25 <- c()
+  gamma_MRS_err_bi0.25_sz <- c()
+  weibull_MRS_err_bi0.25 <- c()
+  weibull_MRS_err_bi0.25_sz <- c()
+  singles_percent_bi0.25 <- c()
+  for (i in Mb_range){
+    load(paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.25/wedge0/Mb", i, "_iters1-5.RData"))
+    
+    mos_errors <- output$amMOS - output$aMRS
+    mos_errors_sz <- output$amMOS_sz - output$aMRS
+    
+    hmean_errors <- output$hmean_m - output$aMRS
+    hmean_errors_sz <- output$hmean_m_sz - output$aMRS
+    
+    lnorm_errors <- output$lnorm_m - output$aMRS
+    lnorm_errors_sz <- output$lnorm_m_sz - output$aMRS
+    
+    gamma_errors <- output$gamma_m - output$aMRS
+    gamma_errors_sz <- output$gamma_m_sz - output$aMRS
+    
+    weibull_errors <- output$weibull_m - output$aMRS
+    weibull_errors_sz <- output$weibull_m_sz - output$aMRS
+    
+    s_perc <- (output$n_singles/output$n_detected)*100
+    
+    if (length(output$aMRS)==5){ # if there were 5 fitted models, just use the first 4
+      
+      aMRS_bi0.25 <- c(aMRS_bi0.25, output$aMRS[-5])
+      
+      aMOS_MRS_err_bi0.25 <- c(aMOS_MRS_err_bi0.25, mos_errors[-5])
+      aMOS_MRS_err_bi0.25_sz <- c(aMOS_MRS_err_bi0.25_sz, mos_errors_sz[-5])
+      
+      hmean_MRS_err_bi0.25 <- c(hmean_MRS_err_bi0.25, hmean_errors[-5])
+      hmean_MRS_err_bi0.25_sz <- c(hmean_MRS_err_bi0.25_sz, hmean_errors_sz[-5])
+      
+      lnorm_MRS_err_bi0.25 <- c(lnorm_MRS_err_bi0.25, lnorm_errors[-5])
+      lnorm_MRS_err_bi0.25_sz <- c(lnorm_MRS_err_bi0.25_sz, lnorm_errors_sz[-5])
+      
+      gamma_MRS_err_bi0.25 <- c(gamma_MRS_err_bi0.25, gamma_errors[-5])
+      gamma_MRS_err_bi0.25_sz <- c(gamma_MRS_err_bi0.25_sz, gamma_errors[-5])
+      
+      weibull_MRS_err_bi0.25 <- c(weibull_MRS_err_bi0.25, weibull_errors[-5])
+      weibull_MRS_err_bi0.25_sz <- c(weibull_MRS_err_bi0.25_sz, weibull_errors_sz[-5])
+      
+      singles_percent_bi0.25 <- c(singles_percent_bi0.25, s_perc[-5])
+    }
+    else {
+      aMRS_bi0.25 <- c(aMRS_bi0.25, output$aMRS)
+      
+      aMOS_MRS_err_bi0.25 <- c(aMOS_MRS_err_bi0.25, mos_errors)
+      aMOS_MRS_err_bi0.25_sz <- c(aMOS_MRS_err_bi0.25_sz, mos_errors_sz)
+      
+      hmean_MRS_err_bi0.25 <- c(hmean_MRS_err_bi0.25, hmean_errors)
+      hmean_MRS_err_bi0.25_sz <- c(hmean_MRS_err_bi0.25_sz, hmean_errors_sz)
+      
+      lnorm_MRS_err_bi0.25 <- c(lnorm_MRS_err_bi0.25, lnorm_errors)
+      lnorm_MRS_err_bi0.25_sz <- c(lnorm_MRS_err_bi0.25_sz, lnorm_errors_sz)
+      
+      gamma_MRS_err_bi0.25 <- c(gamma_MRS_err_bi0.25, gamma_errors)
+      gamma_MRS_err_bi0.25_sz <- c(gamma_MRS_err_bi0.25_sz, gamma_errors)
+      
+      weibull_MRS_err_bi0.25 <- c(weibull_MRS_err_bi0.25, weibull_errors)
+      weibull_MRS_err_bi0.25_sz <- c(weibull_MRS_err_bi0.25_sz, weibull_errors_sz)
+      
+      singles_percent_bi0.25 <- c(singles_percent_bi0.25, s_perc)
+    }
+  }
+  
+  # for bimodal0.9
+  aMRS_bi0.9 <- c()
+  aMOS_MRS_err_bi0.9 <- c()
+  aMOS_MRS_err_bi0.9_sz <- c()
+  hmean_MRS_err_bi0.9 <- c()
+  hmean_MRS_err_bi0.9_sz <- c()
+  lnorm_MRS_err_bi0.9 <- c()
+  lnorm_MRS_err_bi0.9_sz <- c()
+  gamma_MRS_err_bi0.9 <- c()
+  gamma_MRS_err_bi0.9_sz <- c()
+  weibull_MRS_err_bi0.9 <- c()
+  weibull_MRS_err_bi0.9_sz <- c()
+  singles_percent_bi0.9 <- c()
+  for (i in Mb_range){
+    load(paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.9/wedge0/Mb", i, "_iters1-5.RData"))
+    
+    mos_errors <- output$amMOS - output$aMRS
+    mos_errors_sz <- output$amMOS_sz - output$aMRS
+    
+    hmean_errors <- output$hmean_m - output$aMRS
+    hmean_errors_sz <- output$hmean_m_sz - output$aMRS
+    
+    lnorm_errors <- output$lnorm_m - output$aMRS
+    lnorm_errors_sz <- output$lnorm_m_sz - output$aMRS
+    
+    gamma_errors <- output$gamma_m - output$aMRS
+    gamma_errors_sz <- output$gamma_m_sz - output$aMRS
+    
+    weibull_errors <- output$weibull_m - output$aMRS
+    weibull_errors_sz <- output$weibull_m_sz - output$aMRS
+    
+    s_perc <- (output$n_singles/output$n_detected)*100
+    
+    if (length(output$aMRS)==5){ # if there were 5 fitted models, just use the first 4
+      
+      aMRS_bi0.9 <- c(aMRS_bi0.9, output$aMRS[-5])
+      
+      aMOS_MRS_err_bi0.9 <- c(aMOS_MRS_err_bi0.9, mos_errors[-5])
+      aMOS_MRS_err_bi0.9_sz <- c(aMOS_MRS_err_bi0.9_sz, mos_errors_sz[-5])
+      
+      hmean_MRS_err_bi0.9 <- c(hmean_MRS_err_bi0.9, hmean_errors[-5])
+      hmean_MRS_err_bi0.9_sz <- c(hmean_MRS_err_bi0.9_sz, hmean_errors_sz[-5])
+      
+      lnorm_MRS_err_bi0.9 <- c(lnorm_MRS_err_bi0.9, lnorm_errors[-5])
+      lnorm_MRS_err_bi0.9_sz <- c(lnorm_MRS_err_bi0.9_sz, lnorm_errors_sz[-5])
+      
+      gamma_MRS_err_bi0.9 <- c(gamma_MRS_err_bi0.9, gamma_errors[-5])
+      gamma_MRS_err_bi0.9_sz <- c(gamma_MRS_err_bi0.9_sz, gamma_errors[-5])
+      
+      weibull_MRS_err_bi0.9 <- c(weibull_MRS_err_bi0.9, weibull_errors[-5])
+      weibull_MRS_err_bi0.9_sz <- c(weibull_MRS_err_bi0.9_sz, weibull_errors_sz[-5])
+      
+      singles_percent_bi0.9 <- c(singles_percent_bi0.9, s_perc[-5])
+    }
+    else {
+      aMRS_bi0.9 <- c(aMRS_bi0.9, output$aMRS)
+      
+      aMOS_MRS_err_bi0.9 <- c(aMOS_MRS_err_bi0.9, mos_errors)
+      aMOS_MRS_err_bi0.9_sz <- c(aMOS_MRS_err_bi0.9_sz, mos_errors_sz)
+      
+      hmean_MRS_err_bi0.9 <- c(hmean_MRS_err_bi0.9, hmean_errors)
+      hmean_MRS_err_bi0.9_sz <- c(hmean_MRS_err_bi0.9_sz, hmean_errors_sz)
+      
+      lnorm_MRS_err_bi0.9 <- c(lnorm_MRS_err_bi0.9, lnorm_errors)
+      lnorm_MRS_err_bi0.9_sz <- c(lnorm_MRS_err_bi0.9_sz, lnorm_errors_sz)
+      
+      gamma_MRS_err_bi0.9 <- c(gamma_MRS_err_bi0.9, gamma_errors)
+      gamma_MRS_err_bi0.9_sz <- c(gamma_MRS_err_bi0.9_sz, gamma_errors)
+      
+      weibull_MRS_err_bi0.9 <- c(weibull_MRS_err_bi0.9, weibull_errors)
+      weibull_MRS_err_bi0.9_sz <- c(weibull_MRS_err_bi0.9_sz, weibull_errors_sz)
+      
+      singles_percent_bi0.9 <- c(singles_percent_bi0.9, s_perc)
+    }
+  }
+  
+  
+  # combine everything together:
+  aMRS <- c(aMRS_uni, aMRS_bi0.25, aMRS_bi0.9)
+  aMOS_MRS_err <- c(aMOS_MRS_err_uni, aMOS_MRS_err_bi0.25, aMOS_MRS_err_bi0.9) 
+  aMOS_MRS_err_sz <- c(aMOS_MRS_err_uni_sz, aMOS_MRS_err_bi0.25_sz, aMOS_MRS_err_bi0.9_sz) 
+  hmean_MRS_err <- c(hmean_MRS_err_uni, hmean_MRS_err_bi0.25, hmean_MRS_err_bi0.9) 
+  hmean_MRS_err_sz <- c(hmean_MRS_err_uni_sz, hmean_MRS_err_bi0.25_sz, hmean_MRS_err_bi0.9_sz) 
+  lnorm_MRS_err <- c(lnorm_MRS_err_uni, lnorm_MRS_err_bi0.25, lnorm_MRS_err_bi0.9) 
+  lnorm_MRS_err_sz <- c(lnorm_MRS_err_uni_sz, lnorm_MRS_err_bi0.25_sz, lnorm_MRS_err_bi0.9_sz) 
+  gamma_MRS_err <- c(gamma_MRS_err_uni, gamma_MRS_err_bi0.25, gamma_MRS_err_bi0.9) 
+  gamma_MRS_err_sz <- c(gamma_MRS_err_uni_sz, gamma_MRS_err_bi0.25_sz, gamma_MRS_err_bi0.9_sz) 
+  weibull_MRS_err <- c(weibull_MRS_err_uni, weibull_MRS_err_bi0.25, weibull_MRS_err_bi0.9)
+  weibull_MRS_err_sz <- c(weibull_MRS_err_uni_sz, weibull_MRS_err_bi0.25_sz, weibull_MRS_err_bi0.9_sz)
+  singles_percent <- c(singles_percent_uni, singles_percent_bi0.25, singles_percent_bi0.9) 
+  
+  biases_uni_bi0.250.9_4reps_sonly_df_plots1_2 <- data.frame(aMRS=rep(aMRS, times=10), Mb= rep(Mb, times=10), uni_bi = rep(uni_bi, times=10),
+                                                    error = c(aMOS_MRS_err, aMOS_MRS_err_sz, hmean_MRS_err, hmean_MRS_err_sz, lnorm_MRS_err, lnorm_MRS_err_sz, gamma_MRS_err, gamma_MRS_err_sz, weibull_MRS_err, weibull_MRS_err_sz),
+                                                    method = c(rep("arithmetic", times=8), rep("hmean", times=8), rep("lnorm", times=8), rep("gamma", times=8), rep("weibull", times=8)),
+                                                    type = c(rep(c("raw", "raw", "raw", "raw","with_sz","with_sz","with_sz","with_sz"),times=5)))
+                                                    
+  write.csv(biases_uni_bi0.250.9_4reps_sonly_df_plots1_2, file = "../results/final_results/biases_uni_bi0.250.9_4reps_sonly_df_plots1_2")
+  
+  # plot with just raw frames
+  biases_uni_bi0.250.9_4reps_sonly_rawplot <- ggplot(biases_uni_bi0.250.9_4reps_sonly_df_plots1_2[biases_uni_bi0.250.9_4reps_sonly_df_plots1_2$type=="raw",], aes(x = aMRS, y = error, colour = method))+
+    geom_point()+
+    facet_grid(uni_bi ~ .)+
+    geom_smooth(alpha = 0.2, se=F)+
+    theme_minimal()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error (m/s)",
+         title = "Errors between MRS and estimated speeds\n(+ve: est>MRS)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13),
+          strip.text = element_text(size = 13))
+  biases_uni_bi0.250.9_4reps_sonly_rawplot
+  # --> go from here - get this plot to work, finalise it, and produce the other 2 plots + hz_noscaling vs hz_scaling plot
+  
+  
+  
+  # plot with singles too
+  
+  
+  
+  
+  
+  
+  # plot of percentage singles
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   # initialise vectors to fill massive dataframe
   Mb <- c()

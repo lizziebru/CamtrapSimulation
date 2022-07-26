@@ -24,15 +24,15 @@ Paths generated on 23Jul22 with body mass as input parameter and scaling relatio
 
 ## **Simulation sequence data and plotting variables**
 
-**uni_hzonly**
+**uni_hz_noscaling**
 
-Unimodal paths. Large species: hz parameterized using Panama data only. Small species: hz + logistic mix parameterized using Panama data only. No body mass scaling of effective detection distance.
+Unimodal paths. Hazard rate function parameterized using all Panama species used - no body mass scaling of detection distance probability from CT.
 
-**uni_hz_effdist**
+**uni_hz_scaling**
 
-Same as uni_hzonly except with addition of body mass scaling of effective detection distance. 
+Unimodal paths. Hazard rate function with body mass scaling trends of its parameters (scaling trends derived using Panama data). 
 
-**bi_hz_effdist**
+**bi_hz_scaling**
 
 Same as uni_hz_effdist except using bimodal paths instead of unimodal. 
 

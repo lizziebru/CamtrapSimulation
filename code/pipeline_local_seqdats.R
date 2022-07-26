@@ -7,9 +7,10 @@ setwd("~/Documents/Project/CamtrapSimulation/code")
 rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
-# set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("../Mb_results/08Jul22_1602/") 
+# set range of body masses to run the simulation on:
+Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
+<<<<<<< HEAD
 # set which speed to analyse paths in:
 <<<<<<< HEAD
 pathfolder <- paste0("sp0.06_18May22_0923/") # next: 
@@ -17,25 +18,65 @@ pathfolder <- paste0("sp0.06_18May22_0923/") # next:
 =======
 pathfolder <- paste0("paths/Mb50/") 
 >>>>>>> master
-
-# # set number of iterations of the path
-# iter <- 100 
-
+=======
 # set range of paths to run the simulation on:
-path_nos <- c(1:20)
+path_nos <- c(1:5)
+>>>>>>> master
+
+# set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
+parentfolder <- paste0("../results/final_results/paths_uni/")
+
+# set output folder - depends on what you're running
+outputfolder <- paste0("../results/final_results/uni_hz_noscaling/")
+
 
 # set additional parameters:
-# species = 0 # currently: 0 = small, 1 = large --> ultimately: want: 1 = small herbivores, 2 = large herbivores, 3 = small carnivores, 4 = large carnivores
 r = 9
 th = 0.7
 twoCTs = FALSE
 connectedCTs = FALSE
 path_cutby = 1
+scaling=FALSE # whether to scale hz function for detection probability with body mass
 
 
 # run the simulation to save as seq_dats:
-generate_seqdats(parentfolder=parentfolder, pathfolder=pathfolder, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby)
+generate_seqdats(parentfolder=parentfolder, outputfolder=outputfolder, Mb_range=Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby, scaling=scaling)
 
 # # run the simulation and analyse the results:
 # run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, n_cores=4)
+
+
+
+
+
+# for running this on other computers: -------------------------------------
+
+# ## FOR RUNNING THE SIMULATION ON OTHER COMPUTERS ##
+# 
+# # required packages and functions
+# 
+# #install.packages("ggplot2")
+# require(ggplot2)
+# 
+# #install.packages("circular")
+# require(circular)
+# 
+# # install.packages("parallel")
+# # require(parallel)
+# 
+# source("CamtrapSimulation.R", echo=TRUE)
+# 
+# parentfolder <- paste0("")
+# pathfolder <- paste0("")
+# 
+# iter <- 100 
+# 
+# species = 0 
+# r = 9
+# th = 0.7
+# path_cutby = 0.5
+# twoCTs = TRUE
+# connectedCTs = FALSE
+# 
+# run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby = path_cutby, n_cores=4)
 

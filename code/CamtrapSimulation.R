@@ -1,3 +1,9 @@
+## CamtrapSimulation.R ##
+
+# contains all functions needed to run the simulation and analyses its results wrt the 2 biases in average speed estimation being investigated
+
+# TO DO: 
+# - go through each function and check its description isn't missing any recent additions
 
 require(circular)
 require(parallel)
@@ -5,31 +11,6 @@ require(rlist)
 require(future.apply)
 require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
 require(ggnewscale)
-
-# to test things:
-
-
-# # # set speed parameter
-# # speed_parameter <- log(0.02) # list whatever speeds you want (can be multiple) - and if you want 10 of each need -J 1-40 (needs to be a multiple of number of speeds)
-# # #
-# # # # set parameters
-# # xlim = c(0,40)
-# step_no = 5e4
-# # size = 0
-# # pTurn = 0.5
-# # speedCor = 0.9
-# # kTurn = 2
-# # kCor = TRUE
-# # #
-# path <- pathgen(n=step_no, kTurn=kTurn, kCor=kCor, pTurn=pTurn, logspeed=speed_parameter, size=size, speedCor=speedCor, xlim=xlim)
-
-
-# path <- pathgen(5e4, kTurn=2, kCor=TRUE, pTurn=0.5,
-#                 logspeed=-2, speedSD=1, speedCor=0.9,
-#                 xlim=c(0,40), wrap=TRUE)
-# point <- path$path[,1:2]
-#
-# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
 
 
 ## rautonorm
@@ -48,6 +29,7 @@ rautonorm <- function(n,mean=0,sd=1,r){
   }
 
 
+
 ## pathgen
 ## generates a path of x, y positions using a correlated random walk
 # INPUTS:
@@ -59,51 +41,116 @@ rautonorm <- function(n,mean=0,sd=1,r){
 # kCor: whether to correlate kappa with speed
 # xlim, ylim: x and y axis limits within which to pick the starting point
 # wrapped: whether to wrap the path
+# bimodal: whether to simulate bimodal movement (moving & feeding behaviours)
+# mov_prop: proportion of time spent moving (decimal between 0 and 1)
 # OUTPUT:
 # A list with elements:
 # path: a dataframe with columns x and y (path co-ordinates) and, if wrap=TRUE, breaks indicating where wrap breaks occur
 # turn, absturn: radian (absolute) turn angles for each step (turn ranging 0 to 2pi; absturn ranging 0 to pi)
 # speed: step speeds
-pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=1, xlim=c(0,0), ylim=xlim, wrapped=TRUE){
-  # set fixed logspeedSD (calculated using regent's park & panama data)
-  logspeedSD <- 0.8546151
+pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=0.5, xlim=c(0,0), wrapped=TRUE, bimodal=FALSE, mov_prop=1, pTurn_mov=0.3, pTurn_feed=0.8){
+  ylim=xlim
+  vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb))) # set maxspeed - using body mass relationship from Garland 1983
   
-  # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
-  logspeed <- log(0.1357288*(Mb^0.197178)) 
-
-  # set maxspeed - using body mass relationship from Garland 1983
-  vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb)))
-  
-  spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates
-  
-  # cap those spds at the max speed
-  spds <- spds[spds<vmax]
-  
-  # set new number of steps based on how may speeds you now have:
-  n_capped <- length(spds)
-  
-  # exp bc: the speed chunks we see tend to be log normally distributed (therefore need natural logarithms not log10!!)
-  # so you're generating a normal distribution of variates on the log scale (using logspeed)
-  # so take exp to get them back to linear scale
-  tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
-  if(kCor==TRUE){ # if we want to correlate kappa with speed:
-    kappas <- kTurn * spds / mean(spds)
-    deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
-  } 
-  else 
+  if (bimodal==FALSE){ # for unimodal movement:
+    pTurn = 0.5
+    logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
+    logspeed <- log(0.1357288*(Mb^0.197178)) # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
+    spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds <- spds[spds<vmax] # cap those spds at the max speed
+    n_capped <- length(spds) # set new number of steps based on how may speeds you now have
+    tTurn <- rbinom(n_capped,1,pTurn) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas <- kTurn * spds / mean(spds)
+      deviates <- sapply(kappas, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
       deviates <- as.numeric(rvonmises(n_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
-  deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
-  angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
-  x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
-  y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
-  absdevs <- deviates
-  i <- absdevs>pi
-  absdevs[i] <- 2*pi-absdevs[i]
-  absdevs <- abs(absdevs)
-  res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
-  if(wrapped) res <- wrap(res, xlim, ylim)
-  res
+    deviates[tTurn==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles <- runif(1)*2*pi + cumsum(deviates) # transforms deviates into angles corresponding to the amount you turn at each step
+    
+    x <- c(0, cumsum(spds*sin(angles))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y <- c(0, cumsum(spds*cos(angles))) + runif(1,ylim[1],ylim[2])
+    absdevs <- deviates
+    i <- absdevs>pi
+    absdevs[i] <- 2*pi-absdevs[i]
+    absdevs <- abs(absdevs)
+    res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
+    if(wrapped) res <- wrap(res, xlim, ylim)
+  }
+  
+  if (bimodal==TRUE){ # for bimodal movement:
+    
+    # number of steps to do in each behaviour:
+    n_mov <- mov_prop*n
+    n_feed <- n-n_mov
+    
+    # parameters for each distribution
+    logspeedSD_mov <- 0.8656343 # set fixed logspeedSD (calculated using Pablo's data)
+    logspeed_mov <- log(2.489792*(Mb^0.04714894)) # set logspeed - using body mass relationship derived from Pablo's data (fitting lnorm)
+    logspeedSD_feed <- 1.04981 
+    logspeed_feed <- log(1.081785*(Mb^0.1410986))
+    
+    # generate and cap speeds for each distribution
+    spds_mov <- exp(rautonorm(n_mov, logspeed_mov, logspeedSD_mov, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds_mov <- spds_mov[spds_mov<vmax] # cap those spds at the max speed
+    n_mov_capped <- length(spds_mov) # set new number of steps based on how may speeds you now have
+    
+    spds_feed <- exp(rautonorm(n_feed, logspeed_feed, logspeedSD_feed, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds_feed <- spds_feed[spds_feed<vmax] # cap those spds at the max speed
+    n_feed_capped <- length(spds_feed) # set new number of steps based on how may speeds you now have
+    
+    
+    # generate path for each distribution:
+    
+    # moving:
+    tTurn_mov <- rbinom(n_mov_capped,1,pTurn_mov) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas_mov <- kTurn * spds_mov / mean(spds_mov)
+      deviates_mov <- sapply(kappas_mov, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
+      deviates_mov <- as.numeric(rvonmises(n_mov_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+    deviates_mov[tTurn_mov==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles_mov <- runif(1)*2*pi + cumsum(deviates_mov) # transforms deviates into angles corresponding to the amount you turn at each step
+    x_mov <- c(0, cumsum(spds_mov*sin(angles_mov))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y_mov <- c(0, cumsum(spds_mov*cos(angles_mov))) + runif(1,ylim[1],ylim[2])
+    absdevs_mov <- deviates_mov
+    i <- absdevs_mov>pi
+    absdevs_mov[i] <- 2*pi-absdevs_mov[i]
+    absdevs_mov <- abs(absdevs_mov)
+    
+    # feeding:
+    tTurn_feed <- rbinom(n_feed_capped,1,pTurn_feed) # generates set of n (= no of steps) numbers either 1 and 0 where higher probability of turning at each step = more likely to have 1
+    if(kCor==TRUE){ # if we want to correlate kappa with speed:
+      kappas_feed <- kTurn * spds_feed / mean(spds_feed)
+      deviates_feed <- sapply(kappas_feed, function(x) as.numeric(rvonmises(1,circular(0),x)))
+    } 
+    else 
+      deviates_feed <- as.numeric(rvonmises(n_feed_capped, circular(0), kTurn)) # get one turning number per speed - must be some sort of turning number corresponding to each speed so that speed change and turning are correlated
+    deviates_feed[tTurn_feed==0] <- 0 # wherever you shouldn't turn at all, set deviate to 0 so that you don't turn
+    angles_feed <- runif(1)*2*pi + cumsum(deviates_feed) # transforms deviates into angles corresponding to the amount you turn at each step
+    x_feed <- c(0, cumsum(spds_feed*sin(angles_feed))) + runif(1,xlim[1],xlim[2]) # spds is being used as the hypotenuse for each step -- so acts like distance
+    y_feed <- c(0, cumsum(spds_feed*cos(angles_feed))) + runif(1,ylim[1],ylim[2])
+    absdevs_feed <- deviates_feed
+    i <- absdevs_feed>pi
+    absdevs_feed[i] <- 2*pi-absdevs_feed[i]
+    absdevs_feed <- abs(absdevs_feed)
+    
+    # combine the 2 into the final list
+    x <- c(x_mov, x_feed)
+    y <- c(y_mov, y_feed)
+    deviates <- c(deviates_mov, deviates_feed)
+    absdevs <- c(deviates_mov, deviates_feed)
+    spds <- c(spds_mov, spds_feed)
+    res <- list(path=data.frame(x,y), turn=deviates, absturn=absdevs, speed=spds)
+    if(wrapped) res <- wrap(res, xlim, ylim)
+  }
+  return(res)
 }
+
+
+
 
 
 ## wrap
@@ -167,30 +214,6 @@ plot_wrap <- function(path, type=c("l","p","b"), add=FALSE, axisargs=list(), lin
   }
 }
 
-
-# model for small species' radius: hazard rate with logistic mix
-small_radius <- function(radius){
-  prob <- (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
-  if (prob > 1){
-    prob <- 1
-  }
-  if (prob < 0){
-    prob <- 0
-  }
-  return(prob)
-}
-
-# model for large species' radius: hazard rate with logistic mix
-large_radius <- function(radius){
-  prob <- (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
-  if (prob > 1){
-    prob <- 1
-  }
-  if (prob < 0){
-    prob <- 0
-  }
-  return(prob)
-}
 
 
 
@@ -446,35 +469,55 @@ line_arc_cross <- function(line, arc){
 }
 
 
+## hz_radius
+# hz function for distance detection probability
+# INPUTS
+# radius: radial distance of the point from the CT
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
+# OUTPUT
+# probability of being detected at that radius
+hz_radius <- function(radius, Mb, scaling){
+  if (scaling==FALSE){
+    prob <- 1 - exp(-(0.4255583/radius)^0.7369158) # general hz function parameterized using all species in Panama dataset
+  }
+  if (scaling==TRUE){
+    a <- 2.183057*(Mb^0.5214121) # work out coefficients of hz function using scaling relationships with body mass
+    g <- 31.99669*(Mb^0.5784485)
+    prob <- 1 - exp(-(a/radius)^g)
+  }
+  if (prob > 1){
+    prob <- 1
+  }
+  if (prob < 0){
+    prob <- 0
+  }
+  return(prob)
+}
+
 
 ## reassign_prob
 # for all the points that cross the dz, reassign them as TRUE or FALSE based on probability of getting detected at that distance from the CT
 # INPUTS
 # a row in isindz_df2 dataframe from isindz function
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # vector of TRUE or FALSE for whether that point got detected
-reassign_prob <- function(isindz_row){
+reassign_prob <- function(isindz_row, Mb, scaling){
   if (isindz_row[[1]]==FALSE){
     return(FALSE)
   }
   else {
-    # if (species == 0){ - only use large species hazard function for now
-    #   prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 3.340884 # probability of being detected based on the estimated probability density for the radius
-    #   if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
-    #     prob_radius <- 1
-    #   }
-    #   new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-    #   return(new_res)
-    # }
-    # if (species == 1){
-      prob_radius <- large_radius(as.numeric(isindz_row[[2]])) * 2.767429 # probability of being detected based on the estimated probability density for the radius
-      if (prob_radius > 1){
-        prob_radius <- 1
-      }
-      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      return(new_res)
+    prob_radius <- hz_radius(as.numeric(isindz_row[[2]]), Mb=Mb, scaling=scaling) * 1.377284 # probability of being detected based on the estimated probability density for the radius - need to multiply by 1.377284 bc the max probability in the PDF is 0.7260668 so need to scale everything so that max probability of detection is 1
+    if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in hz_radius function
+      prob_radius <- 1
     }
+    new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+    return(new_res)
+  }
 }
+
 
 ## is_in_dz - see bottom for original function
 # Defines whether points are within detection zones
@@ -485,10 +528,10 @@ reassign_prob <- function(isindz_row){
 #           x,y: x,y coordinates of camera
 #           r, th: detection zone radius and angle
 #           dir: radian direction in which the camera is facing
-# species = size of the animal (1 = large, 0 = small)
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone){
+is_in_dz <- function(point, dzone, Mb, scaling){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -524,82 +567,13 @@ is_in_dz <- function(point, dzone){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
   
-  new_reses <- apply(isindz_df, 1, reassign_prob)
+  new_reses <- apply(isindz_df, 1, reassign_prob, Mb=Mb, scaling=scaling)
   
   isindz_all <- data.frame(indz = isindz_df$res,
                            detected = new_reses)
   return(isindz_all)
 }
 
-
-
-## sequence_data
-# 1. Takes dataframes defining a path and a detection zone (as defined above)
-# 2. Filters the path points falling within the detection zone
-# 3. Assigns each contiguous sequence of points a unique sequence identifier
-# 4. calculates the distances between points with sequences
-# finds which points on the path are in the detection zone
-# and assigns sequence identifiers to each snippet (so there are multiple within one path)
-# returns parts of a path that are in the detection zone
-# INPUT
-# path: a path object
-# a detection zone array
-# species = size of the animal (1 = large, 0 = small)
-# OUTPUT
-# A data frame with columns:
-# x,y: x,y co-ordinates of sequence points in detection zones
-# sequenceID: integer sequence identifier
-# distance: distance traveled for each step between points
-# for small species:
-sequence_data <- function(pth, dzone){
-  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone) # returns true or false for whether each position in the path is in the detection zone
-  
-  # to get xy, seqID, and dist for those that actually do get detected
-  isin_detected <- as.vector(isin_all$detected)
-  isin_detected[1] <- FALSE
-  isin_detected <- as.logical(isin_detected)
-  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
-  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
-  seqid <- c(0, cumsum(newseq))[isin_detected] ## this is the problem
-  xy <- pth[isin_detected, ] ## THIS LINE TAKES A WHILE
-  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
-  newseq <- tail(seqid, -1) > head(seqid, -1)
-  dist[newseq] <- NA
-  dist <- c(NA, dist)
-  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
-  
-  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
-  isin_indz <- as.vector(isin_all$indz)
-  isin_indz[1] <- FALSE
-  isin_indz <- as.logical(isin_indz)
-  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
-  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
-  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
-  xy2 <- pth2[isin_indz, ] # THIS ONE TOO
-  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
-  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
-  dist2[newseq2] <- NA
-  dist2 <- c(NA, dist2)
-  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
-  
-  # df2["detected"] <- NA
-  # for (i in 1:nrow(df2)){ # THIS TAKES THE LONGEST
-  #   d <- df2[i,]
-  #   if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
-  #     df2[i,]$detected <- TRUE
-  #   }
-  #   else{
-  #     df2[i,]$detected <- FALSE
-  #   }
-  # }
-  
-  df2["detected"] <- FALSE
-  df2$detected[which(df2$x %in% df1$x & df2$y %in% df1$y)] <- TRUE
-  
-  
-  return(df2)
-}
 
 
 ## zero_frame
@@ -610,9 +584,11 @@ sequence_data <- function(pth, dzone){
 #       required column headings: x, y (xy coords of the camera), r (radius), th (angle)
 # posdat_all = dataframe of all points that fell into the dz
 #       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT:
 # vector of values for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
-zero_frame <- function(paired_points, dz, posdat_all, max_real){
+zero_frame <- function(paired_points, dz, posdat_all, max_real, Mb, scaling){
   x1 <- paired_points[1]
   y1 <- paired_points[2]
   breaks1 <- paired_points[3]
@@ -652,7 +628,7 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
       mx <- (x1+x2)/2 # midpoint x coord
       my <- (y1+y2)/2 # midpoint y coord
       midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-      prob_detect <- large_radius(midpoint_radius) * 2.767429 # just use the hazard rate function (without logistic mix) bc not worrying about species rn
+      prob_detect <- hz_radius(midpoint_radius, Mb=Mb, scaling=scaling) # reassign probability of that point being detected based on hz function of detection probability at a distance from CT
       zero <- prob_detect
     }
     else{
@@ -663,6 +639,61 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 }
 
 
+## sequence_data
+# 1. Takes dataframes defining a path and a detection zone (as defined above)
+# 2. Filters the path points falling within the detection zone
+# 3. Assigns each contiguous sequence of points a unique sequence identifier
+# 4. calculates the distances between points with sequences
+# finds which points on the path are in the detection zone
+# and assigns sequence identifiers to each snippet (so there are multiple within one path)
+# returns parts of a path that are in the detection zone
+# INPUT
+# path: a path object
+# a detection zone array
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
+# OUTPUT
+# A data frame with columns:
+# x,y: x,y co-ordinates of sequence points in detection zones
+# sequenceID: integer sequence identifier
+# distance: distance traveled for each step between points
+sequence_data <- function(pth, dzone, Mb, scaling){
+  pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
+  isin_all <- is_in_dz(pth, dzone, Mb=Mb, scaling=scaling) # returns true or false for whether each position in the path is in the detection zone
+  
+  # to get xy, seqID, and dist for those that actually do get detected
+  isin_detected <- as.vector(isin_all$detected)
+  isin_detected[1] <- FALSE
+  isin_detected <- as.logical(isin_detected)
+  pth <- pth[rep(1:nrow(pth), nrow(dzone)), ]
+  newseq <- tail(isin_detected, -1) > head(isin_detected, -1)
+  seqid <- c(0, cumsum(newseq))[isin_detected] ## this is the problem
+  xy <- pth[isin_detected, ] ## THIS LINE TAKES A WHILE
+  dist <- sqrt(diff(xy$x)^2 + diff(xy$y)^2)
+  newseq <- tail(seqid, -1) > head(seqid, -1)
+  dist[newseq] <- NA
+  dist <- c(NA, dist)
+  df1 <- data.frame(xy, sequenceID = seqid, distance = dist)
+  
+  # to get xy, seqID, and dist for all those that fall in dz regardless of getting detected:
+  isin_indz <- as.vector(isin_all$indz)
+  isin_indz[1] <- FALSE
+  isin_indz <- as.logical(isin_indz)
+  pth2 <- pth[rep(1:nrow(pth), nrow(dzone)), ] # what does this line do??
+  newseq2 <- tail(isin_indz, -1) > head(isin_indz, -1)
+  seqid2 <- c(0, cumsum(newseq2))[isin_indz]
+  xy2 <- pth2[isin_indz, ] # THIS ONE TOO
+  dist2 <- sqrt(diff(xy2$x)^2 + diff(xy2$y)^2)
+  newseq2 <- tail(seqid2, -1) > head(seqid2, -1)
+  dist2[newseq2] <- NA
+  dist2 <- c(NA, dist2)
+  df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
+  
+  df2["detected"] <- FALSE
+  df2$detected[which(df2$x %in% df1$x & df2$y %in% df1$y)] <- TRUE
+  
+  return(df2)
+}
 
 # run_simulation
 # runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
@@ -674,6 +705,8 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # th = angle of detection zone
 # plot_path = TRUE or FALSE - if TRUE, plots the path & dz
 # twoCTs = TRUE or FALSE - if TRUE, sets up 2 CTs next to each other
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT:
 # dataframe containing: 
 # realised speeds
@@ -683,12 +716,12 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
-  
+run_simulation <- function(path, parentfolder, Mb, r, th, scaling, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all <- sequence_data(path, dz, Mb=Mb, scaling=scaling) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -698,8 +731,8 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    posdat_all1 <- sequence_data(path, dz1) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2)
+    posdat_all1 <- sequence_data(path, dz1, Mb=Mb, scaling=scaling) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, Mb=Mb, scaling=scaling)
     posdat_all <- rbind(posdat_all1, posdat_all2)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
@@ -725,92 +758,7 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
     mean(extract_realised(path$speed, r_lengths)) # extract_realised: function to select sets of speeds of length r_lengths
   })
   
-  # ### speeds of single-frame sequences and number of single-frame sequences - incorrect bc need to use the whole path df -- re-doing this in multispeed_analyse function
-  # singles_speeds <- c()
-  # n_singles <- 0
-  # # select rows in posdat_all which are detected but only in a single frame, as well as the two points above and below each one of those
-  # # select the seqID posdats when you only have one TRUE:
-  # for (i in unique(posdat_all$sequenceID)){
-  #   p <- posdat_all[posdat_all$sequenceID==i,] # subset by sequence ID
-  #   n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
-  #   if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
-  #     
-  #     ## work out the detection probability of that single frame:
-  #     single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
-  #     single_y <- p[p$detected==TRUE,]$y
-  #     single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-  #     if (species == 0){
-  #       prob_detect <- small_radius(single_radius) * 3.340884 # probability of detection if the species is small
-  #     }
-  #     if (species == 1){
-  #       prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection if the species is large
-  #     }
-  #     n_singles <- n_singles + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
-  #     
-  #     
-  #     ## select the row that's TRUE and the row above and below it -- incorrect!!
-  #     # assign row numbers to help with this
-  #     p["rownumber"] <- c(1:nrow(p))
-  #     true_rownumber <- p[p$detected==TRUE,]$rownumber # rownumber of the detected point
-  #     if (true_rownumber == 1){ # if the detected point is the first in that sequence, just use that point and the one after it
-  #       below_rownumber <- true_rownumber + 1
-  #       rownumbers_needed <- c(true_rownumber, below_rownumber)
-  #     }
-  #     if (true_rownumber == nrow(p)){ # if the detected point is the last in that sequence, just use that point and teh one before it
-  #       above_rownumber <- true_rownumber - 1
-  #       rownumbers_needed <- c(true_rownumber, above_rownumber)
-  #     }
-  #     else { # otherwise, use both the points below and above
-  #       above_rownumber <- true_rownumber - 1
-  #       below_rownumber <- true_rownumber + 1
-  #       rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
-  #     }
-  #     rows_needed <- p[rownumbers_needed,]
-  #     speed_single <- calc_speed(rows_needed)
-  #     singles_speeds <- c(singles_speeds, speed_single$speed)
-  #   } 
-  # }
-  # singles_speeds <- singles_speeds[is.finite(singles_speeds)==TRUE] # get rid of the NaNs - occur when the edge of the arena is reached
-  # 
-  # ### number of zero-frame sequences: -- also incorrect - bc of the realised speeds you're using here (my previous wrong way of doing it) -- re-doing this in multispeed analyse
-  # path_df <- path$path
-  # path_df2 <- path_df
-  # path_df <- path_df[-nrow(path_df),] # remove last row
-  # path_df2 <- path_df2[-1,] # remove first row
-  # path_df_paired <- cbind(path_df, path_df2) # paired points
-  # colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-  # max_real <- max(realised_spds) # max realised speed in this simulation run (used for buffer)
-  # if (twoCTs == FALSE){
-  #   dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-  #   zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
-  # }
-  # if (twoCTs == TRUE){
-  #   dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-  #   if (connectedCTs == TRUE){
-  #     dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-  #   }
-  #   if (connectedCTs == FALSE){ 
-  #     dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-  #   }
-  #   zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
-  #   zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
-  #   zeros <- c(zeros1, zeros2)
-  # }
-  # zeros_vals <- zeros[zeros!=0]
-  # n_zeros <- sum(zeros_vals[1:length(zeros_vals)])
-  # 
-  # 
-  # ## speeds of zero-frame sequences
-  # # need to get the coords in the right format to call calc_speed - do this once have got the zeros run
-  # path_df_paired["ZERO"] <- zeros
-  # zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
-  # zeros_speeds <- c()
-  # for (i in 1:nrow(zeros_dat)){
-  #   z <- zeros_dat[i,]
-  #   speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
-  #   zeros_speeds <- c(zeros_speeds, speed)
-  # }
-  # 
+
   # make output list
   output_list <- list(posdat_all = posdat_all,
                       posdat = posdat,
@@ -818,17 +766,12 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
                       realised = realised_spds,
                       observed = observed,
                       obs_lengths = obs_lengths,
-                      # n_singles = n_singles, -- these are all incorrect -- re-doing them in multispeed_analyse
-                      # singles_speeds = singles_speeds,
-                      # n_zeros = n_zeros,
-                      # zeros_speeds = zeros_speeds,
                       n_points = nrow(posdat)) # total number of position datapoints detected by the CT
-                      # singles_prop = n_singles/nrow(posdat),
-                      # zeros_prop = n_zeros/nrow(posdat))
+
 
   # plot path
   if (plot_path == TRUE){
-    png(file= paste0(parentfolder, pathfolder, "plot.png"),
+    png(file= paste0(parentfolder, "Mb", Mb, "/plot.png"),
         width=700, height=650)
     plot_wrap(path, lineargs = list(col="grey"))
     plot_dzone(dz, border=2)
@@ -844,24 +787,46 @@ run_simulation <- function(path, parentfolder, pathfolder, r, th, plot_path = TR
 # run the simulation on each of the 100 paths for each repeat and save the seq_dats outputs to the seq_dats folder
 # INPUTS
 # path_nos: range of iter numbers to run the simulation on (vary depending on computational ability of local machine) - e.g. course laptop can take about 10 at once max
+# effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # saved seq_dats.RData files in seq_dats folder
-generate_seqdats <- function(parentfolder, pathfolder, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1){
-  for (i in path_nos){
-    load(paste0(parentfolder, pathfolder, "iter", i, ".RData"))
-    if (i == 1){
-      plot_path <- TRUE # only plot the first one to save some time
+generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, scaling){
+  for (j in Mb_range){
+    for (i in path_nos){
+      load(paste0(parentfolder,"Mb", j, "/iter", i, ".RData"))
+      if (i == 1){
+        plot_path <- TRUE # only plot the first one to save some time
+      }
+      else {
+        plot_path <- FALSE
+      }
+      if (path_cutby == 1){
+        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, scaling=scaling, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      }
+      else { # if want to cut the path short to make it computationally easier:
+        path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
+        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, scaling=scaling, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+      }
+      metadata_sim <- list(datetime = metadata$datetime,
+                           iter = metadata$iter,
+                           Mb = metadata$Mb,
+                           xlim = metadata$xlim,
+                           step_no = metadata$step_no,
+                           #speedSD = metadata$speedSD,
+                           pTurn = metadata$pTurn,
+                           speedCor = metadata$speedCor,
+                           kTurn = metadata$kTurn,
+                           kCor = metadata$kCor,
+                           r = r,
+                           th = th,
+                           twoCTs = twoCTs,
+                           connectedCTs = connectedCTs,
+                           scaling=scaling)
+      
+      save(seq_dats, metadata_sim, file = paste0(outputfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
+      rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
     }
-    else {
-      plot_path <- FALSE
-    }
-    if (path_cutby == 1){
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-    }
-    else { # if want to cut the path short to make it computationally easier:
-      path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-      seq_dats <- run_simulation(path, parentfolder=parentfolder, pathfolder=pathfolder, r=r, th=th, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
-    }
+<<<<<<< HEAD
     metadata_sim <- list(datetime = metadata$datetime,
                          iter = metadata$iter,
                          Mb = metadata$Mb,
@@ -879,6 +844,8 @@ generate_seqdats <- function(parentfolder, pathfolder, path_nos, r, th, twoCTs, 
     
     save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
     rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
+=======
+>>>>>>> master
   }
 }
 
@@ -989,10 +956,11 @@ estimates_calc <- function(seq_dats){
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # big list of variables which will be used for plotting
-generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE){
+generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE, scaling){
   
   for (n in 1:length(Mb_iters$Mb_range)){ # loop through each body mass
     i <- Mb_iters$Mb_range[n]
+    Mb=i
     iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
     
     aMRS <- c() # arithmetic MRS
@@ -1036,7 +1004,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0(parentfolder, "seq_dats/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "seq_dats_w_logistic_mix/Mb", i, "iter", j, ".RData"))
       
       load(paste0(parentfolder, "paths/Mb", i, "/iter", j, ".RData"))
       
@@ -1092,7 +1060,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
           single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
           single_y <- p[p$detected==TRUE,]$y
           single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-          prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection using hazard function
+          prob_detect <- hz_radius(single_radius, Mb=Mb, scaling=scaling) # probability of detection using hazard function
           singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
           
           ## speeds of single frame sequences:
@@ -1144,7 +1112,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
       if (twoCTs == FALSE){
         dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
       }
       if (twoCTs == TRUE){
         dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -1154,8 +1122,8 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
         if (connectedCTs == FALSE){ 
           dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
         }
-        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
-        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
         zeros <- c(zeros1, zeros2)
       }
       zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
@@ -1306,7 +1274,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "plotting_data/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
+    save(output, file = paste0(parentfolder, "plotting_data_w_logistic_mix/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
 
@@ -1315,7 +1283,8 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
 
 ## make_plots
 # make summary plots using data generated in generate_plotting_variables function
-make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
+## NEEDS FIXING THOUGH BC BEHAVES PROBLEMATICALLY WHEN CALLED AS A FUNCTION (EVERYTHING INSIDE RUNS WITHOUT ERRORS THOUGH)
+make_plots <- function(parentfolder, part_of_wedge, Mb_iters, r, th, twoCTs=FALSE, connectedCTs=FALSE){
   
   # initialise vectors to fill massive dataframe
   Mb <- c()
@@ -1345,11 +1314,13 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   n_singles <- c()
   singles_v_mean <- c()
   zeros_v_mean <- c()
+  n_points <- c()
+  n_detected <- c()
   
   for (i in Mb_range){
     
     # load in data generated in generate_plotting_variables function
-    load(paste0(parentfolder, "plotting_data/Mb", i, "_iters1-", Mb_iters$iter[1], ".RData"))
+    load(paste0(parentfolder, "plotting_data/wedge", part_of_wedge, "/Mb", i, "_iters1-", Mb_iters$iter[1], ".RData"))
     
     # fill vectors
     Mb <- c(Mb, rep(i, times = Mb_iters$iter[1]))
@@ -1379,14 +1350,42 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
     n_singles <- c(n_singles, output$n_singles)
     singles_v_mean <- c(singles_v_mean, output$singles_v_mean)
     zeros_v_mean <- c(zeros_v_mean, output$zeros_v_mean)
-    
+    n_points <- c(n_points, output$n_points)
+    n_detected <- c(n_detected, output$n_detected)
   }
   
-  main_df <- data.frame(Mb=Mb, iter=iter, aMRS=aMRS, amMOS=amMOS, amMOS_sz=amMOS_sz, apMOS=apMOS, apMOS_sz=apMOS_sz, hmean_m=hmean_m,
+  if (part_of_wedge==0){
+    wedgename2 <- "whole"
+  }
+  if (part_of_wedge==1){
+    wedgename2 <- "bottom"
+  }
+  if (part_of_wedge==2){
+    wedgename2 <- "middle"
+  }
+  if (part_of_wedge==3){
+    wedgename2 <- "top"
+  }
+  
+  main_df <- data.frame(wedge=rep(wedgename2, times=length(Mb)) , Mb=Mb, iter=iter, aMRS=aMRS, amMOS=amMOS, amMOS_sz=amMOS_sz, apMOS=apMOS, apMOS_sz=apMOS_sz, hmean_m=hmean_m,
                         hmean_m_sz=hmean_m_sz, hmean_p=hmean_p, hmean_p_sz=hmean_p_sz, lnorm_m=lnorm_m, lnorm_m_sz=lnorm_m_sz,
                         lnorm_p=lnorm_p, lnorm_p_sz=lnorm_p_sz, gamma_m=gamma_m, gamma_m_sz=gamma_m_sz, gamma_p=gamma_p,
                         gamma_p_sz=gamma_p_sz, weibull_m=weibull_m, weibull_m_sz=weibull_m_sz, weibull_p=weibull_p, weibull_p_sz,
-                        n_zeros=n_zeros, n_singles=n_singles, singles_v_mean=singles_v_mean, zeros_v_mean=zeros_v_mean)                        
+                        n_zeros=n_zeros, n_singles=n_singles, singles_v_mean=singles_v_mean, zeros_v_mean=zeros_v_mean, n_points=n_points, n_detected=n_detected)                        
+  # write.csv(main_df, paste0("../Mb_results/08Jul22_1602/plotting_data/wedge", part_of_wedge, "/main_df_wedge", part_of_wedge, ".csv"))
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ## plots:
+  
+  # read back in CSVs - in each wedge folder
   
   # 4 plots ggarranged for errors between MRS-MOS and MRS-EST for each of m and p method
   
@@ -1435,8 +1434,6 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   mrs_est_m_plot
   
   
-  
-  
   ## point-to-point
   
   # MRS-MOS using p method - with both raw and sz
@@ -1483,146 +1480,197 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
   
   
   
-  # save separately
-  m_arranged <- ggarrange(mrs_mos_m_plot, mrs_est_m_plot, nrow = 2)
-  m_annotated <- annotate_figure(m_arranged, top = text_grob(paste0("observed speeds (then used to calculate estimates) calculated using mean of means"),
-                                                                                         color = "red", face = "bold", size = 14))
   
-  png(file=paste0(parentfolder, "plots/m_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
-      width=700, height=1000)
-  print(m_annotated)
-  dev.off()
+  ## new plot: combined:
   
-  p_arranged <- ggarrange(mrs_mos_p_plot, mrs_est_p_plot, nrow = 2)
-  p_annotated <- annotate_figure(p_arranged, top = text_grob(paste0("observed speeds (then used to calculate estimates) calculated using point-to-point"),
-                                                             color = "red", face = "bold", size = 14))
+  ## mean of means:
   
-  png(file=paste0(parentfolder, "plots/p_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
-      width=700, height=1000)
-  print(p_annotated)
-  dev.off()
+  m_of_m_df <- data.frame(aMRS = c(rep(aMRS, times = 10)),
+                             error = c((hmean_m-aMRS), (lnorm_m-aMRS), (gamma_m-aMRS), (weibull_m-aMRS), (amMOS-aMRS), (hmean_m_sz-aMRS), (lnorm_m_sz-aMRS), (gamma_m_sz-aMRS), (weibull_m_sz-aMRS), (amMOS_sz-aMRS)),
+                             method = c(rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS)), rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS))),
+                             type = c(rep("raw", times=length(aMRS)*5), rep("with_sz", times=length(aMRS)*5)))
+  
+  m_of_m_plot <- ggplot(m_of_m_df, aes(x = aMRS, y = error, colour = method))+
+    geom_point()+
+    facet_grid(type ~ .)+
+    geom_smooth(alpha = 0.2, se=F)+
+    theme_minimal()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    scale_colour_manual(values = c("#FF0000", "#00FF00", "#00FFFF", "#FF00FF", "#0000FF"))+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error (m/s)",
+         title = "Errors between MRS and estimated speeds\n(+ve: est > MRS)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13),
+          strip.text = element_text(size = 13),
+          legend.position = "bottom")
+  m_of_m_plot
+  
+  
+  ## point-to-point:
+  
+  p_to_p_df <- data.frame(aMRS = c(rep(aMRS, times = 10)),
+                          error = c((hmean_p-aMRS), (lnorm_p-aMRS), (gamma_p-aMRS), (weibull_p-aMRS), (apMOS-aMRS), (hmean_p_sz-aMRS), (lnorm_p_sz-aMRS), (gamma_p_sz-aMRS), (weibull_p_sz-aMRS), (apMOS_sz-aMRS)),
+                          method = c(rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS)), rep("hmean", times=length(aMRS)), rep("lnorm", times=length(aMRS)), rep("gamma", times=length(aMRS)), rep("weibull", times=length(aMRS)), rep("arithmetic", times=length(aMRS))),
+                          type = c(rep("raw", times=length(aMRS)*5), rep("with_sz", times=length(aMRS)*5)))
+  
+  p_to_p_plot <- ggplot(p_to_p_df, aes(x = aMRS, y = error, colour = method))+
+    geom_point()+
+    facet_grid(type ~ .)+
+    geom_smooth(alpha = 0.2, se=F)+
+    theme_minimal()+
+    geom_hline(yintercept = 0, linetype = "dashed")+
+    scale_colour_manual(values = c("#FF0000", "#00FF00", "#00FFFF", "#FF00FF", "#0000FF"))+
+    labs(x = "Mean realised speed (m/s)",
+         y = "Error (m/s)",
+         title = "Errors between MRS and estimated speeds\n(+ve: est > MRS)")+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 13),
+          strip.text = element_text(size = 13),
+          legend.position = "bottom")
+  p_to_p_plot
+  
+
   
   # save together
+  
+  if (part_of_wedge==0){
+    wedgename <- "whole"
+  }
+  if (part_of_wedge==1){
+    wedgename <- "BOTTOM THIRD"
+  }
+  if (part_of_wedge==2){
+    wedgename <- "MIDDLE THIRD"
+  }
+  if (part_of_wedge==3){
+    wedgename <- "TOP THIRD"
+  }
+  
   mp_arranged <- ggarrange(mrs_mos_m_plot, mrs_mos_p_plot, mrs_est_m_plot, mrs_est_p_plot, nrow = 2, ncol = 2)
-  mp_annotated <- annotate_figure(mp_arranged, top = text_grob(paste0("LEFT: mean of means; RIGHT: point-to-point"),
+  mp_annotated <- annotate_figure(mp_arranged, top = text_grob(paste0("PART OF WEDGE = ", wedgename, "\nLEFT: mean of means; RIGHT: point-to-point"),
                                                              color = "red", face = "bold", size = 14))
   
-  png(file=paste0(parentfolder, "plots/mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+  png(file=paste0(parentfolder, "plots/wedge", part_of_wedge, "/mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
       width=1000, height=1000)
   print(mp_annotated)
   dev.off()
   
   
-  ## to do:
-  # make plots for separate detection zone sections
-  # make plots of no. of singles & zeros and mean speeds of singles & zeros against each Mb
+  
+  
+  ## save new combined plots:
+  
+  comb_mp_arranged <- ggarrange(m_of_m_plot, p_to_p_plot, nrow = 1, ncol = 2)
+  comb_mp_annotated <- annotate_figure(comb_mp_arranged, top = text_grob(paste0("PART OF WEDGE = ", wedgename, "\nLEFT: mean of means; RIGHT: point-to-point"),
+                                                               color = "red", face = "bold", size = 14))
+  
+  png(file=paste0(parentfolder, "plots/wedge", part_of_wedge, "/comb_mp_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=1000, height=800)
+  print(comb_mp_annotated)
+  dev.off()
   
 
+  # SINGLES, ZEROS & DETECTED POINTS
+  
+  # for the whole wedge
   
   
-  ## stuff below here will be useful for making the plots
   
-  ## NO. OF SINGLES & ZEROS AND SPEEDS OF SINGLES & ZEROS AGAINST aMRS ################################################################################################################################################
   
-  ## no. of singles & no. of zeros against aMRS
-  n_sz_aMRS_df <- data.frame(aMRS = aMRS,
-                             count = c(n_singles, n_zeros),
-                             type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_sz_aMRS_plot <- ggplot(n_sz_aMRS_df, aes(x = aMRS, y = count, colour = type))+
+  # for different chunks of the wedge
+  
+  # MAKING MAIN_DF_SEPARATE_WEDGES --> WILL NEED TO RE-DO THIS WHEN GENERATE MORE PLOTTING VARIABLES FOR MORE ITERATIONS
+  # wedge1_df <- read.csv("../Mb_results/08Jul22_1602/plotting_data/wedge1/main_df_wedge1.csv")
+  # wedge2_df <- read.csv("../Mb_results/08Jul22_1602/plotting_data/wedge2/main_df_wedge2.csv")
+  # wedge3_df <- read.csv("../Mb_results/08Jul22_1602/plotting_data/wedge3/main_df_wedge3.csv")
+  # 
+  # main_df_separate_wedges <- rbind(wedge1_df, wedge2_df, wedge3_df)
+  # main_df_separate_wedges["percent_det"] <- ((main_df_separate_wedges$n_detected/main_df_separate_wedges$n_points)*100) # % of all points falling into the dz that get detected
+  # main_df_separate_wedges["percent_singles"] <- ((main_df_separate_wedges$n_singles/main_df_separate_wedges$n_detected)*100) # % of detected points that are singles
+  # main_df_separate_wedges["ratio_zeros"] <- main_df_separate_wedges$n_zeros/main_df_separate_wedges$n_detected # ratio of number of zeros to number of detected points
+  # 
+  # write.csv(main_df_separate_wedges, "../Mb_results/08Jul22_1602/plotting_data/main_df_separate_wedges.csv")
+
+  
+  # read in main_df_separate_wedges made so far
+  main_df_separate_wedges <- read.csv("../Mb_results/08Jul22_1602/plotting_data/main_df_separate_wedges.csv")
+  
+  # % of points that get detected - for separate wedges
+  det_percent_plot_separate_wedges <- ggplot(main_df_separate_wedges, aes(x=aMRS, y=percent_det, colour = wedge))+
     geom_point()+
-    geom_smooth(alpha = 0.1)+
+    geom_smooth(alpha=0.3, se=F)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "%",
+         title = "% of all points falling in\nthe dz that get detected")+
     theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  # n_sz_aMRS_plot
-  
-  ## mean speeds of single & zero frame sequences
-  speeds_sz_aMRS_df <- data.frame(aMRS = aMRS,
-                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
-                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_sz_aMRS_plot <- ggplot(speeds_sz_aMRS_df, aes(x = aMRS, y = speed, colour = type))+
+          title = element_text(size = 22),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.position="bottom")
+  det_percent_plot_separate_wedges
+    
+  # % of detected points that are singles - for separate wedges
+  singles_percent_plot_separate_wedges <- ggplot(main_df_separate_wedges, aes(x=aMRS, y=percent_singles, colour = wedge))+
     geom_point()+
-    geom_smooth(alpha = 0.1)+
+    geom_smooth(alpha=0.3, se=F)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "%",
+         title = "% of detected points\nthat are single frames")+
     theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
     theme(axis.title = element_text(size=18),
           axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  # speeds_sz_aMRS_plot
+          title = element_text(size = 22),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.position="bottom")
+  singles_percent_plot_separate_wedges
   
-  sz_aMRS_arranged <- ggarrange(n_sz_aMRS_plot, speeds_sz_aMRS_plot, nrow = 2)
   
-  png(file=paste0("../results/PLOTS/sz/aMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(sz_aMRS_arranged)
+  # ratio of zeros to detected points - for separate wedges
+  zeros_ratio_plot_separate_wedges <- ggplot(main_df_separate_wedges, aes(x=aMRS, y=ratio_zeros, colour = wedge))+
+    geom_point()+
+    geom_smooth(alpha=0.3, se=F)+
+    labs(x = "Mean realised speed (m/s)",
+         y = "ratio",
+         title = "Ratio of zero frames\nto detected points")+
+    theme_minimal()+
+    theme(axis.title = element_text(size=18),
+          axis.text = element_text(size = 15),
+          title = element_text(size = 22),
+          legend.title = element_blank(),
+          legend.text = element_text(size = 20),
+          legend.position = "bottom")
+  zeros_ratio_plot_separate_wedges
+
+  
+  # save each one separately
+  png(file=paste0(parentfolder, "plots/detected_separate_wedges_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=550, height=550)
+  print(det_percent_plot_separate_wedges)
   dev.off()
   
+  png(file=paste0(parentfolder, "plots/singles_separate_wedges_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=550, height=550)
+  print(singles_percent_plot_separate_wedges)
+  dev.off()
   
-  ## no. of singles & no. of zeros against gMRS
-  n_sz_gMRS_df <- data.frame(gMRS = gMRS,
-                             count = c(n_singles, n_zeros),
-                             type = c(rep("single", times = 250), rep("zero", times = 250)))
-  n_sz_gMRS_plot <- ggplot(n_sz_gMRS_df, aes(x = gMRS, y = count, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "count",
-         title = "Number of single and zero frame sequences\nfor different mean realised speeds")
-  # n_sz_gMRS_plot
-  
-  ## mean speeds of single & zero frame sequences
-  speeds_sz_gMRS_df <- data.frame(gMRS = gMRS,
-                                  speed = c(singles_speeds_mean, zeros_speeds_mean),
-                                  type = c(rep("single", times = 250), rep("zero", times = 250)))
-  speeds_sz_gMRS_plot <- ggplot(speeds_sz_gMRS_df, aes(x = gMRS, y = speed, colour = type))+
-    geom_point()+
-    geom_smooth(alpha = 0.1)+
-    theme_minimal()+
-    # scale_colour_manual(values = c("#FF0000", "#00FF66", "#0066FF", "#CC00FF"))+ # using wheel("red", 5) from colortools package
-    geom_hline(yintercept = 0, linetype = "dashed")+
-    theme(axis.title = element_text(size=18),
-          axis.text = element_text(size = 15),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 15),
-          title = element_text(size = 13))+
-    labs(x = "mean realised speed (m/s)",
-         y = "mean speed (m/s)",
-         title = "Mean speeds of single and zero frame sequences\nfor different mean realised speeds")
-  # speeds_sz_gMRS_plot
-  
-  sz_gMRS_arranged <- ggarrange(n_sz_gMRS_plot, speeds_sz_gMRS_plot, nrow = 2)
-  
-  png(file=paste0("../results/PLOTS/sz/gMRS_sp", sp_and_iters$speed_parameter[1], "-", sp_and_iters$speed_parameter[nrow(sp_and_iters)], ".png"),
-      width=700, height=1000)
-  print(sz_gMRS_arranged)
+  png(file=paste0(parentfolder, "plots/zeros_separate_wedges_Mb", Mb_range[1], "-", Mb_range[length(Mb_range)], "_iters1-", Mb_iters$iter[1], ".png"),
+      width=550, height=550)
+  print(zeros_ratio_plot_separate_wedges)
   dev.off()
   
   
   
-  
-  
+  ### TO DO: MAYBE MAKE THE SAME 3 PLOTS BUT WITH DATA FROM JUST THE WHOLE WEDGE? - NEED TO RE-RUN TO GET THIS THOUGH BC GENERATED THOSE RESULTS BEFORE CHANGING THE CODE TO SAVE NO. OF POINTS & DETECTED POINTS
   
 }
 
@@ -1640,13 +1688,13 @@ make_plots <- function(parentfolder, Mb_iters, r, th, twoCTs=FALSE, connectedCTs
 # th: angle of dz
 # twoCTs: whether or not to use two CTs
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # a posdat_all dataframe for each body mass saved in the same folder as the path
-make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
-  
+make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE, scaling){
 
   for (i in Mb_range){
-
+      Mb=i
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
       load(paste0("../Mb_results/seq_dats/Mb", i, "iter1.RData"))
@@ -1709,7 +1757,7 @@ make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connected
           
           # work out a count for that single frame based on its detection probability
           single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-          prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection using hazard function
+          prob_detect <- hz_radius(single_radius, Mb=Mb, scaling=scaling) # probability of detection using hazard function
           singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
           
           ## work out the speed of the single frame by using points above and below it in the whole-path data
@@ -1829,7 +1877,7 @@ make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connected
       max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
       if (twoCTs == FALSE){
         dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
       }
       if (twoCTs == TRUE){
         dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -2597,15 +2645,6 @@ round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k))
 #                   r = 10,
 #                   th = pi/4)
 
-# AIMS
-# we wanna simulate where we know the actual speeds
-# then be able to detect the biases
-# currently: these simulations don't monitor all the potential biases
-# e.g. missing high speeds
-# it's all about quantifying bias
-# comparing estimation outcomes with the truth
-
-
 
 # seq_dat - ORIGINAL
 # runs the simulation: generates a path and dz, then position data, then observed speeds of each sequence (sequence = one path which crosses the CT dz and is captured at at least 2 points)
@@ -3034,3 +3073,346 @@ round_dp <- function(x, k) trimws(format(round(x, k), nsmall=k))
 
 
 
+
+
+
+
+
+
+# ## COMPARING DIFF MEANS & MEDIANS PLOTTING ## -- not finished though bc decided not useful for now
+# 
+# # one plot per simulation speed parameter (just one run for each - so just iter1)
+# 
+# # initialise dataframes to store realised and observed speeds
+# real_og <- data.frame(matrix(ncol=11, nrow=5e5)) # my original way of working out realised speeds (select chunks of the path of length same as mean observed sequence length - select the same number as number of observed sequences in that run)
+# real_p_to_p <- data.frame(matrix(ncol=11, nrow=5e5)) # individual speeds between each step (much more than above)
+# obs_m <- data.frame(matrix(ncol=11, nrow=5e5)) # M's way of working out observed speeds (arithmetic mean of speeds within each sequence)
+# obs_p_to_p <- data.frame(matrix(ncol=11, nrow=5e5)) # observed speeds are just the speeds between consecutive steps irrespective of path (much more than above too)
+# 
+# # initialise vectors to store means & medians of realised and observed speeds
+# wMRS <- c() # mean of my original way of working out realised speeds
+# aMRS <- c() # arithmetic mean of point-to-point realised speeds
+# gMRS <- c() # geometric mean of point-to-point realised speeds
+# med_wMRS <- c() # median realised speed using my original way of working out realised speeds
+# med_pMRS <- c() # median realised speed using point-to-point realised speeds
+# 
+# mMOS <- c() # arithmetic mean of M's way of working out observed speeds
+# gmMOS <- c() # geometric mean of M's way of working out observed speeds
+# aMOS <- c() # arithmetic mean of point-to-point observed speeds
+# gMOS <- c() # geometric mean of point-to-point observed speeds
+# med_mMOS <- c() # median of M's way of working out observed speeds
+# med_pMOS <- c() # median of point-to-point observed speeds
+# 
+# hmean_m <- c() # calculated using M's way of working out observed speeds
+# hmean_p <- c() # calculated using point-to-point observed speeds
+# lnorm_m <- c() # same as for hmean
+# lnorm_p <- c()
+# gamma_m <- c() # ditto
+# gamma_p <- c()
+# weibull_m <- c() # ditto
+# weibull_p <- c()
+# 
+# # (haven't included singles & zeros here bc would make it all too complicated - first make a decision on what's best)
+# 
+# # loop through each speed parameter and fill these dataframes and vectors
+# 
+# speed_parameters <- c(0.02, 0.06, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90) # sp1.00 is being problematic with sigma... - ask Francis/Marcus about this
+# speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
+# 
+# for (i in 1:length(speed_parameters)){
+#   j <- speed_parameters[i]
+#   
+#   load(paste0("../results/seq_dats/sp", j, "iter1.RData"))
+#   load(paste0("../results/paths_copy_for_analysis/sp", j, "/iter1.RData"))
+#   
+#   ## realised speeds ###################################################################################################################################
+#   
+#   r_og <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+#   r_p_to_p <- path$speed # point-to-point realised speeds
+#   
+#   # cap both at 10m/s (36km/h) to get rid of unrealistically high ones
+#   r_og <- r_og[r_og<10]
+#   r_p_to_p <- r_p_to_p[r_p_to_p<10]
+#   
+#   # fill dataframes with those speeds
+#   real_og[,i] <- c(r_og, rep(NA, times = (5e5-length(r_og))))
+#   real_p_to_p[,i] <- c(r_p_to_p, rep(NA, times = (5e5-length(r_p_to_p))))
+#   
+#   wMRS <- c(wMRS, mean(r_og)) # my original way of working out MRS 
+#   aMRS <- c(aMRS, mean(r_p_to_p)) # arithmetic MRS
+#   gMRS <- c(gMRS, exp(mean(log(r_p_to_p)))) # geometric MRS
+#   med_wMRS <- c(med_wMRS, median(r_og))
+#   med_pMRS <- c(med_pMRS, median(r_p_to_p))
+#   
+#   ## mean observed speeds #################################################################################################################################
+#   
+#   m_obs <- seq_dats$observed # M's way of working out observed speeds
+#   m_obs <- m_obs[is.finite(m_obs)]
+#   
+#   p_obs <- seq_dats$posdat$distance # point-to-point observed speeds irrespective of sequence
+#   p_obs <- p_obs[is.finite(p_obs)]
+#   
+#   obs_m[,i] <- c(m_obs, rep(NA, times = (5e5-length(m_obs)))) # M's way of working out observed speeds
+#   obs_p_to_p[,i] <- c(p_obs, rep(NA, times = (5e5-length(p_obs)))) # point-to-point observed speeds
+#   
+#   mMOS <- c(mMOS, mean(m_obs)) 
+#   gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
+#   aMOS <- c(aMOS, mean(p_obs))
+#   gMOS <- c(gMOS, exp(mean(log(p_obs))))
+#   
+#   med_mMOS <- c(med_mMOS, median(m_obs))
+#   med_pMOS <- c(med_pMOS, median(p_obs))
+#   
+#   # estimated speeds ##
+#   
+#   hmean_m <- c(hmean_m, (hmean_calc(m_obs))[1]) # harmonic mean estimate using M's observed speeds
+#   
+#   hmean_p <- c(hmean_p, (hmean_calc(p_obs))[1]) # using raw point-to-point speeds
+#   
+#   obs_df_m <- data.frame(speed = m_obs)
+#   obs_df_p <- data.frame(speed = p_obs)
+#   
+#   mods_m <- sbm3(speed~1, obs_df_m) # fit all the models
+#   mods_p <- sbm3(speed~1, obs_df_p)
+#   
+#   lnorm_m <- c(lnorm_m, predict.sbm(mods_m[[1]]$lnorm)[1,1])
+#   lnorm_p <- c(lnorm_p, predict.sbm(mods_p[[1]]$lnorm)[1,1])
+#   
+#   gamma_m <- c(gamma_m, predict.sbm(mods_m[[1]]$gamma)[1,1])
+#   gamma_p <- c(gamma_p, predict.sbm(mods_p[[1]]$gamma)[1,1]) # this is the problematic one for sp = 1.00 for some reason!! -- check this with Francis tomorrow
+#   
+#   weibull_m <- c(weibull_m, predict.sbm(mods_m[[1]]$weibull)[1,1])
+#   weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
+#   
+#   rm(list = c("seq_dats", "metadata_sim", "path"))
+#   
+# }
+# 
+# 
+# ## plot - which you'll then loop through each speed parameter
+# 
+# ## realised speeds plot - with mean and median realised speeds and estimated speeds
+# # top one = my original way of working out realised speeds
+# # bottom one = point-to-point
+# 
+# # problems with super high realised speeds - see notebook for info but best solution rn is just to truncate at 10m/s
+# 
+# real_plots <- c()
+# 
+# for (i in 1:ncol(real_og)){
+#   r_og <- real_og[,i]
+#   r_p2p <- real_p_to_p[,i]
+#   if (i < 7){ # for the lower speeds - truncate at 3m/s for the purposes of visualisation
+#     r_og <- r_og[r_og<3]
+#     r_p2p <- r_p2p[r_p2p<3]
+#   }
+#   real_plot_df <- data.frame(real = c(real_og[,i], real_p_to_p[,i]),
+#                              type = c(rep("path sections", times = length(real_og[,i])), rep("all steps", times = length(real_p_to_p[,i]))))
+#   real_plot <- ggplot(real_plot_df, aes(x = real))+
+#     geom_density()+
+#     facet_grid(vars(type))+
+#     geom_vline(xintercept = aMRS[i], colour = "blue", linetype = "dashed")
+#   # facet_wrap(type ~.)
+#   real_plots <- c(real_plots, real_plot)
+# }
+# 
+# ## to finish if decide it would be useful -- for now just use multi-speed plots though
+
+
+
+
+
+
+
+
+
+
+# # Example of how to run the simulation -- provided by M at the start -----------------------------------------------------------------
+# 
+# # Create a correlated random walk movement path
+# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                 logspeed=-2, speedSD=1, speedCor=0, 
+#                 xlim=c(0,10), wrap=TRUE)
+# 
+# # Create a camera detection zone
+# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# 
+# # Visualise
+# plot_wrap(path, lineargs = list(col="grey"))
+# plot_dzone(dz, border=2)
+# 
+# # Create position data for sequences falling within the detection zone
+# posdat <- sequence_data(path, dz)
+# points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+# 
+# # Create speed data summarised for each sequence
+# seqdat <- calc_speed(posdat)
+
+
+
+
+# # initial exploration of how use the simulation to investigate bias 2 -------------------------------------------
+# 
+# # simulate animal movements with varying speeds
+# 
+# # high speeds: 
+# # hedgehogs: max ~ 1.7m/s
+# # foxes: max ~ 13.9m/s
+# 
+# # Create a correlated random walk movement path
+# path2 <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                  logspeed=-1, speedSD=1, speedCor=0, 
+#                  xlim=c(0,10), wrap=TRUE)
+# 
+# # Create a camera detection zone
+# dz2 <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+# 
+# # Visualise
+# plot_wrap(path2, lineargs = list(col="grey"))
+# plot_dzone(dz2, border=2)
+# 
+# # Create position data for sequences falling within the detection zone
+# posdat2 <- sequence_data(path2, dz2)
+# points(posdat2$x, posdat2$y, col=2, pch=16, cex=0.5)
+# 
+# # Create speed data summarised for each sequence
+# seqdat2 <- calc_speed(posdat2)
+# 
+# # visualise how the measured speeds relate to what it's meant to be
+# 
+# ggplot()+
+#   geom_density(aes(x = seqdat2$speed))+
+#   geom_vline(xintercept = exp(-1), colour = 'blue', size = 1)+
+#   theme_minimal()+
+#   geom_text(aes(x=exp(-1), label="true speed", y=0.5), colour="blue", angle=90, vjust = 1.2, text=element_text(size=11))
+# 
+# 
+# # plot how this relationship changes as you up the speed
+# 
+# # make function to do everything with varying speed as an input:
+# 
+# speeds_plot <- function(speed) {
+#   path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                   logspeed=speed, speedSD=1, speedCor=0, 
+#                   xlim=c(0,10), wrap=TRUE)
+#   
+#   dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+#   
+#   plot_wrap(path, lineargs = list(col="grey"))
+#   plot_dzone(dz, border=2)
+#   
+#   posdat <- sequence_data(path, dz)
+#   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+#   
+#   seqdat <- calc_speed(posdat)
+#   
+#   # p <- ggplot()+
+#   #   geom_density(aes(x = seqdat$speed))+
+#   #   geom_vline(xintercept = exp(speed), colour = 'blue', size = 1)+
+#   #   theme_minimal()
+#   
+#   colours <- c("real" = "blue", "measured" = "red")
+#   p <- ggplot()+
+#     geom_density(aes(x = seqdat$speed, colour = 'measured'))+
+#     geom_density(aes(x = path$speed, colour = 'real'))+
+#     theme_minimal()+
+#     scale_color_manual(values = colours)+
+#     labs(x = "speed",
+#          colour = "speed")
+#   
+#   return(plot(p))
+#   
+# }
+# 
+# 
+# # plot how the relationship changes as you get higher speeds:
+# 
+# # make vector of some speeds to compare:
+# speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes
+# 
+# # run the simulation on each speed
+# plots <- lapply(speeds, speeds_plot)
+# 
+# # arrange all the plots in one panel
+# m <- marrangeGrob(plots, nrow = 7, ncol = 3)
+# 
+# ggsave(filename = "high_speeds3.png", plot = m, path = "plots", width = 10, height = 18)
+# 
+# 
+# # would be good to look at the proportion of frame numbers equal to 1 - how those change with increasing speeds (expect them to just increase)
+# 
+# ## plot how the number of frame numbers equal to 1 increases as speeds increase
+# # then could investigate factors that affect this 
+# # e.g. camera settings, tortuosity
+# 
+# single_frames <- function(speed) {
+#   path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
+#                   logspeed=speed, speedSD=1, speedCor=0, 
+#                   xlim=c(0,10), wrap=TRUE)
+#   
+#   dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
+#   
+#   plot_wrap(path, lineargs = list(col="grey"))
+#   plot_dzone(dz, border=2)
+#   
+#   posdat <- sequence_data(path, dz)
+#   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
+#   
+#   seqdat <- calc_speed(posdat)
+#   
+#   seqdat2 <- cbind(seqdat, rep(speed, length(nrow(seqdat))))
+#   
+#   single_frames <- nrow(seqdat2[seqdat2$points==1,])
+#   
+#   return(c(speed, single_frames))
+# }
+# 
+# speeds2 <- seq(-3, 2, by = 0.01)
+# 
+# lapply(speeds2, single_frames) # takes absolutely ages!
+# 
+# # plot speed against single frame number
+
+
+
+
+
+
+# M's example of how to use the sbd functions -----------------------------
+
+# ## sbd example ##
+# 
+# source("sbd_functions.R")
+# 
+# n <- 1000
+# x <- rnorm(n) # sample n values from a normal distribution (default mean = 0, sd = 1)
+# dat <- data.frame(s=rlnorm(n, x), # sample n values from a log normal distribution - but is x the meanlog? - surely that can't have multiple values
+#                   x=x)
+# # s = probably speed?
+# 
+# mods <- sbm3(s~1, dat) # replaced fit.sbd with sbm3 - does all 3 models in one
+# 
+# 
+# # plot models:
+# 
+# plot(mods$models[1], lpar=list(col=2)) # this doesn't work though - need to figure out what Marcus wanted to plot and how to do it
+# plot(gmod, lpar=list(col=3), add=T)
+# plot(wmod, lpar=list(col=4), add=T)
+# plot(lmod, log=FALSE)
+# plot(gmod, log=FALSE, lpar=list(col=3), add=T)
+# plot(wmod, log=FALSE, lpar=list(col=4), add=T)
+# 
+# # AICs:
+# mods$AICtab
+# 
+# 
+# predict(lmod)
+# hmean(dat$s)
+# 
+# lmod2 <- fit.spd(s~x, dat, "l")
+# AIC(lmod)
+# AIC(lmod2)
+# prdn <- predict(lmod2, data.frame(x=seq(-3,3,len=256)))
+# plot(prdn$x, log(prdn$est), type="l")
+# lines(prdn$x, log(prdn$lcl), lty=2)
+# lines(prdn$x, log(prdn$ucl), lty=2)

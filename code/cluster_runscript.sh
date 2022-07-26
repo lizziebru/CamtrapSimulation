@@ -1,10 +1,9 @@
 #!/bin/bash
-#PBS -l walltime=70:00:00
+#PBS -lwalltime=70:00:00
 #PBS -l select=1:ncpus=1:mem=1gb
 module load anaconda3/personal
-cd $HOME
+cd $HOME/Mb_camtrapsimulation
 echo "R is about to run"
 which R
-Rscript --vanilla $HOME/CamtrapSimulation/pipeline_2CTs_1.R
+Rscript --vanilla $HOME/Mb_camtrapsimulation/pipeline_cluster_path.R
 echo "R has finished running"
-# end of script

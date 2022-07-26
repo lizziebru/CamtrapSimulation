@@ -1,147 +1,168 @@
 ## DISTANCE FROM CT PROBABILITY DENSITY OF BEING DETECTED ##
 
+# TO DO:
+# go through all the data csvs and check which ones you actually need vs not
+# go through this script and the path modelling one to tidy up and add things to discussion section if needed, and also any packages that need to go in README
+
+
+
+# all the modelling done on detection probability stuff
+
 require(stats4)
 require(minpack.lm)
 
-regentspark_mov_data <- read.csv("data/regentspark_mov_data.csv")
-india_mov_data <- read.csv("data/india_mov_data.csv")
-panama_data <- read.csv("data/panama_data.csv")
+# combined dataset:
+data_all_cats <- read.csv("../data/data_all_cats.csv")
 
+# panama-only dataset with speeds, distances & avg duration
+panama <- read.csv("../data/panama/panama_full.csv")
 
+# fitting hz rate only with and without scaling of effective detection distance  -------------------------------------
 
-
-# except panama data doesn't have radii or angles so can't use
-
-rp <- regentspark_mov_data[,c("species", "radius", "angle")]
-india <- india_mov_data[,c("species", "radius", "angle")]
-
-rp_india_combined <- rbind(rp, india) 
-
-LARGE <- c("Fox", "takin", "takin young", "himalayan black bear")
-SMALL <- c("Hedgehog")
-
-rp_india_combined$size <- c(rep(NA, length(nrow(rp_india_combined))))
-
-for (i in 1:nrow(rp_india_combined)){
-  if (rp_india_combined[i, "species"] %in% SMALL){
-    rp_india_combined[i,]$size <- "small"
-  }
-  if (rp_india_combined[i, "species"] %in% LARGE){
-    rp_india_combined[i,]$size <- "large"
-  }
-}
-
-large_dat <- rp_india_combined[rp_india_combined$size=="large",]
-small_dat <- rp_india_combined[rp_india_combined$size=="small",]
-
-
-
-# 2 ways of applying this:
-
-# 1. resample TRUE/FALSE in is_in_dz function with p(TRUE) = p(getting detected at that distance based on the probability density function found here)
-# - done this and made new function = is_in_dz2 in CamtrapSimulation.R
-
-# 2. re-shape the dzone to take into account that you're more likely to get detected closer to the CT
-
-# --> first method is better
-
-# models:
-# - Rowcliffe et al. 2011 hazard rate model (+ logistic mix if simulating smaller spp) - and use the data to work out parameters
-
-ggplot(rp_india_combined, aes(x =radius, colour = size))+
-  geom_density()
-
-ggplot(rp_india_combined, aes(x = angle, colour = size))+
-  geom_density()
-
-
-## hazard rate model
-hazard <- function(dist_or_angle, width, shape){ 
-  1 - exp(-(width/dist_or_angle)^shape)
-}
-
-# parameters - using large species only
-
-ggplot(large_dat, aes(x = radius))+
-  geom_density()
-
-ggplot(large_dat, aes(x = angle))+
-  geom_density()
-
-x <- seq(0,10, length = 1000)
-y <- sapply(x, hazard, width = 2, shape = 2) # just trying with random parameters to see what it looks like
-
-ggplot()+
-  geom_density(aes(x = large_dat$radius))+
-  geom_smooth(aes(x = x, y = y))
-
-
-
-# large: radius:
-l_r_dens_approxfun <- approxfun(density(large_dat$radius)) 
-l_r_density <- l_r_dens_approxfun(large_dat$radius) # == y
-l_r <- large_dat$radius
-# hazard rate + logistic mix:
-hzlog_l_r <- nlsLM(l_r_density ~ (1 - exp(-(w/l_r)^s))/(1 + exp(b*(e - l_r))), start = list(w = 1, s = 1, b = 1, e = 1))
-hzlog_l_r_plot <- ggplot()+ 
-  geom_point(aes(x=large_dat$radius, y=l_r_density))+
-  geom_point(aes(x=large_dat$radius, y=predict(hzlog_l_r)), colour = "red")+
+## fit hz only using all body masses:
+# function:
+# 1 - exp(-(a/dist)^g)
+# where a (alpha) describes width and g (gamma) describes shape
+l_r_dens_approxfun <- approxfun(density(panama$distance)) 
+l_r_density <- l_r_dens_approxfun(panama$distance) # == y values
+l_r <- panama$distance
+# fit the model and plot the fit
+hz_l_r <- nlsLM(l_r_density ~ (1 - exp(-(a/l_r)^g)), start = list(a = 1, g = 1))
+hz_l_r_plot <- ggplot()+ 
+  geom_point(aes(x=panama$distance, y=l_r_density))+
+  geom_point(aes(x=panama$distance, y=predict(hz_l_r)), colour = "red")+
   theme_minimal()+
-  labs(title = "Large - radius - logistic mix hazard rate",
+  labs(title = "hazard rate - all body sizes",
        x = "radius (m)",
        y = "density")+
   theme(axis.title = element_text(size = 18),
         title = element_text(size = 20),
         axis.text = element_text(size = 15))
-hzlog_l_r_plot
-coef(hzlog_l_r)
+hz_l_r_plot
+coef(hz_l_r)
 # coefficients:
-# w = 3.3509736
-# s = 6.3920311
-# b = 0.9969682
-# e = 3.3422355
+# a = 0.4255583
+# g = 0.7369158
+# to use in pathgen: 1 - exp(-(0.4255583/radius)^0.7369158)
 
-# large: angle:
-l_a_dens_approxfun <- approxfun(density(large_dat$angle)) 
-l_a_density <- l_a_dens_approxfun(large_dat$angle) # == y
-l_a <- large_dat$angle
-# hazard rate + logistic mix:
-hzlog_l_a <- nlsLM(l_a_density ~ (1 - exp(-(w/l_a)^s))/(1 + exp(b*(e - l_a))), start = list(w = 1, s = 1, b = 1, e = 1))
-ggplot()+ 
-  geom_point(aes(x=large_dat$angle, y=l_a_density))+
-  geom_point(aes(x=large_dat$angle, y=predict(hzlog_model_dist)), colour = "red")
-coef(hzlog_l_a)
-## --> struggling to get it to fit
 
-# looks more normally distributed: try with normal distribution:
-normal_l_a <- nlsLM(l_a_density ~ (dnorm(l_a, mean = mean, sd = sd)), start = list(mean = mean(large_dat$angle), sd = sd(large_dat$angle)))
-normal_l_a_plot <- ggplot()+ 
-  geom_point(aes(x=large_dat$angle, y=l_a_density))+
-  geom_point(aes(x=large_dat$angle, y=predict(normal_l_a)), colour = "red")+
+# fit for diff body masses to get scaling relationship for each coefficient:
+Mb <- c()
+a_coeffs <- c()
+g_coeffs <- c()
+for (i in unique(panama$Body_mass_g)){ # loop through each body mass
+  Mb <- c(Mb, i/1000) # store body mass in kg
+  l_r_dens_approxfun <- approxfun(density(panama[panama$Body_mass_g==i,]$distance)) 
+  l_r_density <- l_r_dens_approxfun(panama[panama$Body_mass_g==i,]$distance) # == y values
+  l_r <- panama[panama$Body_mass_g==i,]$distance
+  # fit the model and plot the fit
+  hz_l_r <- nlsLM(l_r_density ~ (1 - exp(-(a/l_r)^g)), start = list(a = 1, g = 1))
+  a_coeffs <- c(a_coeffs, coef(hz_l_r)[[1]])
+  g_coeffs <- c(g_coeffs, coef(hz_l_r)[[2]])
+}
+
+coeffs_scaling_df <- data.frame(Mb = Mb, a = a_coeffs, g = g_coeffs)
+
+# get scaling relationships for each coefficient:
+
+# from path_modelling:
+# get relationship between body mass (kg) and mean_v (m/s) for each behaviour:
+
+# need this on a log scale:
+Mb_a_scaling <- ggplot(coeffs_scaling_df, aes(x = log(Mb), y = log(a)))+
+  geom_point()
+Mb_a_scaling
+# very strong -ve relationship -- drops to v low from around 5kg
+
+Mb_g_scaling <- ggplot(coeffs_scaling_df, aes(x = log(Mb), y = log(g)))+
+  geom_point()
+Mb_g_scaling
+# similar as for a
+
+# fit regression model:
+Mb_a_lm <- lm(log(a) ~ log(Mb), data = coeffs_scaling_df)
+summary(Mb_a_lm)
+cfs_a <- coef(Mb_a_lm)
+exp(cfs_a[1]) # intercept for a = 0.339065 
+exp(cfs_a[2]) # slope for a = 0.5214121
+
+Mb_g_lm <- lm(log(g) ~ log(Mb), data = coeffs_scaling_df)
+summary(Mb_g_lm)
+cfs_g <- coef(Mb_g_lm)
+exp(cfs_g[1]) # intercept for g = 1.505105 
+exp(cfs_g[2]) # slope for g = 0.5784485 
+
+
+# c = 10^intercept
+# b = slope
+
+# power law eqns to use:
+# a:
+# a = 2.183057*(Mb^0.5214121)
+# g:
+# g = 31.99669*(Mb^0.5784485)
+
+
+# fitting hazard rate (+ log mix for small spp) functions for large vs small categories --------
+
+# different parameters for large vs small, and added logistic mix for small
+# large: over 4kg
+# small: under 4kg
+
+# use hazard rate bc Rowcliffe et al. 2011 found its underlying form seems consistent across diff species & body masses
+# they also found adding logistic mix is good for species below 4kg
+
+# so need to parameterize hazard rate function using data now:
+
+# use only Panama bc shouldn't combine data collected using diff methodologies - bc dz is also affected by habitat etc
+
+# only do radius (not angle bc Rowcliffe et al. 2011 found it doesn't vary significantly with body mass)
+
+# would be overkill to scale each of the inidividual parameters of these functions with body mass, especially since Rowcliffe et al. 2011 showed the general shape is pretty consistent across species
+
+# so just need to get set of coefficients for large vs small 
+
+
+## large: hazard rate:
+
+# function:
+# 1 - exp(-(a/dist)^g)
+# where a (alpha) describes width and g (gamma) describes shape
+
+l_r_dens_approxfun <- approxfun(density(panama[panama$size=="large",]$distance)) 
+l_r_density <- l_r_dens_approxfun(panama[panama$size=="large",]$distance) # == y values
+l_r <- panama[panama$size=="large",]$distance
+# fit the model and plot the fit
+hz_l_r <- nlsLM(l_r_density ~ (1 - exp(-(a/l_r)^g)), start = list(a = 1, g = 1))
+hz_l_r_plot <- ggplot()+ 
+  geom_point(aes(x=panama[panama$size=="large",]$distance, y=l_r_density))+
+  geom_point(aes(x=panama[panama$size=="large",]$distance, y=predict(hz_l_r)), colour = "red")+
   theme_minimal()+
-  labs(title = "Large - angle - normal",
-       x = "angle (degrees)",
+  labs(title = "Large - distance - hazard rate",
+       x = "radius (m)",
        y = "density")+
   theme(axis.title = element_text(size = 18),
         title = element_text(size = 20),
         axis.text = element_text(size = 15))
-normal_l_a_plot
-coef(normal_l_a)
-# --> use this for now
+hz_l_r_plot
+coef(hz_l_r)
 # coefficients:
-# mean = 0.01114079
-# sd = 0.21902793
+# a = 0.1219941
+# g = 0.4477139
 
 
-# small: radius:
-s_r_dens_approxfun <- approxfun(density(small_dat$radius)) 
-s_r_density <- s_r_dens_approxfun(small_dat$radius) # == y
-s_r <- small_dat$radius
-# hazard rate + logistic mix:
-hzlog_s_r <- nlsLM(s_r_density ~ (1 - exp(-(w/s_r)^s))/(1 + exp(b*(e - s_r))), start = list(w = 1, s = 1, b = 1, e = 1))
+## small: hazard rate + logistic mix:
+# (1 - exp(-(a/dist)^g))/(1 + exp(b*(e - dist)))
+# where b (beta) describes rate of increase and e (epsilon) describes inflection point
+
+s_r_dens_approxfun <- approxfun(density(panama[panama$size=="small",]$distance)) 
+s_r_density <- s_r_dens_approxfun(panama[panama$size=="small",]$distance) # == y
+s_r <- panama[panama$size=="small",]$distance
+# fit the model and plot the fit
+hzlog_s_r <- nlsLM(s_r_density ~ (1 - exp(-(a/s_r)^g))/(1 + exp(b*(e - s_r))), start = list(a = 1, g = 1, b = 1, e = 1))
 hzlog_s_r_plot <- ggplot()+ 
-  geom_point(aes(x=small_dat$radius, y=s_r_density))+
-  geom_point(aes(x=small_dat$radius, y=predict(hzlog_s_r)), colour = "red")+
+  geom_point(aes(x=panama[panama$size=="small",]$distance, y=s_r_density))+
+  geom_point(aes(x=panama[panama$size=="small",]$distance, y=predict(hzlog_s_r)), colour = "red")+
   theme_minimal()+
   labs(title = "Small - radius - logistic mix hazard rate",
        x = "radius (m)",
@@ -152,132 +173,43 @@ hzlog_s_r_plot <- ggplot()+
 hzlog_s_r_plot
 coef(hzlog_s_r)
 # coefficients:
-# w = 1.266202
-# s = 1.882447
-# b = 2.604066
-# e = 1.401516
+# a = 1.13331139
+# g = 2.61961545
+# b = -0.03641968
+# e = 26.76458146 
 
-# small: angle:
-s_a_dens_approxfun <- approxfun(density(small_dat$angle)) 
-s_a_density <- s_a_dens_approxfun(small_dat$angle) # == y
-s_a <- small_dat$angle
-# hazard rate + logistic mix:
-hzlog_s_a <- nlsLM(s_a_density ~ (1 - exp(-(w/s_a)^s))/(1 + exp(b*(e - s_a))), start = list(w = 1, s = 1, b = 1, e = 1))
-ggplot()+ 
-  geom_point(aes(x=small_dat$angle, y=s_a_density))+
-  geom_point(aes(x=small_dat$angle, y=predict(hzlog_s_a)), colour = "red")
-coef(hzlog_s_a)
-## --> struggling to fit
-
-normal_s_a <- nlsLM(s_a_density ~ (dnorm(s_a, mean = mean, sd = sd)), start = list(mean = mean(large_dat$angle), sd = sd(large_dat$angle)))
-normal_s_a_plot <- ggplot()+ 
-  geom_point(aes(x=small_dat$angle, y=s_a_density))+
-  geom_point(aes(x=small_dat$angle, y=predict(normal_s_a)), colour = "red")+
-  theme_minimal()+
-  labs(title = "Small - angle - normal",
-       x = "angle (degrees)",
-       y = "density")+
-  theme(axis.title = element_text(size = 18),
-        title = element_text(size = 20),
-        axis.text = element_text(size = 15))
-normal_s_a_plot
-coef(normal_l_a)
-# --> normal will do for now
-# coefficients:
-# mean = 0.01114079
-# sd = 0.21902793
-
-models_fitted_all <- ggarrange(hzlog_l_r_plot, normal_l_a_plot, hzlog_s_r_plot, normal_s_a_plot)
-
-png(file="plots/dist_fitted_models.png",
-    width=1000, height=1000)
-models_fitted_all
-dev.off()
-
-## previous attempts:
-
-### hazard rate model
- 
-# distance <- large_dat$radius # == x
-# dist_dens_approxfun <- approxfun(density(large_dat$radius)) 
-# dist_density <- dist_dens_approxfun(large_dat$radius) # == y
-# 
-# # fit the model using nls:
-# hz_model_dist <- nls(dist_density ~ (1 - exp(-(w/distance)^s)))
-# coef(hz_model_dist)
-# 
-# 
-# # set starting values:
-# hz_model_dist2 <- nls(dist_density ~ (1 - exp(-(w/distance)^s)), start = list(w = 1, s = 1))
-# 
-# ggplot()+ 
-#   geom_point(aes(x=distance, y=dist_density))+
-#   geom_point(aes(x=distance, y=predict(hz_model_dist2)), colour="red")
-# 
-# hz_model_dist3 <- nlsLM(dist_density ~ (1 - exp(-(w/distance)^s)), start = list(w = 1, s = 1))
-# coef(hz_model_dist3)
-# # - good to check whether it fixes one of the coefficients weirdly cause that could be causing problems
-# 
-# hz_model_dist4 <- nlsLM(dist_density ~ (1 - exp(-(w/distance)^5)), start = list(w = 1)) # nice to sometimes play around with setting one parameter and change the other to see what happens
-# coef(hz_model_dist4)
-# 
-# ggplot()+ 
-#   geom_point(aes(x=distance, y=dist_density))+
-#   geom_point(aes(x=distance, y=predict(hz_model_dist3)), colour = "blue")+
-#   geom_point(aes(x=distance, y=predict(hz_model_dist4)), colour="red")
+# to use in simulation:
+# small:
+# (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius))
+# large:
+# 1 - exp(-(0.1219941/radius)^0.4477139)
 
 
+## need to scale detection probability density so that max probability = 1
 
+# currently max detection probability = max density in the density curves from distribution of radii in real datas
 
+# find the max and divide 1 by it to work out how much need to scale everything by
 
-### things to try when struggling with nls:
-# set some bounds e.g. between 0 and 1000
-# fix some parameters while varying others just to better figure out what's going on
-# try bounding the parameters
-  # - try to limit it as little as possible - start as wide as possible - e.g. can it be negative? can it be zero? can it be super large?
-# just try different numbers and try to understand what the parameters are doing
+# model for large species' radius: hazard rate with logistic mix
+large_radius <- function(radius){
+  (1 - exp(-(0.1219941/radius)^0.4477139))
+}
 
+small_radius <- function(radius){
+  (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius)))
+}
 
+x <- seq(0,10, length = 1000)
+y_large <- sapply(x, hz_radius, Mb=5, scaling=TRUE)
+y_small <- sapply(x, hz_radius, Mb=1, scaling=TRUE)
 
-# # max likelihood? - to potentially come back to if needed
-# 
-# # negative log likelihood function:
-# 
-# hazard_nll_radius <- function(width, shape){
-#   #x <- seq(0,10, length = 1000)
-#   x <- large_dat$radius
-#   sum(log(1 - exp(-(width/x)^shape)))
-# }
-# 
-# lower <- -1
-# upper <- 3
-# start_param <- c(1,1)
-# 
-# M <- optim(start_param, hazard_nll_radius, method='L-BFGS-B', 
-#            lower=lower, upper=upper, 
-#            control=list(fnscale=-1), hessian=T)
-# M
-# 
-# # compute MLE coefficient estimates:
-# 
-# est <- stats4::mle(minuslog=hazard_nll, start=list(width=2, shape=2))
-# # summary(est)
-# # --> difficult to get it to fit well
-# 
-# # could use half normal function too:
-# 
-# # half_normal <- function(dist_or_angle, sigma){
-# #   exp(-dist_or_angle^2/2*sigma^2)
-# # }
-# # 
-# # x <- seq(0,10, length = 1000)
-# # y_hn <- sapply(x, half_normal, sigma = 1) # Marcus suggested sigma of 1 or 2 should be good but still doesn't look great
-# # 
-# # ggplot()+
-# #   geom_density(aes(x = posdata$radius))+
-# #   geom_smooth(aes(x = x, y = y_hn))
-# 
-# # hazard definitely looks better - just need to find good parameters
+ggplot()+
+  geom_smooth(aes(x = x, y = y_large, colour = "large"))+
+  geom_smooth(aes(x = x, y = y_small, colour = "small"))
+
+max(y_large) # max for large == 1 so don't need to multiply by anything
+max(y_small) # max for small == 0.7260668 --> so need to multiply everything by 1.377284
 
 
 
@@ -286,14 +218,8 @@ dev.off()
 
 
 
-# try with half normal model instead:
 
-hn_model_dist <- nls(dist_density ~ exp(-distance^2/2*w^2), start = list(w = 1))
 
-ggplot()+ 
-  geom_point(aes(x=distance, y=dist_density))+
-  geom_point(aes(x=distance, y=predict(hn_model_dist)), colour = "red")
-# not a good fit
 
 
 
@@ -840,6 +766,11 @@ sapply(1:ii, EDDrep, s=s,b=b,s0=s0,b0=b0)
 
 
 
+
+
+
+
+
 # 3D plot -----------------------------------------------------------------
 
 # could be nice for visualisation
@@ -987,41 +918,117 @@ persp(den3d_h,
 
 
 
+# deciding on sizing parameters -------------------------------------------
+
+## choosing sizing parameters for the simulation based on Regent's Park & Panama data ##
+
+require(ggplot2)
+
+panama_06 <- read.table("data/rse217-sup-0006-speeddatapublished.txt")
+
+posdata <- read.csv("data/posdat.csv")
+
+# Radii and angles --------------------------------------------------------
+
+## distribution of radii and angles:
+
+ggplot(posdata, aes(x = radius))+
+  geom_density()+
+  ggtitle("Regent's Park")
+
+# don't have radii and angles in Panama data
+
+# --> looks like radius of 10m would be good (it's the max in the regent's park data)
+
+
+ggplot(posdata, aes(x = angle))+
+  geom_density()
+
+min(posdata$angle)
+max(posdata$angle)
+
+# --> looks like angle of around 0.82 x 2 (= 1.64) would be good
 
 
 
-# scaling detection probability density -----------------------------------
-
-# currently max detection probability = max density in the density curves from distribution of radii in real data
-
-# need the max probability to be 1 though
 
 
-# find the max and divide 1 by it to work out how much need to scale everything by
 
-# model for large species' radius: hazard rate with logistic mix
-large_radius <- function(radius){
-  (1 - exp(-(3.3509736/radius)^6.3920311))/(1 + exp(0.9969682*(3.3422355 - radius)))
-}
 
-small_radius <- function(radius){
-  (1 - exp(-(1.266202/radius)^1.882447))/(1 + exp(2.604066*(1.401516 - radius)))
-}
+# coming up with PDf for detection at distance using RP data --------------
+
+## working out a probability density function for how likely an animal is to trigger a camera at a given distance from it
+
+library(ggplot2)
+
+## to ask:
+# - is this even a good idea?
+# - what was the radius of the CT used for the regent's park data?
+# - do we have more data we could use to make this more robust
+# - discuss thoughts on how to include habitat as a factor (is this something to include in simulations etc?)
+# - good idea to do it separately for each species?
+# - should we also include the likelihood of the position data being accompanied by enough other positions to measure speed? (e.g. the further away you are probably the more likely to only be caught only once by the CT - so can't measure speed)
+
+ggplot(data = posdata, aes(x = radius, colour = species))+
+  geom_density()
+
+
+# probability density estimation: using the data to estimate the general density of probabilities beyond just the sample of data
+
+# looks pretty normal-distribution-based
+
+# estimate the parameters of the distribution from the data
+
+# mean:
+mean_f <- mean(log(posdata[posdata$species=="Fox",]$radius))
+mean_h <- mean(log(posdata[posdata$species=="Hedgehog",]$radius))
+
+# standard deviation:
+sd_f <- sd(log(posdata[posdata$species=="Fox",]$radius))
+sd_h <- sd(log(posdata[posdata$species=="Hedgehog",]$radius))
+
+
+# maybe do the 2 species together for now then separate out later if needed
+mean <- mean(posdata$radius)
+sd <- sd(posdata$radius)
+
+# parametric density estimation: normal distribution with mean and sd worked out here
+
+
+# check if this estimated density is a good fit:
+
+# plot it with the data and compare:
 
 x <- seq(0,10, length = 1000)
-y_large <- sapply(x, large_radius)
-y_small <- sapply(x, small_radius)
+y <- dnorm(x, mean = mean, sd = sd, log = F)
 
 ggplot()+
-  geom_smooth(aes(x = x, y = y_large, colour = "red"))+
-  geom_smooth(aes(x = x, y = y_small, colour = "blue"))
+  geom_density(aes(x = posdata$radius))+
+  geom_smooth(aes(x = x, y = y))
 
-max(y_large) # max for large == 0.3613462
-max(y_small) # max for small == 0.299322
+#--> it's alright but not amazing
 
-# so for large: need to multiply every probability by 1/0.3613462 == 2.767429
+# data are a bit skewed - would be maybe be good to transform it before estimating parameters?
 
-# for small: multiply by 3.340884
+# e.g. logging it:
+mean2 <- mean(log(posdata$radius))
+sd2 <- sd(log(posdata$radius))
+y2 <- dnorm(x, mean = mean2, sd = sd2, log = F)
+
+
+#ylognorm <- dlnorm(x, mean = mean, sd = sd, log = F)
+
+ggplot()+
+  geom_density(aes(x = log(posdata$radius)))+
+  geom_smooth(aes(x = x, y = y2))
+
+# --> much better
+# although does this weird drop below zero for some reason - not sure why
+
+
+
+
+# so now that have this estimated probability density (normal with mean = mean2 and sd = sd2), need to find a way to apply it to a probability of being detected at various radii
 
 
 

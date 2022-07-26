@@ -24,10 +24,10 @@ path_nos <- c(1:5)
 >>>>>>> master
 
 # set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("../results/final_results/paths_uni/")
+parentfolder <- paste0("../results/final_results/paths_bi/mov0.9/")
 
 # set output folder - depends on what you're running
-outputfolder <- paste0("../results/final_results/uni_hz_noscaling/")
+outputfolder <- paste0("../results/final_results/bi_hz_scaling/seq_dats/mov0.9/")
 
 
 # set additional parameters:
@@ -36,7 +36,7 @@ th = 0.7
 twoCTs = FALSE
 connectedCTs = FALSE
 path_cutby = 1
-scaling=FALSE # whether to scale hz function for detection probability with body mass
+scaling=TRUE # whether to scale hz function for detection probability with body mass
 
 
 # run the simulation to save as seq_dats:

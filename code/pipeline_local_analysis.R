@@ -9,13 +9,13 @@ source("CamtrapSimulation.R", echo=TRUE)
 require(ggplot2)
 require(ggpubr)
 
-parentfolder <- paste0("../Mb_results/08Jul22_1602/")
+parentfolder <- paste0("../results/final_results/")
 
 # set which speed parameters to analyse
 Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
 # set number of iters for each to analyse
-iters <- c(rep(20, times=11))
+iters <- c(rep(5, times=11))
 
 Mb_iters <- data.frame(Mb_range = Mb_range, iter = iters)
 

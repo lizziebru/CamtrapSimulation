@@ -27,8 +27,11 @@ part_of_wedge = 0 # which section of the wedge to use points from (0 = all, 1 = 
 twoCTs = FALSE
 connectedCTs = FALSE
 
+# whether to scale hz function for detection probability with body mass
+scaling=TRUE
+
 # generate and store plotting variables
-generate_plotting_variables(parentfolder, Mb_iters, r, th, part_of_wedge)
+generate_plotting_variables(parentfolder, Mb_iters, r, th, part_of_wedge, scaling=scaling)
 
 # make plots using those plotting variables
 # make_plots(parentfolder, part_of_wedge, Mb_iters, r, th,)

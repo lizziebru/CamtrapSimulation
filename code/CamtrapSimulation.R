@@ -469,9 +469,23 @@ line_arc_cross <- function(line, arc){
 }
 
 
-# model for small species' radius: hazard rate with logistic mix - now correct and using only panama data
-small_radius <- function(radius){
-  prob <- (1 - exp(-(1.13331139/radius)^2.61961545))/(1 + exp(-0.03641968*(26.76458146 - radius)))
+## hz_radius
+# hz function for distance detection probability
+# INPUTS
+# radius: radial distance of the point from the CT
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
+# OUTPUT
+# probability of being detected at that radius
+hz_radius <- function(radius, Mb, scaling){
+  if (scaling==FALSE){
+    prob <- 1 - exp(-(0.4255583/radius)^0.7369158) # general hz function parameterized using all species in Panama dataset
+  }
+  if (scaling==TRUE){
+    a <- 2.183057*(Mb^0.5214121) # work out coefficients of hz function using scaling relationships with body mass
+    g <- 31.99669*(Mb^0.5784485)
+    prob <- 1 - exp(-(a/radius)^g)
+  }
   if (prob > 1){
     prob <- 1
   }
@@ -480,48 +494,27 @@ small_radius <- function(radius){
   }
   return(prob)
 }
-
-# model for large species' radius: hazard rate - now correct and using only panama data
-large_radius <- function(radius){
-  prob <- 1 - exp(-(0.1219941/radius)^0.4477139)
-  if (prob > 1){
-    prob <- 1
-  }
-  if (prob < 0){
-    prob <- 0
-  }
-  return(prob)
-}
-
 
 
 ## reassign_prob
 # for all the points that cross the dz, reassign them as TRUE or FALSE based on probability of getting detected at that distance from the CT
 # INPUTS
 # a row in isindz_df2 dataframe from isindz function
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # vector of TRUE or FALSE for whether that point got detected
-reassign_prob <- function(isindz_row, Mb){
+reassign_prob <- function(isindz_row, Mb, scaling){
   if (isindz_row[[1]]==FALSE){
     return(FALSE)
   }
   else {
-    if (Mb <= 5){ # if body mass is less than 5kg, use logistic mix hazard function for detection probability
-      prob_radius <- small_radius(as.numeric(isindz_row[[2]])) * 1.377284 # probability of being detected based on the estimated probability density for the radius - need to multiply by 1.377284 bc the max probability in the PDF is 0.7260668 so need to scale everything so that max probability of detection is 1
-      if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in small_radius and large_radius functions
-        prob_radius <- 1
-      }
-      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      return(new_res)
+    prob_radius <- hz_radius(as.numeric(isindz_row[[2]]), Mb=Mb, scaling=scaling) * 1.377284 # probability of being detected based on the estimated probability density for the radius - need to multiply by 1.377284 bc the max probability in the PDF is 0.7260668 so need to scale everything so that max probability of detection is 1
+    if (prob_radius > 1){ # need this in here for some reason - not enough to just have it in hz_radius function
+      prob_radius <- 1
     }
-    if (Mb > 5){ # if body mass is more than 5kg, use hazard function without logistic mix
-      prob_radius <- large_radius(as.numeric(isindz_row[[2]])) # probability of being detected based on the estimated probability density for the radius - don't need to multiply by anything bc max value in this PDF is already 1
-      if (prob_radius > 1){
-        prob_radius <- 1
-      }
-      new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
-      return(new_res)
-    }
+    new_res <- sample(c(TRUE,FALSE), 1, prob = c(prob_radius, 1-prob_radius)) # generate either TRUE or FALSE with prob of getting TRUE = prob of being detected and replace this in the main df
+    return(new_res)
   }
 }
 
@@ -535,10 +528,10 @@ reassign_prob <- function(isindz_row, Mb){
 #           x,y: x,y coordinates of camera
 #           r, th: detection zone radius and angle
 #           dir: radian direction in which the camera is facing
-# effdist: logical. Whether or not to use body mass scaling of effective detection distance
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # A logical array defining whether each point (rows) is in each detection zone (columns)
-is_in_dz <- function(point, dzone, Mb){
+is_in_dz <- function(point, dzone, Mb, scaling){
   ij <- expand.grid(1:nrow(point), 1:nrow(dzone)) # expanding rows for each point and dzone
   pt <- point[ij$Var1, ] # looks just like 'points' did - so what was the purpose of these steps?
   dz <- dzone[ij$Var2, ] # looks different to dzone - so there probably was a purpose to the previous steps
@@ -574,15 +567,12 @@ is_in_dz <- function(point, dzone, Mb){
   #   dnorm(angle, mean = 0.01114079, sd = 0.21902793)
   # }
   
-  new_reses <- apply(isindz_df, 1, reassign_prob, Mb=Mb)
+  new_reses <- apply(isindz_df, 1, reassign_prob, Mb=Mb, scaling=scaling)
   
   isindz_all <- data.frame(indz = isindz_df$res,
                            detected = new_reses)
   return(isindz_all)
 }
-
-
-
 
 
 
@@ -594,9 +584,11 @@ is_in_dz <- function(point, dzone, Mb){
 #       required column headings: x, y (xy coords of the camera), r (radius), th (angle)
 # posdat_all = dataframe of all points that fell into the dz
 #       required column headings: x, y (xy coords of the point), sequenceID, distance, detected (TRUE or FALSE for whether it got detected by the camera)
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT:
 # vector of values for whether each pair of points in paired_points is a zero-frame (i.e. whether the animal crossed the dz without getting detected when moving between the two points)
-zero_frame <- function(paired_points, dz, posdat_all, max_real){
+zero_frame <- function(paired_points, dz, posdat_all, max_real, Mb, scaling){
   x1 <- paired_points[1]
   y1 <- paired_points[2]
   breaks1 <- paired_points[3]
@@ -636,7 +628,7 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
       mx <- (x1+x2)/2 # midpoint x coord
       my <- (y1+y2)/2 # midpoint y coord
       midpoint_radius <- sqrt((mx-dzx1)^2 + (my-dzy1)^2)
-      prob_detect <- large_radius(midpoint_radius) * 2.767429 # just use the hazard rate function (without logistic mix) bc not worrying about species rn
+      prob_detect <- hz_radius(midpoint_radius, Mb=Mb, scaling=scaling) # reassign probability of that point being detected based on hz function of detection probability at a distance from CT
       zero <- prob_detect
     }
     else{
@@ -658,15 +650,16 @@ zero_frame <- function(paired_points, dz, posdat_all, max_real){
 # INPUT
 # path: a path object
 # a detection zone array
-# effdist: logical. Whether or not to use body mass scaling of effective detection distance
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # A data frame with columns:
 # x,y: x,y co-ordinates of sequence points in detection zones
 # sequenceID: integer sequence identifier
 # distance: distance traveled for each step between points
-sequence_data <- function(pth, dzone, Mb){
+sequence_data <- function(pth, dzone, Mb, scaling){
   pth <- pth$path[, c("x","y")] # format path into df with sequence of x and y
-  isin_all <- is_in_dz(pth, dzone, Mb) # returns true or false for whether each position in the path is in the detection zone
+  isin_all <- is_in_dz(pth, dzone, Mb=Mb, scaling=scaling) # returns true or false for whether each position in the path is in the detection zone
   
   # to get xy, seqID, and dist for those that actually do get detected
   isin_detected <- as.vector(isin_all$detected)
@@ -696,20 +689,8 @@ sequence_data <- function(pth, dzone, Mb){
   dist2 <- c(NA, dist2)
   df2 <- data.frame(xy2, sequenceID = seqid2, distance = dist2)
   
-  # df2["detected"] <- NA
-  # for (i in 1:nrow(df2)){ # THIS TAKES THE LONGEST
-  #   d <- df2[i,]
-  #   if (d$x %in% df1$x & d$y %in% df1$y){ # if x and y coords are in df1, detected = TRUE
-  #     df2[i,]$detected <- TRUE
-  #   }
-  #   else{
-  #     df2[i,]$detected <- FALSE
-  #   }
-  # }
-  
   df2["detected"] <- FALSE
   df2$detected[which(df2$x %in% df1$x & df2$y %in% df1$y)] <- TRUE
-  
   
   return(df2)
 }
@@ -724,7 +705,8 @@ sequence_data <- function(pth, dzone, Mb){
 # th = angle of detection zone
 # plot_path = TRUE or FALSE - if TRUE, plots the path & dz
 # twoCTs = TRUE or FALSE - if TRUE, sets up 2 CTs next to each other
-# effdist: logical. Whether or not to use body mass scaling of effective detection distance
+# Mb: body mass
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT:
 # dataframe containing: 
 # realised speeds
@@ -734,15 +716,12 @@ sequence_data <- function(pth, dzone, Mb){
 # no. of zero frames (ditto)
 # no. of points detected by the camera (ditto)
 # + also a plot if plot_path = TRUE
-run_simulation <- function(path, parentfolder, Mb, r, th, effdist, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
-  
-  ## effdist argument comes in here --> scales the dz dimensions to body mass
-  
-  
+run_simulation <- function(path, parentfolder, Mb, r, th, scaling, plot_path = TRUE, twoCTs = FALSE, connectedCTs = FALSE){
+
   ##### generate speed sequences ################################################################################################################################################
   if (twoCTs == FALSE){
     dz <- data.frame(x=20, y=10, r=r, th=th, dir=0) # initially set radius to 10m and theta to 1.65 - based on distributions of radii & angles in regent's park data -- then M & C said angle isn't usually more than 1 so set to 1
-    posdat_all <- sequence_data(path, dz, Mb) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all <- sequence_data(path, dz, Mb=Mb, scaling=scaling) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
   }
   if (twoCTs == TRUE){
     dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -752,8 +731,8 @@ run_simulation <- function(path, parentfolder, Mb, r, th, effdist, plot_path = T
     if (connectedCTs == FALSE){ 
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
-    posdat_all1 <- sequence_data(path, dz1, Mb) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
-    posdat_all2 <- sequence_data(path, dz2, Mb)
+    posdat_all1 <- sequence_data(path, dz1, Mb=Mb, scaling=scaling) # posdat_all == all of those that fell in the detection zone (+ column saying whether or not it got detected)
+    posdat_all2 <- sequence_data(path, dz2, Mb=Mb, scaling=scaling)
     posdat_all <- rbind(posdat_all1, posdat_all2)
   }
   posdat <- posdat_all[posdat_all$detected==TRUE,] # only the points which do actually get detected by the camera
@@ -811,7 +790,7 @@ run_simulation <- function(path, parentfolder, Mb, r, th, effdist, plot_path = T
 # effdist: logical. Whether or not to use body mass scaling of effective detection distance
 # OUTPUT
 # saved seq_dats.RData files in seq_dats folder
-generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, effdist){
+generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, th, twoCTs, connectedCTs=FALSE, path_cutby = 1, scaling){
   for (j in Mb_range){
     for (i in path_nos){
       load(paste0(parentfolder,"Mb", j, "/iter", i, ".RData"))
@@ -822,11 +801,11 @@ generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, 
         plot_path <- FALSE
       }
       if (path_cutby == 1){
-        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, effdist=effdist, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, scaling=scaling, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
       }
       else { # if want to cut the path short to make it computationally easier:
         path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
-        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, effdist=effdist, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
+        seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, scaling=scaling, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
       }
       metadata_sim <- list(datetime = metadata$datetime,
                            iter = metadata$iter,
@@ -842,7 +821,7 @@ generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, 
                            th = th,
                            twoCTs = twoCTs,
                            connectedCTs = connectedCTs,
-                           effdist=effdist)
+                           scaling=scaling)
       
       save(seq_dats, metadata_sim, file = paste0(outputfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
       rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
@@ -957,10 +936,11 @@ estimates_calc <- function(seq_dats){
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
 # OUTPUT
 # big list of variables which will be used for plotting
-generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE){
+generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE, scaling){
   
   for (n in 1:length(Mb_iters$Mb_range)){ # loop through each body mass
     i <- Mb_iters$Mb_range[n]
+    Mb=i
     iter_range <- c(1:Mb_iters[Mb_iters$Mb_range==i,]$iter)
     
     aMRS <- c() # arithmetic MRS
@@ -1060,7 +1040,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
           single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
           single_y <- p[p$detected==TRUE,]$y
           single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-          prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection using hazard function
+          prob_detect <- hz_radius(single_radius, Mb=Mb, scaling=scaling) # probability of detection using hazard function
           singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
           
           ## speeds of single frame sequences:
@@ -1112,7 +1092,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
       if (twoCTs == FALSE){
         dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
       }
       if (twoCTs == TRUE){
         dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
@@ -1122,8 +1102,8 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
         if (connectedCTs == FALSE){ 
           dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
         }
-        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real)
-        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real)
+        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
         zeros <- c(zeros1, zeros2)
       }
       zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
@@ -1688,13 +1668,13 @@ make_plots <- function(parentfolder, part_of_wedge, Mb_iters, r, th, twoCTs=FALS
 # th: angle of dz
 # twoCTs: whether or not to use two CTs
 # connectedCTs: whether or not the two CTs are set up in a connected way such that the detection zones are triangles side-by-side facing opposite ways (hence maximising their area of contact and making one large rectangular-ish shaped dz)
+# scaling: logical. Whether or not to scale hz function with body mass
 # OUTPUT
 # a posdat_all dataframe for each body mass saved in the same folder as the path
-make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE){
-  
+make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connectedCTs=FALSE, scaling){
 
   for (i in Mb_range){
-
+      Mb=i
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
       load(paste0("../Mb_results/seq_dats/Mb", i, "iter1.RData"))
@@ -1757,7 +1737,7 @@ make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connected
           
           # work out a count for that single frame based on its detection probability
           single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-          prob_detect <- large_radius(single_radius) * 2.767429 # probability of detection using hazard function
+          prob_detect <- hz_radius(single_radius, Mb=Mb, scaling=scaling) # probability of detection using hazard function
           singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
           
           ## work out the speed of the single frame by using points above and below it in the whole-path data
@@ -1877,7 +1857,7 @@ make_vis_plotting_variables <- function(Mb_range, r, th, twoCTs=FALSE, connected
       max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
       if (twoCTs == FALSE){
         dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real)
+        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
       }
       if (twoCTs == TRUE){
         dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)

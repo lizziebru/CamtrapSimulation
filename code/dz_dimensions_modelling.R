@@ -72,12 +72,12 @@ coeffs_scaling_df <- data.frame(Mb = Mb, a = a_coeffs, g = g_coeffs)
 Mb_a_scaling <- ggplot(coeffs_scaling_df, aes(x = log(Mb), y = log(a)))+
   geom_point()
 Mb_a_scaling
-# negative relationship
+# very strong -ve relationship -- drops to v low from around 5kg
 
 Mb_g_scaling <- ggplot(coeffs_scaling_df, aes(x = log(Mb), y = log(g)))+
   geom_point()
 Mb_g_scaling
-# negative relationship
+# similar as for a
 
 # fit regression model:
 Mb_a_lm <- lm(log(a) ~ log(Mb), data = coeffs_scaling_df)
@@ -92,12 +92,11 @@ cfs_g <- coef(Mb_g_lm)
 exp(cfs_g[1]) # intercept for g = 1.505105 
 exp(cfs_g[2]) # slope for g = 0.5784485 
 
-# power law eqns to use:
 
-# power law eqns to use in pathgen:
 # c = 10^intercept
 # b = slope
 
+# power law eqns to use:
 # a:
 # a = 2.183057*(Mb^0.5214121)
 # g:
@@ -202,8 +201,8 @@ small_radius <- function(radius){
 }
 
 x <- seq(0,10, length = 1000)
-y_large <- sapply(x, large_radius)
-y_small <- sapply(x, small_radius)
+y_large <- sapply(x, hz_radius, Mb=5, scaling=TRUE)
+y_small <- sapply(x, hz_radius, Mb=1, scaling=TRUE)
 
 ggplot()+
   geom_smooth(aes(x = x, y = y_large, colour = "large"))+

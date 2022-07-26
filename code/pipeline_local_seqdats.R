@@ -7,17 +7,18 @@ setwd("~/Documents/Project/CamtrapSimulation/code")
 rm(list = ls())
 source("CamtrapSimulation.R", echo=TRUE)
 
-# set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("../Mb_results/08Jul22_1602/paths/") 
-
-# # set number of iterations of the path
-# iter <- 100 
-
 # set range of body masses to run the simulation on:
 Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
 # set range of paths to run the simulation on:
-path_nos <- c(1:20)
+path_nos <- c(1:5)
+
+# set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
+parentfolder <- paste0("../results/final_results/paths_uni/")
+
+# set output folder - depends on what you're running
+outputfolder <- paste0("../results/final_results/uni_hz_noscaling/")
+
 
 # set additional parameters:
 r = 9
@@ -25,11 +26,11 @@ th = 0.7
 twoCTs = FALSE
 connectedCTs = FALSE
 path_cutby = 1
-effdist=FALSE
+scaling=FALSE # whether to scale hz function for detection probability with body mass
 
 
 # run the simulation to save as seq_dats:
-generate_seqdats(parentfolder=parentfolder, Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby, effdist=effdist)
+generate_seqdats(parentfolder=parentfolder, outputfolder=outputfolder, Mb_range=Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby, scaling=scaling)
 
 # # run the simulation and analyse the results:
 # run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, n_cores=4)

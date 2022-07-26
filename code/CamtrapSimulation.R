@@ -1098,59 +1098,59 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       singles_v_mean <- c(singles_v_mean, mean(singles_v)) # store outside of the main loop
       n_singles <- c(n_singles, singles_count)  # ditto
       
-      
-      ## number of zero frames and speeds of zero frame sequences ######################################################################################
-      
-      ### number of zero-frame sequences:
-      path_df <- path$path
-      path_df2 <- path_df
-      path_df <- path_df[-nrow(path_df),] # remove last row
-      path_df2 <- path_df2[-1,] # remove first row
-      path_df_paired <- cbind(path_df, path_df2) # paired points
-      colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-      if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
-        path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
-      }
-      if (part_of_wedge==2){ 
-        path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
-      }
-      if (part_of_wedge==3){ 
-        path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
-      }
-      
-      max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
-      if (twoCTs == FALSE){
-        dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-        zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-      }
-      if (twoCTs == TRUE){
-        dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-        if (connectedCTs == TRUE){
-          dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-        }
-        if (connectedCTs == FALSE){ 
-          dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-        }
-        zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-        zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-        zeros <- c(zeros1, zeros2)
-      }
-      zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
-      
-      n_zeros <- c(n_zeros, zeros_count) # save externally to the main for loop
-      
-      ## speeds of zero-frame sequences
-      path_df_paired["ZERO"] <- zeros
-      zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
-      zeros_v <- c() # to save outside of this mini for loop
-      for (l in 1:nrow(zeros_dat)){
-        z <- zeros_dat[l,]
-        speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
-        zeros_v <- c(zeros_v, speed)
-      }
-
-      zeros_v_mean <- c(zeros_v_mean, mean(zeros_v)) # store outside of main loop
-      
+      # zeros commented out for now bc take way too long - just need to uncomment this and re-add zeros back into the output when need them again and also re-add them to combining observed speeds with singles & zeros
+      # ## number of zero frames and speeds of zero frame sequences ######################################################################################
+      # 
+      # ### number of zero-frame sequences:
+      # path_df <- path$path
+      # path_df2 <- path_df
+      # path_df <- path_df[-nrow(path_df),] # remove last row
+      # path_df2 <- path_df2[-1,] # remove first row
+      # path_df_paired <- cbind(path_df, path_df2) # paired points
+      # colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+      # if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
+      #   path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
+      # }
+      # if (part_of_wedge==2){ 
+      #   path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
+      # }
+      # if (part_of_wedge==3){ 
+      #   path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
+      # }
+      # 
+      # max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
+      # if (twoCTs == FALSE){
+      #   dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+      #   zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+      # }
+      # if (twoCTs == TRUE){
+      #   dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+      #   if (connectedCTs == TRUE){
+      #     dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+      #   }
+      #   if (connectedCTs == FALSE){ 
+      #     dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+      #   }
+      #   zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+      #   zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+      #   zeros <- c(zeros1, zeros2)
+      # }
+      # zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
+      # 
+      # n_zeros <- c(n_zeros, zeros_count) # save externally to the main for loop
+      # 
+      # ## speeds of zero-frame sequences
+      # path_df_paired["ZERO"] <- zeros
+      # zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+      # zeros_v <- c() # to save outside of this mini for loop
+      # for (l in 1:nrow(zeros_dat)){
+      #   z <- zeros_dat[l,]
+      #   speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+      #   zeros_v <- c(zeros_v, speed)
+      # }
+      # 
+      # zeros_v_mean <- c(zeros_v_mean, mean(zeros_v)) # store outside of main loop
+      # 
       
       ## mean realised speeds ###################################################################################################################################
       
@@ -1183,7 +1183,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       m_obs <- v$speed 
       m_obs <- m_obs[is.finite(m_obs)]
-      m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames
+      m_obs_sz <- c(m_obs, singles_v) # zeros_v) # M's way of working out observed speeds + single & zero frames - commented out zeros for now though
       m_obs <- na.omit(m_obs)
       m_obs_sz <- na.omit(m_obs_sz)
       
@@ -1194,7 +1194,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       p_obs <- posdat$distance # point-to-point observed speeds irrespective of sequence
       p_obs <- p_obs[is.finite(p_obs)]
-      p_obs_sz <- c(p_obs, singles_v, zeros_v) # including singles & zeros too
+      p_obs_sz <- c(p_obs, singles_v) # zeros_v) # including singles & zeros too
       p_obs <- na.omit(p_obs)
       p_obs_sz <- p_obs_sz[is.finite(p_obs_sz)]
       p_obs_sz <- na.omit(p_obs_sz)
@@ -1273,10 +1273,10 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       weibull_p = weibull_p,
       weibull_p_sz = weibull_p_sz,
       
-      n_zeros = n_zeros,
+      # n_zeros = n_zeros,
       n_singles = n_singles,
       singles_v_mean = singles_v_mean,
-      zeros_v_mean = zeros_v_mean,
+      # zeros_v_mean = zeros_v_mean,
       
       n_points = n_points,
       n_detected = n_detected

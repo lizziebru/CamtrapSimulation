@@ -13,6 +13,8 @@ ___
 
 ### **Paths**
 
+note: paths are all final versions to be used in results
+
 **Unimodal paths: paths_uni**
 
 Paths generated on 08Jul22 with body mass as input parameter and corrected scaling relationships. 
@@ -22,7 +24,16 @@ Paths generated on 08Jul22 with body mass as input parameter and corrected scali
 
 Paths generated on 23Jul22 with body mass as input parameter and scaling relationships derived using Pablo's data.
 
+
+
 ## **Simulation sequence data and plotting variables**
+
+note: all the seq_dats are correct but only done for the first 5 of each
+all the plotting variables are only done for the first 5 of each and also don't contain numbers or speeds of zeros, and the estimated speeds when adding back in singles & zeros actually only have singles added back in
+
+--> so basically need to re-run everything using all 20 and including zeros too
+
+
 
 **uni_hz_noscaling**
 

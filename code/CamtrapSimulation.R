@@ -823,7 +823,7 @@ generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, 
                            connectedCTs = connectedCTs,
                            scaling=scaling)
       
-      save(seq_dats, metadata_sim, file = paste0(outputfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
+      save(seq_dats, metadata_sim, file = paste0(outputfolder, "Mb", metadata_sim$Mb, "iter", i, ".RData"))
       rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
     }
   }
@@ -984,9 +984,9 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0(parentfolder, "seq_dats_w_logistic_mix/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "uni_hz_scaling/seq_dats/Mb", i, "iter", j, ".RData"))
       
-      load(paste0(parentfolder, "paths/Mb", i, "/iter", j, ".RData"))
+      load(paste0(parentfolder, "paths_uni/Mb", i, "/iter", j, ".RData"))
       
       
       ## number of single frames and speeds of single frame sequences #######################################################################
@@ -1254,7 +1254,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "plotting_data_w_logistic_mix/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
+    save(output, file = paste0(parentfolder, "uni_hz_scaling/plotting_variables/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData")) # add sp range and number of iters too to the name of the output file
     
   }
 

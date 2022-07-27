@@ -801,42 +801,9 @@ generate_seqdats <- function(parentfolder, outputfolder, Mb_range, path_nos, r, 
         path <- list(path$path[1:(500000*path_cutby+1),], path$turn[1:500000*path_cutby], path$absturn[1:500000*path_cutby], path$speed[1:500000*path_cutby])
         seq_dats <- run_simulation(path, parentfolder, Mb=j, r=r, th=th, scaling=scaling, plot_path=plot_path, twoCTs=twoCTs, connectedCTs=connectedCTs)
       }
-      metadata_sim <- list(datetime = metadata$datetime,
-                           iter = metadata$iter,
-                           Mb = metadata$Mb,
-                           xlim = metadata$xlim,
-                           step_no = metadata$step_no,
-                           #speedSD = metadata$speedSD,
-                           pTurn = metadata$pTurn,
-                           speedCor = metadata$speedCor,
-                           kTurn = metadata$kTurn,
-                           kCor = metadata$kCor,
-                           r = r,
-                           th = th,
-                           twoCTs = twoCTs,
-                           connectedCTs = connectedCTs,
-                           scaling=scaling)
-      
-      save(seq_dats, metadata_sim, file = paste0(outputfolder, "Mb", metadata_sim$Mb, "iter", i, ".RData"))
-      rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
+      save(seq_dats, file = paste0(outputfolder, "Mb", j, "iter", i, ".RData"))
+      rm(list = c("path", "seq_dats"))
     }
-    metadata_sim <- list(datetime = metadata$datetime,
-                         iter = metadata$iter,
-                         Mb = metadata$Mb,
-                         xlim = metadata$xlim,
-                         step_no = metadata$step_no,
-                         # speedSD = metadata$speedSD,
-                         pTurn = metadata$pTurn,
-                         speedCor = metadata$speedCor,
-                         kTurn = metadata$kTurn,
-                         kCor = metadata$kCor,
-                         r = r,
-                         th = th,
-                         twoCTs = twoCTs,
-                         connectedCTs = connectedCTs)
-    
-    save(seq_dats, metadata_sim, file = paste0(parentfolder, "seq_dats/Mb", metadata_sim$Mb, "iter", i, ".RData"))
-    rm(list = c("path", "seq_dats", "metadata", "metadata_sim"))
   }
 }
 
@@ -995,9 +962,9 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       ## load in the path and seq_dats for that simulation run #####################################################################################
       
-      load(paste0(parentfolder, "bi_hz_scaling/seq_dats/mov0.9/Mb", i, "iter", j, ".RData"))
+      load(paste0(parentfolder, "uni_hz_scaling/seq_dats/Mb", i, "iter", j, ".RData"))
       
-      load(paste0(parentfolder, "paths_bi/mov0.9/Mb", i, "/iter", j, ".RData"))
+      load(paste0(parentfolder, "paths_uni/Mb", i, "/iter", j, ".RData"))
       
       
       ## number of single frames and speeds of single frame sequences #######################################################################
@@ -1092,7 +1059,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       singles_v_mean <- c(singles_v_mean, mean(singles_v)) # store outside of the main loop
       n_singles <- c(n_singles, singles_count)  # ditto
       
-      # zeros commented out for now bc take way too long - just need to uncomment this and re-add zeros back into the output when need them again and also re-add them to combining observed speeds with singles & zeros
+      # # zeros commented out for now bc take way too long - just need to uncomment this and re-add zeros back into the output when need them again and also re-add them to combining observed speeds with singles & zeros
       # ## number of zero frames and speeds of zero frame sequences ######################################################################################
       # 
       # ### number of zero-frame sequences:
@@ -1105,10 +1072,10 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       # if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
       #   path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
       # }
-      # if (part_of_wedge==2){ 
+      # if (part_of_wedge==2){
       #   path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
       # }
-      # if (part_of_wedge==3){ 
+      # if (part_of_wedge==3){
       #   path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
       # }
       # 
@@ -1122,7 +1089,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       #   if (connectedCTs == TRUE){
       #     dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
       #   }
-      #   if (connectedCTs == FALSE){ 
+      #   if (connectedCTs == FALSE){
       #     dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
       #   }
       #   zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
@@ -1144,7 +1111,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       # }
       # 
       # zeros_v_mean <- c(zeros_v_mean, mean(zeros_v)) # store outside of main loop
-      # 
+
       
       ## mean realised speeds ###################################################################################################################################
       
@@ -1177,7 +1144,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       m_obs <- v$speed 
       m_obs <- m_obs[is.finite(m_obs)]
-      m_obs_sz <- c(m_obs, singles_v) # zeros_v) # M's way of working out observed speeds + single & zero frames - commented out zeros for now though
+      m_obs_sz <- c(m_obs, singles_v)# zeros_v) # M's way of working out observed speeds + single & zero frames - commented out zeros for now though
       m_obs <- na.omit(m_obs)
       m_obs_sz <- na.omit(m_obs_sz)
       
@@ -1188,7 +1155,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       
       p_obs <- posdat$distance # point-to-point observed speeds irrespective of sequence
       p_obs <- p_obs[is.finite(p_obs)]
-      p_obs_sz <- c(p_obs, singles_v) # zeros_v) # including singles & zeros too
+      p_obs_sz <- c(p_obs, singles_v)#zeros_v) # including singles & zeros too
       p_obs <- na.omit(p_obs)
       p_obs_sz <- p_obs_sz[is.finite(p_obs_sz)]
       p_obs_sz <- na.omit(p_obs_sz)
@@ -1210,7 +1177,7 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       obs_df_p <- data.frame(speed = p_obs)
       obs_df_p_sz <- data.frame(speed = p_obs_sz)
       
-      mods_m <- sbm3(speed~1, obs_df_m) # fit all the models
+      mods_m <- sbm3(speed~1, obs_df_m) # fit all the models --if this messes up again use try() or something to skip the error and just assign estimated speeds for that simulation run as NA
       mods_m_sz <- sbm3(speed~1, obs_df_m_sz)
       mods_p <- sbm3(speed~1, obs_df_p)
       mods_p_sz <- sbm3(speed~1, obs_df_p_sz)
@@ -1267,18 +1234,17 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       weibull_p = weibull_p,
       weibull_p_sz = weibull_p_sz,
       
-      # n_zeros = n_zeros,
+      n_zeros = n_zeros,
       n_singles = n_singles,
       singles_v_mean = singles_v_mean,
-      # zeros_v_mean = zeros_v_mean,
+      zeros_v_mean = zeros_v_mean,
       
       n_points = n_points,
       n_detected = n_detected
       )
     
     # save one dataframe for each Mb
-    # save(output, file = paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.25/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData"))
-    save(output, file = paste0(parentfolder, "bi_hz_scaling/plotting_variables/mov0.9/wedge", part_of_wedge,  "/Mb", i, "_iters1-5.RData"))# make it manual for now to generate results quickly for M    
+    save(output, file = paste0(parentfolder, "uni_hz_scaling/plotting_variables/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData"))
   }
 
 }

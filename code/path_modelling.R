@@ -16,6 +16,58 @@ panama_data <- read.csv("../data/panama_data.csv")
 data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 
+# new way to work out bimodal speed distributions -------------------------
+
+# unimodal speeds:
+n=500
+speedCor=0.9
+Mb=50
+vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb))) # using body mass relationship from Garland 1983
+
+# unimodal speeds:
+pTurn = 0.5
+logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
+logspeed <- log(0.1357288*(Mb^0.197178)) # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
+spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) 
+spds <- spds[spds<vmax]
+
+# bimodal speeds: using Pablo's data:
+
+logspeedSD_mov <- 0.8656343 
+logspeed_mov <- log(2.489792*(Mb^0.04714894)) # this is the problematic one --> moving speeds are pretty fast -- too fast to compare usefully with our unimodal distribution
+logspeedSD_feed <- 1.04981 
+logspeed_feed <- log(1.081785*(Mb^0.1410986))
+
+
+## so ditch using Pablo's data and instead generate a bimodal distribution artificially
+# unimodal distribution:
+plot(density(log(spds)))
+# mean of slow speeds: 30% decrease:
+logspeed_slow <- log(0.1357288*(Mb^0.197178)*0.7)
+spds_slow <- exp(rautonorm(n, logspeed_slow, logspeedSD, speedCor)) 
+spds_slow <- spds_slow[spds_slow<vmax]
+
+# mean of fast speeds: 30% increase:
+logspeed_fast <- log(0.1357288*(Mb^0.197178)*1.3)
+spds_fast <- exp(rautonorm(n, logspeed_fast, logspeedSD, speedCor)) 
+spds_fast <- spds_fast[spds_fast<vmax]
+
+
+density_df <- data.frame(spds = c(log(spds), log(spds_slow), log(spds_fast)),
+                         type = c(rep("uni", times = length(spds)), rep("slow", times=length(spds_slow)), rep("fast", times=length(spds_fast))))
+
+density_plot <- ggplot(density_df, aes(x=spds, colour=type))+
+  geom_density()
+density_plot
+
+# actually probs don't need to change SD --> looks fine
+
+
+
+
+
+
+
 # parameters for bimodal speed modelling: using Pablo's data --------------
 
 ## add columns for species and body mass and format columns correctly
@@ -121,7 +173,7 @@ data_all_cats <- read.csv("../data/data_all_cats.csv")
 
 ## FROM NOW ON: GO FROM HERE:
 
-pablo_spds_raw <- read.csv("../data/pablo_spds_raw.csv")
+pablo_spds_raw <- read.csv("../data/spain/palencia_spds_raw.csv")
 
 # 11 species altogether
 

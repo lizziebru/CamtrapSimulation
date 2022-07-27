@@ -51,10 +51,10 @@ rautonorm <- function(n,mean=0,sd=1,r){
 pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=0.5, xlim=c(0,0), wrapped=TRUE, bimodal=FALSE, mov_prop=1, pTurn_mov=0.3, pTurn_feed=0.8){
   ylim=xlim
   vmax <- (8.356367*(Mb^0.25892))/(Mb^(0.06237*log10(Mb))) # set maxspeed - using body mass relationship from Garland 1983
+  logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
   
   if (bimodal==FALSE){ # for unimodal movement:
     pTurn = 0.5
-    logspeedSD <- 0.8546151 # set fixed logspeedSD (calculated using regent's park & panama data)
     logspeed <- log(0.1357288*(Mb^0.197178)) # set logspeed - using body mass relationship derived from regent's park & panama data (fitting lnorm)
     spds <- exp(rautonorm(n, logspeed, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
     spds <- spds[spds<vmax] # cap those spds at the max speed
@@ -86,17 +86,15 @@ pathgen <- function(n, kTurn=0, Mb, speedCor=0, kCor=TRUE, pTurn=0.5, xlim=c(0,0
     n_feed <- n-n_mov
     
     # parameters for each distribution
-    logspeedSD_mov <- 0.8656343 # set fixed logspeedSD (calculated using Pablo's data)
-    logspeed_mov <- log(2.489792*(Mb^0.04714894)) # set logspeed - using body mass relationship derived from Pablo's data (fitting lnorm)
-    logspeedSD_feed <- 1.04981 
-    logspeed_feed <- log(1.081785*(Mb^0.1410986))
+    logspeed_feed <- log(0.1357288*(Mb^0.197178)*0.7) # 30% decrease in speed
+    logspeed_mov <- log(0.1357288*(Mb^0.197178)*1.3) # 30% increase in speed
     
     # generate and cap speeds for each distribution
-    spds_mov <- exp(rautonorm(n_mov, logspeed_mov, logspeedSD_mov, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds_mov <- exp(rautonorm(n_mov, logspeed_mov, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
     spds_mov <- spds_mov[spds_mov<vmax] # cap those spds at the max speed
     n_mov_capped <- length(spds_mov) # set new number of steps based on how may speeds you now have
     
-    spds_feed <- exp(rautonorm(n_feed, logspeed_feed, logspeedSD_feed, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
+    spds_feed <- exp(rautonorm(n_feed, logspeed_feed, logspeedSD, speedCor)) # generates set of autocorrelated variates - generate speeds on a log scale (bc lognormally distributed) then exponentiate to get them back to normal space
     spds_feed <- spds_feed[spds_feed<vmax] # cap those spds at the max speed
     n_feed_capped <- length(spds_feed) # set new number of steps based on how may speeds you now have
     
@@ -228,10 +226,6 @@ plot_dzone <- function(dzone, ...){
     polygon(poly, ...) # draws the dz polygon
   }
 }
-
-
-# simulation happens between pathgen (simulates a path) and sequence data (simulating detection process)
-
 
 
 ## calc_speed

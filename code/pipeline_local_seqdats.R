@@ -10,24 +10,14 @@ source("CamtrapSimulation.R", echo=TRUE)
 # set range of body masses to run the simulation on:
 Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
-<<<<<<< HEAD
-# set which speed to analyse paths in:
-<<<<<<< HEAD
-pathfolder <- paste0("sp0.06_18May22_0923/") # next: 
-
-=======
-pathfolder <- paste0("paths/Mb50/") 
->>>>>>> master
-=======
 # set range of paths to run the simulation on:
-path_nos <- c(1:5)
->>>>>>> master
+path_nos <- c(1:20)
 
 # set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("../results/final_results/paths_bi/mov0.9/")
+parentfolder <- paste0("../results/final_results/paths_uni/")
 
 # set output folder - depends on what you're running
-outputfolder <- paste0("../results/final_results/bi_hz_scaling/seq_dats/mov0.9/")
+outputfolder <- paste0("../results/final_results/uni_hz_scaling/seq_dats/")
 
 
 # set additional parameters:

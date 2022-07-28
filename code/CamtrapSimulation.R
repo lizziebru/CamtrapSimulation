@@ -957,11 +957,10 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
     n_detected <- c() # number of detected points
     
     
-    
-    # could sapply this whole for loop: then get a list of lists that can extract things from to fill the variables for body masses...
-    iters_outputs <- lapply(iter_range, apply_zeros_calc, parentfolder=parentfolder, pathfolder=pathfolder, scaling=scaling, part_of_wedge=part_of_wedge)
+    # could sapply this whole for loop: then get a list of dataframes that can extract things from to fill the variables for body masses...
+    iters_outputs <- mclapply(iter_range, gen_plot_var_eachiter, Mb=Mb, scaling=scaling, part_of_wedge=part_of_wedge, mc.cores=3)
     # produces list of 20 lists (1 for each iter)
-    
+    # started 15:28
     
     
     output <- data.frame(
@@ -1015,7 +1014,7 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, part_of_wedge){
 
   ## load in the path and seq_dats for that simulation run #####################################################################################
   
-  load(paste0(parentfolder, "uni_hz_scaling/seq_dats/Mb", Mb, "iter", iter, ".RData"))
+  load(paste0(parentfolder, "uni_hz_noscaling/seq_dats/Mb", Mb, "iter", iter, ".RData"))
   
   load(paste0(parentfolder, "paths_uni/Mb", Mb, "/iter", iter, ".RData"))
   
@@ -1329,74 +1328,6 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, part_of_wedge){
   return(output)
 }
 
-
-
-
-## apply_zeros_calcs - replace with function above instead
-# function to apply to each of the 20 paths within a body mass, calculate number of zero frames and speeds of each zero frame and output as an .RData file accompanying each path 
-# so that can just read it into generate_plotting variables so that you're not looping through each doing each zero frames calc at a time
-# INPUTS
-# iteration number to loop through
-# parentfolder: where the path folder is (final_results vs prev_results etc)
-# pathfolder: which folder of paths to use
-# scaling: whether or not to fully scale detection probability with body mass
-# part_of_wedge: 0 (whole wedge), 1 (bottom third), 2 (middle third), 3 (top third)
-# OUTPUTS
-# .RData file containing: no of zero frames, vector of speeds of each zero frame
-apply_zeros_calc <- function(iter, parentfolder, pathfolder, scaling, part_of_wedge){
-  load(paste0(parentfolder, pathfolder, "/iter", iter, ".RData"))
-  load(paste0(parentfolder, ))
-  
-  ### number of zero-frame sequences:
-  path_df <- path$path
-  path_df2 <- path_df
-  path_df <- path_df[-nrow(path_df),] # remove last row
-  path_df2 <- path_df2[-1,] # remove first row
-  path_df_paired <- cbind(path_df, path_df2) # paired points
-  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-  if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
-    path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
-  }
-  if (part_of_wedge==2){
-    path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
-  }
-  if (part_of_wedge==3){
-    path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
-  }
-  
-  max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
-  if (twoCTs == FALSE){
-    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-    zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-  }
-  if (twoCTs == TRUE){
-    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-    if (connectedCTs == TRUE){
-      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-    }
-    if (connectedCTs == FALSE){
-      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-    }
-    zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-    zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-    zeros <- c(zeros1, zeros2)
-  }
-  zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
-  
-  ## speeds of zero-frame sequences
-  path_df_paired["ZERO"] <- zeros
-  zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
-  zeros_v <- c() # to save outside of this mini for loop
-  for (l in 1:nrow(zeros_dat)){
-    z <- zeros_dat[l,]
-    speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
-    zeros_v <- c(zeros_v, speed)
-  }
-
-  output <- list(n_zeros=zeros_count,
-                 zeros_v=zeros_v)
-  return(output)
-}
 
 
 

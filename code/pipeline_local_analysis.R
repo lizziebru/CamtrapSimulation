@@ -32,18 +32,6 @@ bimodal=FALSE # bc if it's bimodal need to remove the last set of coords from pa
 scaling=FALSE
 
 
-## first calculate no of zeros & speeds of zeros
-pathfolder <- paste0("paths_bi/mov0.25/Mb1/")
-seq_dats_folder <- paste0("bi_hz_scaling/seq_dats/mov0.25/Mb1/")
-iters2 <- seq(1,20,by=1)
-zeros_list <- lapply(iters2, apply_zeros_calc, parentfolder=parentfolder, pathfolder=pathfolder, scaling=scaling, part_of_wedge=part_of_wedge)
-#--> produces a list of 20 lists (1 for each iteration)
-# save each list with the paths:
-for (i in 1:20){
-  # save each list as an .RData file called "zeros_iter1.RData" etc
-}
-
-
 
 
 # generate and store plotting variables

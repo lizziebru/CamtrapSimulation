@@ -957,252 +957,12 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
     n_detected <- c() # number of detected points
     
     
-    for (j in iter_range){ # fill these variables by looping through each iteration of simulations for each a given body mass
-      i <- Mb_iters$Mb_range[n]
-      
-      ## load in the path and seq_dats for that simulation run #####################################################################################
-      
-      load(paste0(parentfolder, "uni_hz_scaling/seq_dats/Mb", i, "iter", j, ".RData"))
-      
-      load(paste0(parentfolder, "paths_uni/Mb", i, "/iter", j, ".RData"))
-      
-      
-      ## number of single frames and speeds of single frame sequences #######################################################################
-      
-      # make df with all xy coords of the path and their speeds:
-      if (bimodal==TRUE){ # need to remove 2 coords to match up with speeds length bc stuck 2 paths together
-        path_x <- path$path$x[-1]
-        path_x <- path_x[-(length(path_x))]
-        path_y <- path$path$y[-1]
-        path_y <- path_y[-(length(path_y))]
-        path_xy_v <- data.frame(x = path_x, # no speed for the first point nor the first of the second chunk stuck together - but just remove the last set of coords too bc that way each speed is at least matched up to one of the coords it's between
-                                y = path_y, # doing this isn't a problem bc don't actually ever need to match up speeds with their exact coords in the right order
-                                v = path$speed)
-      }
-      if (bimodal==FALSE){
-        path_xy_v <- data.frame(x = path$path$x[-1], # no speed for the first point
-                                y = path$path$y[-1],
-                                v = path$speed) 
-      }
-
-      
-      # store posdat_all as a df too:
-      
-      posdat_all <- seq_dats$posdat_all
-      
-      if (part_of_wedge==1){ # bottom third of wedge
-        posdat_all <- posdat_all[posdat_all$y>=10 & posdat_all$y<13,]
-      }
-      if (part_of_wedge==2){ # middle third of wedge
-        posdat_all <- posdat_all[posdat_all$y>=13 & posdat_all$y<16,]
-      }
-      if (part_of_wedge==3){ # top third of wedge
-        posdat_all <- posdat_all[posdat_all$y>=16 & posdat_all$y<=19,]
-      }
-      
-      # detection zone:
-      if (twoCTs == FALSE){
-        dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-      }
-      if (twoCTs == TRUE){ # generate two detection zones and use both
-        dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-        if (connectedCTs == TRUE){
-          dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-        }
-        if (connectedCTs == FALSE){ 
-          dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-        }
-      }
-      
-      
-      ## speeds of single frames
-      
-      singles_v <- c() # to store stuff from this upcoming for loop
-      singles_count <- 0 # ditto
-      
-      # select the seqID posdats when you only have one TRUE (i.e. single frame)
-      for (k in unique(posdat_all$sequenceID)){
-        p <- posdat_all[posdat_all$sequenceID==k,] # subset by sequence ID
-        n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
-        if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
-          
-          ## work out the detection probability of that single frame:
-          single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
-          single_y <- p[p$detected==TRUE,]$y
-          single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
-          prob_detect <- hz_radius(single_radius, Mb=Mb, scaling=scaling) # probability of detection using hazard function
-          singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
-          
-          ## speeds of single frame sequences:
-          path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
-          true_rownumber <- path_xy_v[path_xy_v$x==single_x & path_xy_v$y==single_y,]$rownumber # rownumber of the detected single point
-          
-          if (true_rownumber == 1){ # if the detected point is the first in the whole path, just use the point after it
-            below_rownumber <- true_rownumber + 1
-            rownumbers_needed <- c(true_rownumber, below_rownumber)
-          }
-          if (true_rownumber == nrow(p)){ # if the detected point is the last in the whole path, just use that point and the one before it
-            above_rownumber <- true_rownumber - 1
-            rownumbers_needed <- c(true_rownumber, above_rownumber)
-          }
-          else { # otherwise, use both the points below and above
-            above_rownumber <- true_rownumber - 1
-            below_rownumber <- true_rownumber + 1
-            rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
-          }
-          rows_needed <- path_xy_v[rownumbers_needed,] # isolate just the single frame and rows below and above it
-          speed_single <- sum(rows_needed$v)/(nrow(rows_needed)-1) # speed = distance / time
-          singles_v <- c(singles_v, speed_single) # store outside of this smaller for loop
-        }
-      }
-      
-      singles_v_mean <- c(singles_v_mean, mean(singles_v)) # store outside of the main loop
-      n_singles <- c(n_singles, singles_count)  # ditto
-      
-      # # zeros commented out for now bc take way too long - just need to uncomment this and re-add zeros back into the output when need them again and also re-add them to combining observed speeds with singles & zeros
-      # ## number of zero frames and speeds of zero frame sequences ######################################################################################
-      # 
-      # ### number of zero-frame sequences:
-      # path_df <- path$path
-      # path_df2 <- path_df
-      # path_df <- path_df[-nrow(path_df),] # remove last row
-      # path_df2 <- path_df2[-1,] # remove first row
-      # path_df_paired <- cbind(path_df, path_df2) # paired points
-      # colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
-      # if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
-      #   path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
-      # }
-      # if (part_of_wedge==2){
-      #   path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
-      # }
-      # if (part_of_wedge==3){
-      #   path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
-      # }
-      # 
-      # max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
-      # if (twoCTs == FALSE){
-      #   dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
-      #   zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-      # }
-      # if (twoCTs == TRUE){
-      #   dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
-      #   if (connectedCTs == TRUE){
-      #     dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
-      #   }
-      #   if (connectedCTs == FALSE){
-      #     dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
-      #   }
-      #   zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-      #   zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
-      #   zeros <- c(zeros1, zeros2)
-      # }
-      # zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
-      # 
-      # n_zeros <- c(n_zeros, zeros_count) # save externally to the main for loop
-      # 
-      # ## speeds of zero-frame sequences
-      # path_df_paired["ZERO"] <- zeros
-      # zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
-      # zeros_v <- c() # to save outside of this mini for loop
-      # for (l in 1:nrow(zeros_dat)){
-      #   z <- zeros_dat[l,]
-      #   speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
-      #   zeros_v <- c(zeros_v, speed)
-      # }
-      # 
-      # zeros_v_mean <- c(zeros_v_mean, mean(zeros_v)) # store outside of main loop
-
-      
-      ## mean realised speeds ###################################################################################################################################
-      
-      # w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
-      # wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
-      
-      p_real <- na.omit(path$speed) # point-to-point realised speeds
-      p_real <- p_real[is.finite(p_real)]
-      aMRS <- c(aMRS, mean(p_real)) # arithmetic MRS
-      # gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
-      
-      
-      ## mean observed speeds #################################################################################################################################
-      
-      posdat <- seq_dats$posdat # position datapoints that fall in dz and get detected
-      
-      if (part_of_wedge==1){
-        posdat <- posdat[posdat$y>=10 & posdat$y<13,]
-      }
-      if (part_of_wedge==2){
-        posdat <- posdat[posdat$y>=13 & posdat$y<16,]
-      }
-      if (part_of_wedge==3){
-        posdat <- posdat[posdat$y>=16 & posdat$y<=19,]
-      }
-      
-      
-      # work out observed speeds using mean of means  
-      v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
-      
-      m_obs <- v$speed 
-      m_obs <- m_obs[is.finite(m_obs)]
-      m_obs_sz <- c(m_obs, singles_v)# zeros_v) # M's way of working out observed speeds + single & zero frames - commented out zeros for now though
-      m_obs <- na.omit(m_obs)
-      m_obs_sz <- na.omit(m_obs_sz)
-      
-      amMOS <- c(amMOS, mean(m_obs)) 
-      amMOS_sz <- c(amMOS_sz, mean(m_obs_sz))
-      # gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
-      # gmMOS_sz <- c(gmMOS_sz, exp(mean(log(m_obs_sz))))
-      
-      p_obs <- posdat$distance # point-to-point observed speeds irrespective of sequence
-      p_obs <- p_obs[is.finite(p_obs)]
-      p_obs_sz <- c(p_obs, singles_v)#zeros_v) # including singles & zeros too
-      p_obs <- na.omit(p_obs)
-      p_obs_sz <- p_obs_sz[is.finite(p_obs_sz)]
-      p_obs_sz <- na.omit(p_obs_sz)
-      
-      apMOS <- c(apMOS, mean(p_obs))
-      apMOS_sz <- c(apMOS_sz, mean(p_obs_sz))
-      # gMOS <- c(gMOS, exp(mean(log(p_obs))))
-      # gMOS_sz <- c(gMOS_sz, exp(mean(log(p_obs_sz))))
-      
-      ## estimated speeds ###################################################################################################
-      
-      hmean_m <- c(hmean_m, (hmean_calc(m_obs))[1]) # harmonic mean estimate using M's observed speeds
-      hmean_m_sz <- c(hmean_m_sz, (hmean_calc(m_obs_sz))[1]) # including singles & zeros
-      hmean_p <- c(hmean_p, (hmean_calc(p_obs))[1]) # using raw point-to-point speeds
-      hmean_p_sz <- c(hmean_p_sz, (hmean_calc(p_obs_sz))[1])
-      
-      obs_df_m <- data.frame(speed = m_obs)
-      obs_df_m_sz <- data.frame(speed = m_obs_sz)
-      obs_df_p <- data.frame(speed = p_obs)
-      obs_df_p_sz <- data.frame(speed = p_obs_sz)
-      
-      mods_m <- sbm3(speed~1, obs_df_m) # fit all the models --if this messes up again use try() or something to skip the error and just assign estimated speeds for that simulation run as NA
-      mods_m_sz <- sbm3(speed~1, obs_df_m_sz)
-      mods_p <- sbm3(speed~1, obs_df_p)
-      mods_p_sz <- sbm3(speed~1, obs_df_p_sz)
-      
-      lnorm_m <- c(lnorm_m, predict.sbm(mods_m[[1]]$lnorm)[1,1])
-      lnorm_m_sz <- c(lnorm_m_sz, predict.sbm(mods_m_sz[[1]]$lnorm)[1,1])
-      lnorm_p <- c(lnorm_p, predict.sbm(mods_p[[1]]$lnorm)[1,1])
-      lnorm_p_sz <- c(lnorm_p_sz, predict.sbm(mods_p_sz[[1]]$lnorm)[1,1])
-      
-      gamma_m <- c(gamma_m, predict.sbm(mods_m[[1]]$gamma)[1,1])
-      gamma_m_sz <- c(gamma_m_sz, predict.sbm(mods_m_sz[[1]]$gamma)[1,1])
-      gamma_p <- c(gamma_p, predict.sbm(mods_p[[1]]$gamma)[1,1])
-      gamma_p_sz <- c(gamma_p_sz, predict.sbm(mods_p_sz[[1]]$gamma)[1,1])
-      
-      weibull_m <- c(weibull_m, predict.sbm(mods_m[[1]]$weibull)[1,1])
-      weibull_m_sz <- c(weibull_m_sz, predict.sbm(mods_m_sz[[1]]$weibull)[1,1])
-      weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
-      weibull_p_sz <- c(weibull_p_sz, predict.sbm(mods_p_sz[[1]]$weibull)[1,1])
-
-      # no. of detected & non-detected points
-      n_points <- c(n_points, nrow(posdat_all))
-      n_detected <- c(n_detected, nrow(posdat))
-      
-      rm(list = c("seq_dats", "metadata_sim", "path"))
-    }
+    
+    # could sapply this whole for loop: then get a list of lists that can extract things from to fill the variables for body masses...
+    iters_outputs <- lapply(iter_range, apply_zeros_calc, parentfolder=parentfolder, pathfolder=pathfolder, scaling=scaling, part_of_wedge=part_of_wedge)
+    # produces list of 20 lists (1 for each iter)
+    
+    
     
     output <- data.frame(
 
@@ -1244,16 +1004,399 @@ generate_plotting_variables <- function(parentfolder, Mb_iters, r, th, part_of_w
       )
     
     # save one dataframe for each Mb
-    save(output, file = paste0(parentfolder, "uni_hz_scaling/plotting_variables/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData"))
+    save(output, file = paste0(parentfolder, "uni_hz_noscaling/plotting_variables/wedge", part_of_wedge,  "/Mb", i, "_iters1-", Mb_iters[Mb_iters$Mb_range==i,]$iter, ".RData"))
   }
 
+}
+
+## gen_plot_var_eachiter
+# function to apply to each iteration within a body mass category to produce a list of lists of all the variables needed in generate_plotting_variables to then fill the main vectors needed to be outputted
+gen_plot_var_eachiter <- function(iter, Mb, scaling, part_of_wedge){
+
+  ## load in the path and seq_dats for that simulation run #####################################################################################
+  
+  load(paste0(parentfolder, "uni_hz_scaling/seq_dats/Mb", Mb, "iter", iter, ".RData"))
+  
+  load(paste0(parentfolder, "paths_uni/Mb", Mb, "/iter", iter, ".RData"))
+  
+  
+  ## number of single frames and speeds of single frame sequences #######################################################################
+  
+  # make df with all xy coords of the path and their speeds:
+  if (bimodal==TRUE){ # need to remove 2 coords to match up with speeds length bc stuck 2 paths together
+    path_x <- path$path$x[-1]
+    path_x <- path_x[-(length(path_x))]
+    path_y <- path$path$y[-1]
+    path_y <- path_y[-(length(path_y))]
+    path_xy_v <- data.frame(x = path_x, # no speed for the first point nor the first of the second chunk stuck together - but just remove the last set of coords too bc that way each speed is at least matched up to one of the coords it's between
+                            y = path_y, # doing this isn't a problem bc don't actually ever need to match up speeds with their exact coords in the right order
+                            v = path$speed)
+  }
+  if (bimodal==FALSE){
+    path_xy_v <- data.frame(x = path$path$x[-1], # no speed for the first point
+                            y = path$path$y[-1],
+                            v = path$speed) 
+  }
+  
+  
+  # store posdat_all as a df too:
+  
+  posdat_all <- seq_dats$posdat_all
+  
+  if (part_of_wedge==1){ # bottom third of wedge
+    posdat_all <- posdat_all[posdat_all$y>=10 & posdat_all$y<13,]
+  }
+  if (part_of_wedge==2){ # middle third of wedge
+    posdat_all <- posdat_all[posdat_all$y>=13 & posdat_all$y<16,]
+  }
+  if (part_of_wedge==3){ # top third of wedge
+    posdat_all <- posdat_all[posdat_all$y>=16 & posdat_all$y<=19,]
+  }
+  
+  # detection zone:
+  if (twoCTs == FALSE){
+    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+  }
+  if (twoCTs == TRUE){ # generate two detection zones and use both
+    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+    if (connectedCTs == TRUE){
+      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+    }
+    if (connectedCTs == FALSE){ 
+      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+    }
+  }
+  
+  
+  ## speeds of single frames
+  
+  singles_v <- c() # to store stuff from this upcoming for loop
+  singles_count <- 0 # ditto
+  
+  # select the seqID posdats when you only have one TRUE (i.e. single frame)
+  for (k in unique(posdat_all$sequenceID)){
+    p <- posdat_all[posdat_all$sequenceID==k,] # subset by sequence ID
+    n_true <- nrow(p[p$detected==TRUE,])# subset by TRUE for detection to count the number of points detected by the CT in this sequence
+    if (n_true == 1){ # if there is only one point detected by the CT (i.e. it's a single frame)
+      
+      ## work out the detection probability of that single frame:
+      single_x <- p[p$detected==TRUE,]$x # select the x and y coords of the detected single point
+      single_y <- p[p$detected==TRUE,]$y
+      single_radius <- sqrt((single_y-dz$y)^2 + (single_x-dz$x)^2) # work out radius (distance from CT)
+      prob_detect <- hz_radius(single_radius, Mb=Mb, scaling=scaling) # probability of detection using hazard function
+      singles_count <- singles_count + prob_detect # add that to the number of single frames (so that it's a value that's taken probabilistic stuff into account)
+      
+      ## speeds of single frame sequences:
+      path_xy_v["rownumber"] <- c(1:nrow(path_xy_v)) # assign rownumbers
+      true_rownumber <- path_xy_v[path_xy_v$x==single_x & path_xy_v$y==single_y,]$rownumber # rownumber of the detected single point
+      
+      if (true_rownumber == 1){ # if the detected point is the first in the whole path, just use the point after it
+        below_rownumber <- true_rownumber + 1
+        rownumbers_needed <- c(true_rownumber, below_rownumber)
+      }
+      if (true_rownumber == nrow(p)){ # if the detected point is the last in the whole path, just use that point and the one before it
+        above_rownumber <- true_rownumber - 1
+        rownumbers_needed <- c(true_rownumber, above_rownumber)
+      }
+      else { # otherwise, use both the points below and above
+        above_rownumber <- true_rownumber - 1
+        below_rownumber <- true_rownumber + 1
+        rownumbers_needed <- c(true_rownumber, above_rownumber, below_rownumber)
+      }
+      rows_needed <- path_xy_v[rownumbers_needed,] # isolate just the single frame and rows below and above it
+      speed_single <- sum(rows_needed$v)/(nrow(rows_needed)-1) # speed = distance / time
+      singles_v <- c(singles_v, speed_single) # store outside of this smaller for loop
+    }
+  }
+  
+  singles_v_mean <- mean(singles_v)
+  n_singles <- singles_count  # ditto
+  
+  # zeros commented out for now bc take way too long - just need to uncomment this and re-add zeros back into the output when need them again and also re-add them to combining observed speeds with singles & zeros
+  ## number of zero frames and speeds of zero frame sequences ######################################################################################
+
+  ### number of zero-frame sequences:
+  path_df <- path$path
+  path_df2 <- path_df
+  path_df <- path_df[-nrow(path_df),] # remove last row
+  path_df2 <- path_df2[-1,] # remove first row
+  path_df_paired <- cbind(path_df, path_df2) # paired points
+  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
+    path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
+  }
+  if (part_of_wedge==2){
+    path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
+  }
+  if (part_of_wedge==3){
+    path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
+  }
+
+  max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
+  if (twoCTs == FALSE){
+    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+    zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+  }
+  if (twoCTs == TRUE){
+    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+    if (connectedCTs == TRUE){
+      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+    }
+    if (connectedCTs == FALSE){
+      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+    }
+    zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+    zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+    zeros <- c(zeros1, zeros2)
+  }
+  zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
+
+  n_zeros <- zeros_count
+
+  ## speeds of zero-frame sequences
+  path_df_paired["ZERO"] <- zeros
+  zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+  zeros_v <- c() # to save outside of this mini for loop
+  for (l in 1:nrow(zeros_dat)){
+    z <- zeros_dat[l,]
+    speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+    zeros_v <- c(zeros_v, speed)
+  }
+
+  zeros_v_mean <- mean(zeros_v)
+
+  
+  ## mean realised speeds ###################################################################################################################################
+  
+  # w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+  # wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
+  
+  p_real <- na.omit(path$speed) # point-to-point realised speeds
+  p_real <- p_real[is.finite(p_real)]
+  aMRS <- mean(p_real) # arithmetic MRS
+  # gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
+  
+  
+  ## mean observed speeds #################################################################################################################################
+  
+  posdat <- seq_dats$posdat # position datapoints that fall in dz and get detected
+  
+  if (part_of_wedge==1){
+    posdat <- posdat[posdat$y>=10 & posdat$y<13,]
+  }
+  if (part_of_wedge==2){
+    posdat <- posdat[posdat$y>=13 & posdat$y<16,]
+  }
+  if (part_of_wedge==3){
+    posdat <- posdat[posdat$y>=16 & posdat$y<=19,]
+  }
+  
+  
+  # work out observed speeds using mean of means  
+  v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
+  
+  m_obs <- v$speed 
+  m_obs <- m_obs[is.finite(m_obs)]
+  m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames - commented out zeros for now though
+  m_obs <- na.omit(m_obs)
+  m_obs_sz <- na.omit(m_obs_sz)
+  
+  amMOS <- mean(m_obs) 
+  amMOS_sz <- mean(m_obs_sz)
+  
+  p_obs <- posdat$distance # point-to-point observed speeds irrespective of sequence
+  p_obs <- p_obs[is.finite(p_obs)]
+  p_obs_sz <- c(p_obs, singles_v, zeros_v) # including singles & zeros too
+  p_obs <- na.omit(p_obs)
+  p_obs_sz <- p_obs_sz[is.finite(p_obs_sz)]
+  p_obs_sz <- na.omit(p_obs_sz)
+  
+  apMOS <- mean(p_obs)
+  apMOS_sz <- mean(p_obs_sz)
+  
+  ## estimated speeds ###################################################################################################
+  
+  hmean_m <- (hmean_calc(m_obs))[1] # harmonic mean estimate using M's observed speeds
+  hmean_m_sz <- (hmean_calc(m_obs_sz))[1] # including singles & zeros
+  hmean_p <- (hmean_calc(p_obs))[1] # using raw point-to-point speeds
+  hmean_p_sz <- (hmean_calc(p_obs_sz))[1]
+  
+  obs_df_m <- data.frame(speed = m_obs)
+  obs_df_m_sz <- data.frame(speed = m_obs_sz)
+  obs_df_p <- data.frame(speed = p_obs)
+  obs_df_p_sz <- data.frame(speed = p_obs_sz)
+  
+  # put each model fitting in a separate tryCatch loop so that assigns things as NA if it can't fit the models
+  try(mods_m <- sbm3(speed~1, obs_df_m), silent=TRUE) # ignore any error messages and keep going
+  
+  if (length(mods_m)==0){ # if it couldn't fit the models, assign everything for that run as NA
+    lnorm_m <- NA
+    gamma_m <- NA
+    weibull_m <- NA
+  }
+  else{
+    lnorm_m <- predict.sbm(mods_m[[1]]$lnorm)[1,1]
+    gamma_m <- predict.sbm(mods_m[[1]]$gamma)[1,1]
+    weibull_m <- predict.sbm(mods_m[[1]]$weibull)[1,1]
+  }
+
+  
+  try(mods_m_sz <- sbm3(speed~1, obs_df_m_sz), silent = TRUE)
+  
+  if (length(mods_m_sz)==0){
+    lnorm_m_sz <- NA
+    gamma_m_sz <- NA
+    weibull_m_sz <- NA
+  }
+  else{
+    lnorm_m_sz <- predict.sbm(mods_m_sz[[1]]$lnorm)[1,1]
+    gamma_m_sz <- predict.sbm(mods_m_sz[[1]]$gamma)[1,1]
+    weibull_m_sz <- predict.sbm(mods_m_sz[[1]]$weibull)[1,1]
+  }
+  
+  
+  try(mods_p <- sbm3(speed~1, obs_df_p), silent=TRUE)
+  
+  if (length(mods_p)==0){ # if it couldn't fit the models, assign everything for that run as NA
+    lnorm_p <- NA
+    gamma_p <- NA
+    weibull_p <- NA
+  }
+  else{
+    lnorm_p <- predict.sbm(mods_p[[1]]$lnorm)[1,1]
+    gamma_p <- predict.sbm(mods_p[[1]]$gamma)[1,1]
+    weibull_p <- predict.sbm(mods_p[[1]]$weibull)[1,1]
+  }
+  
+  
+  
+  try(mods_p_sz <- sbm3(speed~1, obs_df_p_sz), silent=TRUE)
+  
+  if (length(mods_p_sz)==0){ # if it couldn't fit the models, assign everything for that run as NA
+    lnorm_p_sz <- NA
+    gamma_p_sz <- NA
+    weibull_p_sz <- NA
+  }
+  else{
+    lnorm_p_sz <- predict.sbm(mods_p_sz[[1]]$lnorm)[1,1]
+    gamma_p_sz <- predict.sbm(mods_p_sz[[1]]$gamma)[1,1]
+    weibull_p_sz <- predict.sbm(mods_p_sz[[1]]$weibull)[1,1]
+  }
+  
+
+  # no. of detected & non-detected points
+  n_points <- nrow(posdat_all)
+  n_detected <- nrow(posdat)
+  
+  output <- data.frame(
+    aMRS = aMRS,
+    
+    amMOS = amMOS,
+    amMOS_sz = amMOS_sz,
+    
+    apMOS = apMOS,
+    apMOS_sz = apMOS_sz,
+    
+    hmean_m = hmean_m,
+    hmean_m_sz = hmean_m_sz,
+    hmean_p = hmean_p,
+    hmean_p_sz = hmean_p_sz,
+    
+    lnorm_m = lnorm_m,
+    lnorm_m_sz = lnorm_m_sz,
+    lnorm_p = lnorm_p,
+    lnorm_p_sz = lnorm_p_sz,
+    
+    gamma_m = gamma_m,
+    gamma_m_sz = gamma_m_sz,
+    gamma_p = gamma_p,
+    gamma_p_sz = gamma_p_sz,
+    
+    weibull_m = weibull_m,
+    weibull_m_sz = weibull_m_sz,
+    weibull_p = weibull_p,
+    weibull_p_sz = weibull_p_sz,
+    
+    n_zeros = n_zeros,
+    n_singles = n_singles,
+    singles_v_mean = singles_v_mean,
+    zeros_v_mean = zeros_v_mean,
+    
+    n_points = n_points,
+    n_detected = n_detected
+  )
+  
+  return(output)
 }
 
 
 
 
+## apply_zeros_calcs - replace with function above instead
+# function to apply to each of the 20 paths within a body mass, calculate number of zero frames and speeds of each zero frame and output as an .RData file accompanying each path 
+# so that can just read it into generate_plotting variables so that you're not looping through each doing each zero frames calc at a time
+# INPUTS
+# iteration number to loop through
+# parentfolder: where the path folder is (final_results vs prev_results etc)
+# pathfolder: which folder of paths to use
+# scaling: whether or not to fully scale detection probability with body mass
+# part_of_wedge: 0 (whole wedge), 1 (bottom third), 2 (middle third), 3 (top third)
+# OUTPUTS
+# .RData file containing: no of zero frames, vector of speeds of each zero frame
+apply_zeros_calc <- function(iter, parentfolder, pathfolder, scaling, part_of_wedge){
+  load(paste0(parentfolder, pathfolder, "/iter", iter, ".RData"))
+  load(paste0(parentfolder, ))
+  
+  ### number of zero-frame sequences:
+  path_df <- path$path
+  path_df2 <- path_df
+  path_df <- path_df[-nrow(path_df),] # remove last row
+  path_df2 <- path_df2[-1,] # remove first row
+  path_df_paired <- cbind(path_df, path_df2) # paired points
+  colnames(path_df_paired) <- c("x1", "y1", "breaks1", "x2", "y2", "breaks2")
+  if (part_of_wedge==1){ # use only paired points whose y coords are within the range of the dz you're looking at in this run
+    path_df_paired <- path_df_paired[path_df_paired$y1>=10 & path_df_paired$y1<13 & path_df_paired$y2>=10 & path_df_paired$y2<13,]
+  }
+  if (part_of_wedge==2){
+    path_df_paired <- path_df_paired[path_df_paired$y1>=13 & path_df_paired$y1<16 & path_df_paired$y2>=13 & path_df_paired$y2<16,]
+  }
+  if (part_of_wedge==3){
+    path_df_paired <- path_df_paired[path_df_paired$y1>=16 & path_df_paired$y1<=19 & path_df_paired$y2>=16 & path_df_paired$y2<=19,]
+  }
+  
+  max_real <- max(path$speed) # max realised speed in this simulation run (used for buffer)
+  if (twoCTs == FALSE){
+    dz <- data.frame(x=20, y=10, r=r, th=th, dir=0)
+    zeros <- future_apply(path_df_paired, 1, zero_frame, dz = dz, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+  }
+  if (twoCTs == TRUE){
+    dz1 <- data.frame(x=12, y=5, r=r, th=th, dir=0)
+    if (connectedCTs == TRUE){
+      dz2 <- data.frame(x = (dz1[1,1] + r*sin(th)), y = (dz1[1,2] + r*cos(th)), r = r, th = th, dir = 1) # place it directly next to the other CT
+    }
+    if (connectedCTs == FALSE){
+      dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
+    }
+    zeros1 <- future_apply(path_df_paired, 1, zero_frame, dz = dz1, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+    zeros2 <- future_apply(path_df_paired, 1, zero_frame, dz = dz2, posdat_all = posdat_all, max_real = max_real, Mb=Mb, scaling=scaling)
+    zeros <- c(zeros1, zeros2)
+  }
+  zeros_count <- sum(zeros[1:length(zeros)]) # add up all of the zero counts to get total number of zero frames in that simulation
+  
+  ## speeds of zero-frame sequences
+  path_df_paired["ZERO"] <- zeros
+  zeros_dat <- path_df_paired[path_df_paired$ZERO!=0,] # dataframe with only pairs of points which make a zero frame
+  zeros_v <- c() # to save outside of this mini for loop
+  for (l in 1:nrow(zeros_dat)){
+    z <- zeros_dat[l,]
+    speed <- sqrt((z$y2-z$y1)^2 + (z$x2-z$x1)^2) # speed = distance between the two points bc timestep = 1s
+    zeros_v <- c(zeros_v, speed)
+  }
 
-
+  output <- list(n_zeros=zeros_count,
+                 zeros_v=zeros_v)
+  return(output)
+}
 
 
 

@@ -15,7 +15,7 @@ parentfolder <- paste0("../results/final_results/")
 Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
 # set number of iters for each to analyse
-iters <- c(rep(5, times=11))
+iters <- c(rep(20, times=11))
 
 Mb_iters <- data.frame(Mb_range = Mb_range, iter = iters)
 
@@ -26,10 +26,25 @@ th = 0.7
 part_of_wedge = 0 # which section of the wedge to use points from (0 = all, 1 = bottom third, 2 = middle third, 3 = top third)
 twoCTs = FALSE
 connectedCTs = FALSE
-bimodal=TRUE # bc if it's bimodal need to remove the last set of coords from path_xy too bc otherwise doesn't match up with no. of speeds (bc merge 2 chunks of paths together)
+bimodal=FALSE # bc if it's bimodal need to remove the last set of coords from path_xy too bc otherwise doesn't match up with no. of speeds (bc merge 2 chunks of paths together)
 
 # whether to scale hz function for detection probability with body mass
-scaling=TRUE
+scaling=FALSE
+
+
+## first calculate no of zeros & speeds of zeros
+pathfolder <- paste0("paths_bi/mov0.25/Mb1/")
+seq_dats_folder <- paste0("bi_hz_scaling/seq_dats/mov0.25/Mb1/")
+iters2 <- seq(1,20,by=1)
+zeros_list <- lapply(iters2, apply_zeros_calc, parentfolder=parentfolder, pathfolder=pathfolder, scaling=scaling, part_of_wedge=part_of_wedge)
+#--> produces a list of 20 lists (1 for each iteration)
+# save each list with the paths:
+for (i in 1:20){
+  # save each list as an .RData file called "zeros_iter1.RData" etc
+}
+
+
+
 
 # generate and store plotting variables
 generate_plotting_variables(parentfolder, Mb_iters, r, th, part_of_wedge, scaling=scaling, bimodal=bimodal)

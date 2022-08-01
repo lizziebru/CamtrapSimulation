@@ -22,7 +22,7 @@ Paths generated on 08Jul22 with body mass as input parameter and corrected scali
 
 **Bimodal paths: paths_bi**
 
-Paths generated on 23Jul22 with body mass as input parameter and scaling relationships derived using Pablo's data.
+Paths generated on 27Jul22 with body mass as input parameter and artificially-created bimodal speed distributions by just using unimodal speed distribution scaling, reducing mean logspeed by 30% for the slow, more tortuous speeds and increaseing by 30% for the faster, less tortuous speeds.
 
 
 
@@ -55,6 +55,11 @@ Plots for each of the three scenarios in sequence data and plotting variables.
 ___
 
 # **prev_results folder**
+
+## **bi_palencia**
+
+Previous paths, seq_dats and plotting variables using paths generated on 23Jul22 with body mass as input parameter and scaling relationships derived using Pablo's data - but speeds came out way too high so instead artificially create bi-modal distribution myself.
+
 
 ## **30Jun22_1727**
 

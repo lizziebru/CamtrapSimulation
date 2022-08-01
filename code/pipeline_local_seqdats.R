@@ -14,10 +14,10 @@ Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 path_nos <- c(1:20)
 
 # set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("../results/final_results/paths_uni/")
+parentfolder <- paste0("../results/final_results/paths_bi/mov0.25/")
 
 # set output folder - depends on what you're running
-outputfolder <- paste0("../results/final_results/uni_hz_scaling/seq_dats/")
+outputfolder <- paste0("../results/final_results/bi_hz_scaling/seq_dats/mov0.25/")
 
 
 # set additional parameters:
@@ -32,41 +32,5 @@ scaling=TRUE # whether to scale hz function for detection probability with body 
 # run the simulation to save as seq_dats:
 generate_seqdats(parentfolder=parentfolder, outputfolder=outputfolder, Mb_range=Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby, scaling=scaling)
 
-# # run the simulation and analyse the results:
-# run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, n_cores=4)
 
-
-
-
-
-# for running this on other computers: -------------------------------------
-
-# ## FOR RUNNING THE SIMULATION ON OTHER COMPUTERS ##
-# 
-# # required packages and functions
-# 
-# #install.packages("ggplot2")
-# require(ggplot2)
-# 
-# #install.packages("circular")
-# require(circular)
-# 
-# # install.packages("parallel")
-# # require(parallel)
-# 
-# source("CamtrapSimulation.R", echo=TRUE)
-# 
-# parentfolder <- paste0("")
-# pathfolder <- paste0("")
-# 
-# iter <- 100 
-# 
-# species = 0 
-# r = 9
-# th = 0.7
-# path_cutby = 0.5
-# twoCTs = TRUE
-# connectedCTs = FALSE
-# 
-# run_and_analyse(parentfolder=parentfolder, pathfolder=pathfolder, iter=iter, species=species, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby = path_cutby, n_cores=4)
 

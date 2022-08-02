@@ -573,13 +573,132 @@ extract_realised <- function(realised_speeds, r_lengths){ # function to extract 
 # variables: arithmetic MRS, 
 generate_plotting_variables <- function(parentfolder, pathfolder, seq_datsfolder, outputfolder, Mb_range, iter_range, r, th, part_of_wedge=0, twoCTs=FALSE, connectedCTs=FALSE, scaling, bimodal, n_cores){
   
-  # generate list of lists for each body mass
+  # generate list of lists for each body mass (+ each list for each body mass containing itself 20 lists (20 = 1 for each iteration repeat))
   outputs_mb <- lapply(Mb_range, gen_plot_var_eachmass, parentfolder=parentfolder, pathfolder=pathfolder, seq_datsfolder=seq_datsfolder, iter_range=iter_range, r=r, th=th, part_of_wedge, twoCTs=twoCTs, connectedCTs=connectedCTs, scaling=scaling, bimodal=bimodal, n_cores)
   
-  # save one dataframe for each Mb
-  for (i in 1:length(Mb_range)){
-    save(outputs_mb[[i]], file = paste0(parentfolder, outputfolder, "wedge", part_of_wedge,  "/Mb", Mb_range[i], "_iters", iter_range[1], "-", iter_range[length(iter_range)], ".RData"))
-  }
+  # just save all together bc doesn't like it otherwise
+  save(outputs_mb, file = paste0(parentfolder, outputfolder, "wedge", part_of_wedge,  "/Mb_all_iters", iter_range[1], "-", iter_range[length(iter_range)], ".RData"))
+  
+  # 
+  # # save one dataframe for each Mb
+  # for (j in 1:length(Mb_range)){
+  #   
+  #   # combine all the reps of the same body mass into one df and save as a .RData (one for each body mass)
+  #   aMRS <- c() # arithmetic MRS
+  # 
+  #   amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
+  #   amMOS_sz <- c() # with singles & zeros
+  #   apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
+  #   apMOS_sz <- c() # with singles & zeros
+  # 
+  #   hmean_m <- c() # calculated using M's way of working out observed speeds
+  #   hmean_m_sz <- c() # including singles & zeros too
+  #   hmean_p <- c() # calculated using point-to-point observed speeds
+  #   hmean_p_sz <- c() # including singles & zeros too
+  # 
+  #   lnorm_m <- c() # same as for hmean
+  #   lnorm_m_sz <- c()
+  #   lnorm_p <- c()
+  #   lnorm_p_sz <- c()
+  # 
+  #   gamma_m <- c() # ditto
+  #   gamma_m_sz <- c()
+  #   gamma_p <- c()
+  #   gamma_p_sz <- c()
+  # 
+  #   weibull_m <- c() # ditto
+  #   weibull_m_sz <- c()
+  #   weibull_p <- c()
+  #   weibull_p_sz <- c()
+  # 
+  #   n_zeros <- c()
+  #   n_singles <- c()
+  #   singles_v_mean <- c()
+  #   zeros_v_mean <- c()
+  # 
+  #   n_points <- c() # number of all points (detected and non-detected)
+  #   n_detected <- c() # number of detected points
+  # 
+  #   iters_outputs <- outputs_mb[[j]]
+  # 
+  #   for (i in iter_range){
+  #     aMRS <- c(aMRS, iters_outputs[[i]]$aMRS)
+  # 
+  #     amMOS <- c(amMOS, iters_outputs[[i]]$amMOS)
+  #     amMOS_sz <- c(amMOS_sz, iters_outputs[[i]]$amMOS_sz)
+  #     apMOS <- c(apMOS, iters_outputs[[i]]$amMOS_sz)
+  #     apMOS_sz <- c(apMOS_sz, iters_outputs[[i]]$apMOS_sz)
+  # 
+  #     hmean_m <- c(hmean_m, iters_outputs[[i]]$hmean_m)
+  #     hmean_m_sz <- c(hmean_m_sz, iters_outputs[[i]]$hmean_m_sz)
+  #     hmean_p <- c(hmean_p, iters_outputs[[i]]$hmean_p)
+  #     hmean_p_sz <- c(hmean_p_sz, iters_outputs[[i]]$hmean_p_sz)
+  # 
+  #     lnorm_m <- c(lnorm_m, iters_outputs[[i]]$lnorm_m)
+  #     lnorm_m_sz <- c(lnorm_m_sz, iters_outputs[[i]]$lnorm_m_sz)
+  #     lnorm_p <- c(lnorm_p, iters_outputs[[i]]$lnorm_p)
+  #     lnorm_p_sz <- c(lnorm_p_sz, iters_outputs[[i]]$lnorm_p_sz)
+  # 
+  #     gamma_m <- c(gamma_m, iters_outputs[[i]]$gamma_m)
+  #     gamma_m_sz <- c(gamma_m_sz, iters_outputs[[i]]$gamma_m_sz)
+  #     gamma_p <- c(gamma_p, iters_outputs[[i]]$gamma_p)
+  #     gamma_p_sz <- c(gamma_p_sz, iters_outputs[[i]]$gamma_p_sz)
+  # 
+  #     weibull_m <- c(weibull_m, iters_outputs[[i]]$weibull_m)
+  #     weibull_m_sz <- c(weibull_m_sz, iters_outputs[[i]]$weibull_m_sz)
+  #     weibull_p <- c(weibull_p, iters_outputs[[i]]$weibull_p)
+  #     weibull_p_sz <- c(weibull_p_sz, iters_outputs[[i]]$weibull_p_sz)
+  # 
+  #     n_zeros <- c(n_zeros, iters_outputs[[i]]$n_zeros)
+  #     n_singles <- c(n_singles, iters_outputs[[i]]$n_singles)
+  #     singles_v_mean <- c(singles_v_mean, iters_outputs[[i]]$singles_v_mean)
+  #     zeros_v_mean <- c(zeros_v_mean, iters_outputs[[i]]$zeros_v_mean)
+  # 
+  #     n_points <- c(n_points, iters_outputs[[i]]$n_points)
+  #     n_detected <- c(n_detected, iters_outputs[[i]]$n_detected)
+  #   }
+  # 
+  #   output <- data.frame(
+  # 
+  #     aMRS = aMRS,
+  # 
+  #     amMOS = amMOS,
+  #     amMOS_sz = amMOS_sz,
+  # 
+  #     apMOS = apMOS,
+  #     apMOS_sz = apMOS_sz,
+  # 
+  #     hmean_m = hmean_m,
+  #     hmean_m_sz = hmean_m_sz,
+  #     hmean_p = hmean_p,
+  #     hmean_p_sz = hmean_p_sz,
+  # 
+  #     lnorm_m = lnorm_m,
+  #     lnorm_m_sz = lnorm_m_sz,
+  #     lnorm_p = lnorm_p,
+  #     lnorm_p_sz = lnorm_p_sz,
+  # 
+  #     gamma_m = gamma_m,
+  #     gamma_m_sz = gamma_m_sz,
+  #     gamma_p = gamma_p,
+  #     gamma_p_sz = gamma_p_sz,
+  # 
+  #     weibull_m = weibull_m,
+  #     weibull_m_sz = weibull_m_sz,
+  #     weibull_p = weibull_p,
+  #     weibull_p_sz = weibull_p_sz,
+  # 
+  #     n_zeros = n_zeros,
+  #     n_singles = n_singles,
+  #     singles_v_mean = singles_v_mean,
+  #     zeros_v_mean = zeros_v_mean,
+  # 
+  #     n_points = n_points,
+  #     n_detected = n_detected
+  #   )
+  #   
+  #   save(output, file = paste0(parentfolder, outputfolder, "wedge", part_of_wedge,  "/Mb", Mb_range[j], "_iters", iter_range[1], "-", iter_range[length(iter_range)], ".RData"))
+  # }
   
 }
 
@@ -605,124 +724,127 @@ generate_plotting_variables <- function(parentfolder, pathfolder, seq_datsfolder
 # dataframe containing variables needed for plotting
 gen_plot_var_eachmass <- function(Mb, parentfolder, pathfolder, seq_datsfolder, iter_range, r, th, part_of_wedge, twoCTs=FALSE, connectedCTs=FALSE, scaling, bimodal, n_cores){
   
-  aMRS <- c() # arithmetic MRS
-  
-  amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
-  amMOS_sz <- c() # with singles & zeros
-  apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
-  apMOS_sz <- c() # with singles & zeros
-  
-  hmean_m <- c() # calculated using M's way of working out observed speeds
-  hmean_m_sz <- c() # including singles & zeros too
-  hmean_p <- c() # calculated using point-to-point observed speeds
-  hmean_p_sz <- c() # including singles & zeros too
-  
-  lnorm_m <- c() # same as for hmean
-  lnorm_m_sz <- c()
-  lnorm_p <- c()
-  lnorm_p_sz <- c()
-  
-  gamma_m <- c() # ditto
-  gamma_m_sz <- c()
-  gamma_p <- c()
-  gamma_p_sz <- c()
-  
-  weibull_m <- c() # ditto
-  weibull_m_sz <- c()
-  weibull_p <- c()
-  weibull_p_sz <- c()
-  
-  n_zeros <- c()
-  n_singles <- c()
-  singles_v_mean <- c()
-  zeros_v_mean <- c()
-  
-  n_points <- c() # number of all points (detected and non-detected)
-  n_detected <- c() # number of detected points
-  
   # work out variables for each iteration
   iters_outputs <- mclapply(iter_range, gen_plot_var_eachiter, Mb=Mb, parentfolder=parentfolder, pathfolder=pathfolder, seq_datsfolder=seq_datsfolder, scaling=scaling, part_of_wedge=part_of_wedge, r=r, th=th, twoCTs=FALSE, connectedCTs=FALSE, bimodal=bimodal, mc.cores=(n_cores-1))
   # produces list of 20 lists (1 for each iter)
   # started 15:28
   # finished 18.20!!! --> so it's feasible!! 
   
-  for (i in iter_range){
-    aMRS <- c(aMRS, iters_outputs[[i]]$aMRS)
-    
-    amMOS <- c(amMOS, iters_outputs[[i]]$amMOS) 
-    amMOS_sz <- c(amMOS_sz, iters_outputs[[i]]$amMOS_sz) 
-    apMOS <- c(apMOS, iters_outputs[[i]]$amMOS_sz) 
-    apMOS_sz <- c(apMOS_sz, iters_outputs[[i]]$apMOS_sz) 
-    
-    hmean_m <- c(hmean_m, iters_outputs[[i]]$hmean_m) 
-    hmean_m_sz <- c(hmean_m_sz, iters_outputs[[i]]$hmean_m_sz)
-    hmean_p <- c(hmean_p, iters_outputs[[i]]$hmean_p) 
-    hmean_p_sz <- c(hmean_p_sz, iters_outputs[[i]]$hmean_p_sz) 
-    
-    lnorm_m <- c(lnorm_m, iters_outputs[[i]]$lnorm_m) 
-    lnorm_m_sz <- c(lnorm_m_sz, iters_outputs[[i]]$lnorm_m_sz)
-    lnorm_p <- c(lnorm_p, iters_outputs[[i]]$lnorm_p)
-    lnorm_p_sz <- c(lnorm_p_sz, iters_outputs[[i]]$lnorm_p_sz)
-    
-    gamma_m <- c(gamma_m, iters_outputs[[i]]$gamma_m) 
-    gamma_m_sz <- c(gamma_m_sz, iters_outputs[[i]]$gamma_m_sz)
-    gamma_p <- c(gamma_p, iters_outputs[[i]]$gamma_p)
-    gamma_p_sz <- c(gamma_p_sz, iters_outputs[[i]]$gamma_p_sz)
-    
-    weibull_m <- c(weibull_m, iters_outputs[[i]]$weibull_m)
-    weibull_m_sz <- c(weibull_m_sz, iters_outputs[[i]]$weibull_m_sz)
-    weibull_p <- c(weibull_p, iters_outputs[[i]]$weibull_p)
-    weibull_p_sz <- c(weibull_p_sz, iters_outputs[[i]]$weibull_p_sz)
-    
-    n_zeros <- c(n_zeros, iters_outputs[[i]]$n_zeros)
-    n_singles <- c(n_singles, iters_outputs[[i]]$n_singles)
-    singles_v_mean <- c(singles_v_mean, iters_outputs[[i]]$singles_v_mean)
-    zeros_v_mean <- c(zeros_v_mean, iters_outputs[[i]]$zeros_v_mean)
-    
-    n_points <- c(n_points, iters_outputs[[i]]$n_points)
-    n_detected <- c(n_detected, iters_outputs[[i]]$n_detected) 
-  }
+  # aMRS <- c() # arithmetic MRS
+  # 
+  # amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
+  # amMOS_sz <- c() # with singles & zeros
+  # apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
+  # apMOS_sz <- c() # with singles & zeros
+  # 
+  # hmean_m <- c() # calculated using M's way of working out observed speeds
+  # hmean_m_sz <- c() # including singles & zeros too
+  # hmean_p <- c() # calculated using point-to-point observed speeds
+  # hmean_p_sz <- c() # including singles & zeros too
+  # 
+  # lnorm_m <- c() # same as for hmean
+  # lnorm_m_sz <- c()
+  # lnorm_p <- c()
+  # lnorm_p_sz <- c()
+  # 
+  # gamma_m <- c() # ditto
+  # gamma_m_sz <- c()
+  # gamma_p <- c()
+  # gamma_p_sz <- c()
+  # 
+  # weibull_m <- c() # ditto
+  # weibull_m_sz <- c()
+  # weibull_p <- c()
+  # weibull_p_sz <- c()
+  # 
+  # n_zeros <- c()
+  # n_singles <- c()
+  # singles_v_mean <- c()
+  # zeros_v_mean <- c()
+  # 
+  # n_points <- c() # number of all points (detected and non-detected)
+  # n_detected <- c() # number of detected points
+  # 
+  # 
+  # for (i in iter_range){
+  #   aMRS <- c(aMRS, iters_outputs[[i]]$aMRS)
+  #   
+  #   amMOS <- c(amMOS, iters_outputs[[i]]$amMOS) 
+  #   amMOS_sz <- c(amMOS_sz, iters_outputs[[i]]$amMOS_sz) 
+  #   apMOS <- c(apMOS, iters_outputs[[i]]$amMOS_sz) 
+  #   apMOS_sz <- c(apMOS_sz, iters_outputs[[i]]$apMOS_sz) 
+  #   
+  #   hmean_m <- c(hmean_m, iters_outputs[[i]]$hmean_m) 
+  #   hmean_m_sz <- c(hmean_m_sz, iters_outputs[[i]]$hmean_m_sz)
+  #   hmean_p <- c(hmean_p, iters_outputs[[i]]$hmean_p) 
+  #   hmean_p_sz <- c(hmean_p_sz, iters_outputs[[i]]$hmean_p_sz) 
+  #   
+  #   lnorm_m <- c(lnorm_m, iters_outputs[[i]]$lnorm_m) 
+  #   lnorm_m_sz <- c(lnorm_m_sz, iters_outputs[[i]]$lnorm_m_sz)
+  #   lnorm_p <- c(lnorm_p, iters_outputs[[i]]$lnorm_p)
+  #   lnorm_p_sz <- c(lnorm_p_sz, iters_outputs[[i]]$lnorm_p_sz)
+  #   
+  #   gamma_m <- c(gamma_m, iters_outputs[[i]]$gamma_m) 
+  #   gamma_m_sz <- c(gamma_m_sz, iters_outputs[[i]]$gamma_m_sz)
+  #   gamma_p <- c(gamma_p, iters_outputs[[i]]$gamma_p)
+  #   gamma_p_sz <- c(gamma_p_sz, iters_outputs[[i]]$gamma_p_sz)
+  #   
+  #   weibull_m <- c(weibull_m, iters_outputs[[i]]$weibull_m)
+  #   weibull_m_sz <- c(weibull_m_sz, iters_outputs[[i]]$weibull_m_sz)
+  #   weibull_p <- c(weibull_p, iters_outputs[[i]]$weibull_p)
+  #   weibull_p_sz <- c(weibull_p_sz, iters_outputs[[i]]$weibull_p_sz)
+  #   
+  #   n_zeros <- c(n_zeros, iters_outputs[[i]]$n_zeros)
+  #   n_singles <- c(n_singles, iters_outputs[[i]]$n_singles)
+  #   singles_v_mean <- c(singles_v_mean, iters_outputs[[i]]$singles_v_mean)
+  #   zeros_v_mean <- c(zeros_v_mean, iters_outputs[[i]]$zeros_v_mean)
+  #   
+  #   n_points <- c(n_points, iters_outputs[[i]]$n_points)
+  #   n_detected <- c(n_detected, iters_outputs[[i]]$n_detected) 
+  # }
+  # 
+  # output <- data.frame(
+  #   
+  #   aMRS = aMRS,
+  #   
+  #   amMOS = amMOS,
+  #   amMOS_sz = amMOS_sz,
+  #   
+  #   apMOS = apMOS,
+  #   apMOS_sz = apMOS_sz,
+  #   
+  #   hmean_m = hmean_m,
+  #   hmean_m_sz = hmean_m_sz,
+  #   hmean_p = hmean_p,
+  #   hmean_p_sz = hmean_p_sz,
+  #   
+  #   lnorm_m = lnorm_m,
+  #   lnorm_m_sz = lnorm_m_sz,
+  #   lnorm_p = lnorm_p,
+  #   lnorm_p_sz = lnorm_p_sz,
+  #   
+  #   gamma_m = gamma_m,
+  #   gamma_m_sz = gamma_m_sz,
+  #   gamma_p = gamma_p,
+  #   gamma_p_sz = gamma_p_sz,
+  #   
+  #   weibull_m = weibull_m,
+  #   weibull_m_sz = weibull_m_sz,
+  #   weibull_p = weibull_p,
+  #   weibull_p_sz = weibull_p_sz,
+  #   
+  #   n_zeros = n_zeros,
+  #   n_singles = n_singles,
+  #   singles_v_mean = singles_v_mean,
+  #   zeros_v_mean = zeros_v_mean,
+  #   
+  #   n_points = n_points,
+  #   n_detected = n_detected
+  # )
+  # 
+  # return(output)
   
-  output <- data.frame(
-    
-    aMRS = aMRS,
-    
-    amMOS = amMOS,
-    amMOS_sz = amMOS_sz,
-    
-    apMOS = apMOS,
-    apMOS_sz = apMOS_sz,
-    
-    hmean_m = hmean_m,
-    hmean_m_sz = hmean_m_sz,
-    hmean_p = hmean_p,
-    hmean_p_sz = hmean_p_sz,
-    
-    lnorm_m = lnorm_m,
-    lnorm_m_sz = lnorm_m_sz,
-    lnorm_p = lnorm_p,
-    lnorm_p_sz = lnorm_p_sz,
-    
-    gamma_m = gamma_m,
-    gamma_m_sz = gamma_m_sz,
-    gamma_p = gamma_p,
-    gamma_p_sz = gamma_p_sz,
-    
-    weibull_m = weibull_m,
-    weibull_m_sz = weibull_m_sz,
-    weibull_p = weibull_p,
-    weibull_p_sz = weibull_p_sz,
-    
-    n_zeros = n_zeros,
-    n_singles = n_singles,
-    singles_v_mean = singles_v_mean,
-    zeros_v_mean = zeros_v_mean,
-    
-    n_points = n_points,
-    n_detected = n_detected
-  )
-  
-  return(output)
+  return(iters_outputs)
   
 }
 

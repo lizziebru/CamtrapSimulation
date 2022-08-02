@@ -23,7 +23,7 @@ scaling=FALSE # whether to scale hz function for detection probability with body
 r = 9
 th = 0.7
 
-n_cores = 4
+n_cores = 40
 
 # generate and store plotting variables (loops through each body mass in parallel and within those each of all the iterations also in parallel)
 generate_plotting_variables(parentfolder=parentfolder, pathfolder=pathfolder, seq_datsfolder=seq_datsfolder, outputfolder=outputfolder, Mb_range, iter_range, r, th, part_of_wedge, scaling=scaling, bimodal=bimodal, n_cores=n_cores)

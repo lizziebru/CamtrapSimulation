@@ -3,6 +3,280 @@
 
 require(ggplot2)
 require(ggpubr)
+require(colortools)
+require(colorBlindness)
+
+
+# FIGURE 1: compare biases for uni-modal movement only -------------------------------------
+
+# just need plotting variables for uni_hz_scaling: Mb_all_iters1-20.RData
+
+load("../results/final_results/uni_hz_scaling/plotting_variables/wedge0/Mb_all_iters1-20.RData")
+
+# list of 11 - one for each body mass
+# for each body mass: list of 20 - one for each iteration
+# for each iteration: list of 27 variables (each contains just one value): aMRS, amMOS etc
+
+# need:
+# true MRS across the whole path == aMRS
+# estimated travel speeds:
+    # arithmetic == amMOS
+    # arithmetic + sz == amMOS_sz
+    # hmean == hmean_m
+    # hmean + sz == hmean_m_sz
+    # lnorm == lnorm_m
+    # lnorm + sz == lnorm_m_sz
+    # gamma == gamma_m
+    # gamma + sz == gamma_m_sz
+    # weibull == weibull
+    # weibull + sz == weibull_m_sz
+
+# for the dataframe: need:
+  # MRS (x) - 20 per body mass (=220)
+  # bias (y) - 10 per MRS (each method + that method incl sz) (=2200)
+  # type: raw vs sz (for 2 panels side by side)
+  # method (for diff coloured lines)
+
+# variables to extract:
+MRS <- c() # order in which to fill: 20 MRSes for Mb1, 20MRSes for Mb5, etc for each body mass (length==220)
+ar <- c() # 20 for Mb1, 20 for Mb5 etc for all body masses (length==220)
+hmean <- c() # ditto
+lnorm <- c()
+gamma <- c()
+weibull <- c()
+ar_sz <- c()
+hmean_sz <- c()
+lnorm_sz <- c()
+gamma_sz <- c()
+weibull_sz <- c()
+
+for (i in 1:11){ # loop through each body mass
+  mb_list <- outputs_mb[[i]] # list of 20 iterations for a given body mass
+  for (j in 1:20){ # loop through each iteration
+    i_list <- mb_list[[j]] # list of 27 variables for a given iteration
+    
+    # for some iterations, the models couldn't be fitted: these lists don't contain any variables and just contain the error message
+    # check if this is the case:
+    test <- 0
+    try(test <- i_list$aMRS, silent=TRUE) # try to extract something from the list and ignore any error messages and keep going
+    if (test==0){ # if the iteration list contains just errors, test will still be zero because there was nothing to replace it with - in this case just assign everything as NA
+      MRS <- c(MRS, NA)
+      ar <- c(ar, NA)
+      hmean <- c(hmean, NA)
+      lnorm <- c(lnorm, NA)
+      gamma <- c(gamma, NA)
+      weibull <- c(weibull, NA)
+      ar_sz <- c(ar_sz, NA)
+      hmean_sz <- c(hmean_sz, NA)
+      lnorm_sz <- c(lnorm_sz, NA)
+      gamma_sz <- c(gamma_sz, NA)
+      weibull_sz <- c(weibull_sz, NA)
+    }
+    else { # if the iteration list is ok, a value was assigned to test so it won't be zero anymore (aMRS can't physically be zero) - if this is the case then extract all the variables as normal
+      MRS <- c(MRS, i_list[["aMRS"]])
+      ar <- c(ar, i_list[["amMOS"]])
+      hmean <- c(hmean, i_list[["hmean_m"]])
+      lnorm <- c(lnorm, i_list[["lnorm_m"]])
+      gamma <- c(gamma, i_list[["gamma_m"]])
+      weibull <- c(weibull, i_list[["weibull_m"]])
+      ar_sz <- c(ar_sz, i_list[["amMOS_sz"]])
+      hmean_sz <- c(hmean_sz, i_list[["hmean_m_sz"]])
+      lnorm_sz <- c(lnorm_sz, i_list[["lnorm_m_sz"]])
+      gamma_sz <- c(gamma_sz, i_list[["gamma_m_sz"]])
+      weibull_sz <- c(weibull_sz, i_list[["weibull_m_sz"]])
+    }
+  }
+}
+
+# combine into dataframe
+fig1_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
+                      MRS = c(rep(MRS, times=10)),
+                      type = factor(c(rep("Bias II present", times=1100), rep("Bias II corrected", times=1100)), levels = c("Bias II present", "Bias II corrected")),
+                      Method = factor(c(rep(c(rep("Arithmetic mean", times=220), rep("Harmonic mean", times=220), rep("Log-normal", times=220), rep("Gamma", times=220), rep("Weibull", times=220)), times=2)), levels = c("Arithmetic mean", "Harmonic mean", "Log-normal", "Gamma", "Weibull")))
+fig1_df <- na.omit(fig1_df) # remove rows where bias and MRS are NA
+
+# save df:
+write.csv(fig1_df, file = "../results/final_results/plots/fig1_df.csv")
+
+# make plot
+fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
+  # geom_point(aes(colour=Method))+
+  facet_grid(~ type)+
+  geom_smooth(aes(colour=Method), alpha = 0.2)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
+  # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+  labs(x = "Mean realised speed (m/s)",
+       y = "Bias [(estimated speed - true speed)/true speed]")+
+  theme(axis.title = element_text(size=17),
+        axis.text = element_text(size = 15),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.text = element_text(size = 16),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 15),
+        # legend.position = "bottom",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+fig1
+cvdPlot(fig1) # to simulate colour-blindness - use this + wheel("red", 8) from colortools package to trial different sets of contrasting colours
+
+# save:
+png(file=paste0("../results/final_results/plots/fig1.png"),
+    width=900, height=500)
+print(fig1)
+dev.off()
+
+
+
+# check that hmean is indeed consistently pretty good for different movement behaviours -------------------
+
+# repeat what you did for figure 1 for the different movement behaviours: mov0.1, mov0.25, mov0.4, mov0.6, mov0.75, mov0.9
+
+load("../results/final_results/bi_hz_scaling/plotting_variables/mov0.25/wedge0/Mb_all_iters1-20.RData")
+
+# variables to extract:
+MRS <- c() # order in which to fill: 20 MRSes for Mb1, 20MRSes for Mb5, etc for each body mass (length==220)
+ar <- c() # 20 for Mb1, 20 for Mb5 etc for all body masses (length==220)
+hmean <- c() # ditto
+lnorm <- c()
+gamma <- c()
+weibull <- c()
+ar_sz <- c()
+hmean_sz <- c()
+lnorm_sz <- c()
+gamma_sz <- c()
+weibull_sz <- c()
+
+for (i in 1:11){ # loop through each body mass
+  mb_list <- outputs_mb[[i]] # list of 20 iterations for a given body mass
+  for (j in 1:20){ # loop through each iteration
+    i_list <- mb_list[[j]] # list of 27 variables for a given iteration
+
+    # for some iterations, the models couldn't be fitted: these lists don't contain any variables and just contain the error message
+    # check if this is the case:
+    test <- 0
+    try(test <- i_list$aMRS, silent=TRUE) # try to extract something from the list and ignore any error messages and keep going
+    if (test==0){ # if the iteration list contains just errors, test will still be zero because there was nothing to replace it with - in this case just assign everything as NA
+      MRS <- c(MRS, NA)
+      ar <- c(ar, NA)
+      hmean <- c(hmean, NA)
+      lnorm <- c(lnorm, NA)
+      gamma <- c(gamma, NA)
+      weibull <- c(weibull, NA)
+      ar_sz <- c(ar_sz, NA)
+      hmean_sz <- c(hmean_sz, NA)
+      lnorm_sz <- c(lnorm_sz, NA)
+      gamma_sz <- c(gamma_sz, NA)
+      weibull_sz <- c(weibull_sz, NA)
+    }
+    else { # if the iteration list is ok, a value was assigned to test so it won't be zero anymore (aMRS can't physically be zero) - if this is the case then extract all the variables as normal
+      MRS <- c(MRS, i_list[["aMRS"]])
+      ar <- c(ar, i_list[["amMOS"]])
+      hmean <- c(hmean, i_list[["hmean_m"]])
+      lnorm <- c(lnorm, i_list[["lnorm_m"]])
+      gamma <- c(gamma, i_list[["gamma_m"]])
+      weibull <- c(weibull, i_list[["weibull_m"]])
+      ar_sz <- c(ar_sz, i_list[["amMOS_sz"]])
+      hmean_sz <- c(hmean_sz, i_list[["hmean_m_sz"]])
+      lnorm_sz <- c(lnorm_sz, i_list[["lnorm_m_sz"]])
+      gamma_sz <- c(gamma_sz, i_list[["gamma_m_sz"]])
+      weibull_sz <- c(weibull_sz, i_list[["weibull_m_sz"]])
+    }
+  }
+}
+
+# combine into dataframe
+fig1_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
+                      MRS = c(rep(MRS, times=10)),
+                      type = factor(c(rep("Bias II present", times=1100), rep("Bias II corrected", times=1100)), levels = c("Bias II present", "Bias II corrected")),
+                      Method = factor(c(rep(c(rep("Arithmetic mean", times=220), rep("Harmonic mean", times=220), rep("Log-normal", times=220), rep("Gamma", times=220), rep("Weibull", times=220)), times=2)), levels = c("Arithmetic mean", "Harmonic mean", "Log-normal", "Gamma", "Weibull")))
+fig1_df <- na.omit(fig1_df) # remove rows where bias and MRS are NA
+
+# make plot
+fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
+  # geom_point(aes(colour=Method))+
+  facet_grid(~ type)+
+  geom_smooth(aes(colour=Method), alpha = 0.2)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
+  # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+  labs(x = "Mean realised speed (m/s)",
+       y = "Bias [(estimated speed - true speed)/true speed]")+
+  theme(axis.title = element_text(size=17),
+        axis.text = element_text(size = 15),
+        legend.title = element_text(size = 16, face = "bold"),
+        legend.text = element_text(size = 16),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 15),
+        # legend.position = "bottom",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+fig1
+
+# save this one too:
+png(file=paste0("../results/final_results/plots/mov0.25_scal.png"),
+    width=900, height=500)
+print(fig1)
+dev.off()
+
+# do the same for the others once they're done
+
+
+
+
+# FIGURE 2: comparing biases across movement behaviours -------------------
+
+# extract the variables you need:
+MRS <- c() # 20 reps for each 11 body masses in each of the 7 different types of movement behaviours (= 1540 total)
+hmean <- c() # ditto
+hmean_sz <- c()
+
+folderpaths <- c("uni_hz_scaling/plotting_variables/", "bi_hz_scaling/plotting_variables/mov0.1/", "bi_hz_scaling/plotting_variables/mov0.25/", "bi_hz_scaling/plotting_variables/mov0.4/", "bi_hz_scaling/plotting_variables/mov0.6/", "bi_hz_scaling/plotting_variables/mov0.75/", "bi_hz_scaling/plotting_variables/mov0.9/")
+
+for (i in folderpaths){
+  load(paste0("../results/final_results/", i, "wedge0/Mb_all_iters1-20.RData"))
+  for (i in 1:11){ # loop through each body mass
+    mb_list <- outputs_mb[[i]] # list of 20 iterations for a given body mass
+    for (j in 1:20){ # loop through each iteration
+      i_list <- mb_list[[j]] # list of 27 variables for a given iteration
+      
+      # for some iterations, the models couldn't be fitted: these lists don't contain any variables and just contain the error message
+      # check if this is the case:
+      test <- 0
+      try(test <- i_list$aMRS, silent=TRUE) # try to extract something from the list and ignore any error messages and keep going
+      if (test==0){ # if the iteration list contains just errors, test will still be zero because there was nothing to replace it with - in this case just assign everything as NA
+        MRS <- c(MRS, NA)
+        hmean <- c(hmean, NA)
+        hmean_sz <- c(hmean_sz, NA)
+      }
+      else { # if the iteration list is ok, a value was assigned to test so it won't be zero anymore (aMRS can't physically be zero) - if this is the case then extract all the variables as normal
+        MRS <- c(MRS, i_list[["aMRS"]])
+        hmean <- c(hmean, i_list[["hmean_m"]])
+        hmean_sz <- c(hmean_sz, i_list[["hmean_m_sz"]])
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+# extract variables to plot biases to compare across uni/bimodal - using the whole wedge + full distance det prob scaling  ---------
+
+
 
 parentfolder <- paste0("../results/final_results/")
 
@@ -10,7 +284,6 @@ parentfolder <- paste0("../results/final_results/")
 Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 
 
-# extract variables to plot biases to compare across uni/bimodal - using the whole wedge + full distance det prob scaling  ---------
 
   aMRS <- c()
   Mb <- c()

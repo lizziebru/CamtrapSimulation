@@ -476,7 +476,7 @@ is_in_dz <- function(point, dzone, Mb, scaling){
 # OUTPUT
 # vector of TRUE or FALSE for whether that point got detected
 reassign_prob <- function(isindz_row, Mb, scaling){
-  if (isindz_row[[1]]==FALSE){
+  if (isindz_row[[1]]==FALSE){ # if the point didn't fall in the detection zone in the first place, don't need to do anything
     return(FALSE)
   }
   else {
@@ -859,6 +859,17 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
   load(paste0(parentfolder, pathfolder, "Mb", Mb, "/iter", iter, ".RData"))
   
   
+  ## mean realised speeds (i.e. true travel speed) ###################################################################################################################################
+  
+  # w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
+  # wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
+  
+  p_real <- na.omit(path$speed) # point-to-point realised speeds
+  p_real <- p_real[is.finite(p_real)]
+  aMRS <- mean(p_real) # arithmetic MRS
+  # gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
+  
+  
   ## number of single frames and speeds of single frame sequences #######################################################################
   
   # make df with all xy coords of the path and their speeds:
@@ -905,6 +916,7 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
       dz2 <- data.frame(x=27, y=25, r=r, th=th, dir=0)
     }
   }
+  
   
   
   ## speeds of single frames
@@ -1004,43 +1016,50 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
   zeros_v_mean <- mean(zeros_v)
   
   
-  ## mean realised speeds ###################################################################################################################################
-  
-  # w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
-  # wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
-  
-  p_real <- na.omit(path$speed) # point-to-point realised speeds
-  p_real <- p_real[is.finite(p_real)]
-  aMRS <- mean(p_real) # arithmetic MRS
-  # gMRS <- c(gMRS, exp(mean(log(p_real)))) # geometric mean
-  
+
   
   ## mean observed speeds #################################################################################################################################
   
   posdat <- seq_dats$posdat # position datapoints that fall in dz and get detected
   
-  if (part_of_wedge==1){
+  if (part_of_wedge==1){ 
     posdat <- posdat[posdat$y>=10 & posdat$y<13,]
+    # select only the points that are part of a sequence where all the points in that sequence fall in the bottom part of the wedge - tried this out but generates too few sequences so don't do it
+    # # select the rows where y is in that part of the dz and so are the y coords of all the other points in that sequence
+    # rows_to_select <- c()
+    # for (i in 1:nrow(posdat)){
+    #   p <- posdat[i,]
+    #   if (p$y>=10 & p$y<13){ # if the y coord is in this part of the wedge, check if the other coords in that sequence are also in that part of the wedge
+    #     seqid_all <- posdat[posdat$sequenceID==p$sequenceID,]
+    #     all_in_wedge <- seqid_all$y >=10 & seqid_all$y <13 # vector of TRUE or FALSE for whether each y-coord is in this part of the wedge
+    #     if (is.na(var(all_in_wedge))){
+    #       break
+    #     }
+    #     if (var(all_in_wedge)==0){ # at least one value in the vector must be TRUE, so to test if they're all true just test whether they're all the same
+    #       rows_to_select <- c(rows_to_select, i) # if this is the case, then you can go ahead and select that row
+    #     }
+    #   }
+    # }
+    # posdat <- posdat[rows_to_select,]
   }
-  if (part_of_wedge==2){
+  if (part_of_wedge==2){ # ditto for middle part of the wedge
     posdat <- posdat[posdat$y>=13 & posdat$y<16,]
   }
-  if (part_of_wedge==3){
+  if (part_of_wedge==3){ # ditto for top part of the wedge
     posdat <- posdat[posdat$y>=16 & posdat$y<=19,]
   }
   
   
   # work out observed speeds using mean of means  
-  v <- calc_speed(posdat) # speeds of sequences (== observed speeds)
-  
-  m_obs <- v$speed 
+  v <- calc_speed(posdat) # calculate speeds of each observed sequence of movement
+  m_obs <- v$speed # speeds of sequences (= observed speeds)
   m_obs <- m_obs[is.finite(m_obs)]
-  m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames - commented out zeros for now though
+  m_obs_sz <- c(m_obs, singles_v, zeros_v) # M's way of working out observed speeds + single & zero frames
   m_obs <- na.omit(m_obs)
   m_obs_sz <- na.omit(m_obs_sz)
   
-  amMOS <- mean(m_obs) 
-  amMOS_sz <- mean(m_obs_sz)
+  amMOS <- mean(m_obs) # arithmetic mean of observed speed sequences
+  amMOS_sz <- mean(m_obs_sz) # ditto + adding in singles & zeros
   
   p_obs <- posdat$distance # point-to-point observed speeds irrespective of sequence
   p_obs <- p_obs[is.finite(p_obs)]
@@ -1064,8 +1083,8 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
   obs_df_p <- data.frame(speed = p_obs)
   obs_df_p_sz <- data.frame(speed = p_obs_sz)
   
-  # put each model fitting in a separate tryCatch loop so that assigns things as NA if it can't fit the models
-  try(mods_m <- sbm3(speed~1, obs_df_m), silent=TRUE) # ignore any error messages and keep going
+  # fit the SBMs to estimate travel speed using lnorm, gamma, & weibull
+  try(mods_m <- sbm3(speed~1, obs_df_m), silent=TRUE) # ignore any error messages (happen when it can't fit the models) and keep going
   
   if (length(mods_m)==0){ # if it couldn't fit the models, assign everything for that run as NA
     lnorm_m <- NA
@@ -1078,7 +1097,7 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
     weibull_m <- predict.sbm(mods_m[[1]]$weibull)[1,1]
   }
   
-  
+  # do the same with speed observations where have added singles & zeros back in
   try(mods_m_sz <- sbm3(speed~1, obs_df_m_sz), silent = TRUE)
   
   if (length(mods_m_sz)==0){

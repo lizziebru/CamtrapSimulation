@@ -7,7 +7,7 @@ require(colortools)
 require(colorBlindness)
 
 
-# FIGURE 1: compare biases for uni-modal movement only -------------------------------------
+# FIGURE 1: compare biases for diff estimation methods for uni-modal movement only -------------------------------------
 
 # just need plotting variables for uni_hz_scaling: Mb_all_iters1-20.RData
 
@@ -91,7 +91,7 @@ for (i in 1:11){ # loop through each body mass
 # combine into dataframe
 fig1_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
                       MRS = c(rep(MRS, times=10)),
-                      type = factor(c(rep("Bias II present", times=1100), rep("Bias II corrected", times=1100)), levels = c("Bias II present", "Bias II corrected")),
+                      type = factor(c(rep("Missed speeds absent", times=1100), rep("Missed speeds included", times=1100)), levels = c("Missed speeds absent", "Missed speeds included")),
                       Method = factor(c(rep(c(rep("Arithmetic mean", times=220), rep("Harmonic mean", times=220), rep("Log-normal", times=220), rep("Gamma", times=220), rep("Weibull", times=220)), times=2)), levels = c("Arithmetic mean", "Harmonic mean", "Log-normal", "Gamma", "Weibull")))
 fig1_df <- na.omit(fig1_df) # remove rows where bias and MRS are NA
 
@@ -107,8 +107,8 @@ fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
   geom_hline(yintercept = 0, linetype = "dashed")+
   scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
   # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
-  labs(x = "Mean realised speed (m/s)",
-       y = "Bias [(estimated speed - true speed)/true speed]")+
+  labs(x = "True travel speed (m/s)",
+       y = "Bias [(estimated travel speed/true travel speed) - 1]")+
   theme(axis.title = element_text(size=17),
         axis.text = element_text(size = 15),
         legend.title = element_text(size = 16, face = "bold"),
@@ -131,11 +131,11 @@ dev.off()
 
 
 
-# check that hmean is indeed consistently pretty good for different movement behaviours -------------------
+# SUPP FIG 1: check that hmean is indeed consistently pretty good for different movement behaviours -------------------
 
 # repeat what you did for figure 1 for the different movement behaviours: mov0.1, mov0.25, mov0.4, mov0.6, mov0.75, mov0.9
 
-load("../results/final_results/bi_hz_scaling/plotting_variables/mov0.25/wedge0/Mb_all_iters1-20.RData")
+load("../results/final_results/bi_hz_scaling/plotting_variables/mov0.75/wedge0/Mb_all_iters1-20.RData")
 
 # variables to extract:
 MRS <- c() # order in which to fill: 20 MRSes for Mb1, 20MRSes for Mb5, etc for each body mass (length==220)
@@ -220,17 +220,16 @@ fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
 fig1
 
 # save this one too:
-png(file=paste0("../results/final_results/plots/mov0.25_scal.png"),
+png(file=paste0("../results/final_results/plots/mov0.75_scal.png"),
     width=900, height=500)
 print(fig1)
 dev.off()
 
-# do the same for the others once they're done
+# make some kind of combined plot with all of these
 
 
 
-
-# FIGURE 2: comparing biases across movement behaviours -------------------
+# FIGURE 2: comparing biases of hmean across movement behaviours -------------------
 
 # extract the variables you need:
 MRS <- c() # 20 reps for each 11 body masses in each of the 7 different types of movement behaviours (= 1540 total)
@@ -266,6 +265,14 @@ for (i in folderpaths){
 
 
 
+
+
+# FIG 3: mean of means vs point-to-point?  -------------------------------------------------------------------
+
+
+
+
+# FIG 4: using diff parts of the wedge? -----------------------------------
 
 
 

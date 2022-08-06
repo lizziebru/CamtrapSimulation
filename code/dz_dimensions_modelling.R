@@ -10,6 +10,7 @@
 
 require(stats4)
 require(minpack.lm)
+require(ggplot2)
 
 # combined dataset:
 data_all_cats <- read.csv("../data/data_all_cats.csv")
@@ -101,6 +102,174 @@ exp(cfs_g[2]) # slope for g = 0.5784485
 # a = 2.183057*(Mb^0.5214121)
 # g:
 # g = 31.99669*(Mb^0.5784485)
+
+
+
+
+
+# fitting half normal with scaling of eff det angle -----------------------
+
+p_angles <- read.csv("../data/panama/panama_with_angles.csv")
+
+# from Rowcliffe et al. 2011: half-normal model with 2 cosine expansion terms fitted best, and suggested consistent across species - half normal worked fine too though so just to keep things simple use half normal
+# half-normal model:
+# a(y) = exp((-(y^2))/2*a^2)
+# a = alpha = width of function
+
+# fit half-normal model for diff body masses to get scaling relationship for each coefficient:
+Mb <- c()
+a_coeffs <- c()
+p_angles2 <- p_angles[!p_angles$species=="tamandua",] # struggling to fit model for tamandua - just skip that one
+for (i in unique(p_angles2$Body_mass_g)){ # loop through each body mass
+  Mb <- c(Mb, i/1000) # store body mass in kg
+  l_r_dens_approxfun <- approxfun(density(p_angles2[p_angles2$Body_mass_g==i,]$angles_rad)) 
+  l_r_density <- l_r_dens_approxfun(p_angles2[p_angles2$Body_mass_g==i,]$angles_rad) # == y values
+  l_r <- p_angles2[p_angles2$Body_mass_g==i,]$angles_rad
+  # fit the model
+  model_fit <- nlsLM(l_r_density ~ exp((-(l_r^2))/2*a^2), start = list(a = 10))
+  a_coeffs <- c(a_coeffs, coef(model_fit)[[1]])
+}
+coeffs_scaling_df <- data.frame(Mb = Mb, a = a_coeffs)
+
+
+
+# plot the fit for one of them: rat: 
+l_r_dens_approxfun <- approxfun(density(p_angles2[p_angles2$Body_mass_g==282.17,]$angles_rad)) 
+l_r_density <- l_r_dens_approxfun(p_angles2[p_angles2$Body_mass_g==282.17,]$angles_rad) # == y values
+l_r <- p_angles2[p_angles2$Body_mass_g==282.17,]$angles_rad
+# fit the model and plot the fit
+hz_l_r <- nlsLM(l_r_density ~ exp((-(l_r^2))/2*a^2), start = list(a = 10))
+hz_l_r_plot <- ggplot()+ 
+  geom_point(aes(x=p_angles2[p_angles2$Body_mass_g==282.17,]$angles_rad, y=l_r_density))+
+  geom_point(aes(x=p_angles2[p_angles2$Body_mass_g==282.17,]$angles_rad, y=predict(hz_l_r)), colour = "red")+
+  theme_minimal()+
+  labs(title = "half normal for angle for rats",
+       x = "angle (rad)",
+       y = "density")+
+  theme(axis.title = element_text(size = 18),
+        title = element_text(size = 20),
+        axis.text = element_text(size = 15))
+hz_l_r_plot
+coef(hz_l_r)
+# not a very good fit - maybe best not to do it this way then
+
+# instead: just scale the angle of the fixed wedge-shaped detection zone with body mass 
+# justify bc there wasn't that much of a marked decrease in detection with angle - esp given more recent data that M was talking about
+# but makes sense that there is just a small amount of change in angle depending on body mass 
+# so just simplify this to setting a fixed angle for a given body mass
+
+# use the effective detection angles from Rowcliffe et al. 2011:
+mb_effdetang <- data.frame(species = c("mouse", "rat", "squirrel", "agouti", "coati", "paca", "ocelot", "brocket", "peccary"),
+                           angle = c(15.9, 16.5, 15.6, 17.6, 18.9, 17.5, 16, 22.2, 25.8),
+                           Mb = c(19.3, 282.17, 545.4, 2309.12, 3775.5, 8172.55, 11880, 20546.86, 21133.69)/1000)
+
+
+# get scaling relationships for effective detection angle:
+
+# need this on a log scale:
+Mb_a_scaling <- ggplot(mb_effdetang, aes(x = log(Mb), y = log(angle)))+
+  geom_point()
+Mb_a_scaling
+
+# fit regression model:
+Mb_a_lm <- lm(log(angle) ~ log(Mb), data = mb_effdetang)
+summary(Mb_a_lm)
+cfs_a <- coef(Mb_a_lm)
+exp(cfs_a[1]) # intercept = 12.69519 
+exp(cfs_a[2]) # slope = 1.047932  
+
+
+# c = 10^intercept
+# b = slope
+# power law eqn: y = cx^b
+
+# power law eqn to use:
+# a = 4.95667e+12*(Mb^1.047932)
+
+# --> looks really off for some reason - ran out of time so don't bother
+
+# can justify this bc body mass doesn't affect angle that much - but could just be nice to add it in later 
+
+
+
+
+# panama angle data wrangling - to make panama_with_angles.csv ---------------------------------------------
+
+# with_angles <- read.csv("../data/panama/with_angles_raw.csv")
+# 
+# p_angles <- data.frame(species=as.character(with_angles$SPECIES_NAME_COMMON),
+#                        angle=with_angles$ANIMAL_MEASURE_ANGLE_FIRST_DETECTION,
+#                        dist= with_angles$ANIMAL_MEASURE_DISTANCE_FIRST_DETECTION)
+# 
+# # select only the same species for which used distance data
+# p_angles <- p_angles[p_angles$species %in% panama$species,]
+# 
+# # add body masses:
+# body_masses <- c()
+# for (i in 1:nrow(p_angles)){
+#   p <- p_angles[i,]
+#   if (p$species=="agouti"){
+#     body_masses <- c(body_masses, 2309.12)
+#   }
+#   if (p$species=="rat"){
+#     body_masses <- c(body_masses, 282.17)
+#   }
+#   if (p$species=="paca"){
+#     body_masses <- c(body_masses, 8172.55)
+#   }
+#   if (p$species=="brocket"){
+#     body_masses <- c(body_masses, 20546.86)
+#   }
+#   if (p$species=="coati"){
+#     body_masses <- c(body_masses, 3775.50)
+#   }
+#   if (p$species=="squirrel"){
+#     body_masses <- c(body_masses, 545.40)
+#   }
+#   if (p$species=="ocelot"){
+#     body_masses <- c(body_masses, 11880.00)
+#   }
+#   if (p$species=="tamandua"){
+#     body_masses <- c(body_masses, 4800.00)
+#   }
+#   if (p$species=="peccary"){
+#     body_masses <- c(body_masses, 21133.69)
+#   }
+#   if (p$species=="mouse"){
+#     body_masses <- c(body_masses, 19.30)
+#   }
+#   if (p$species=="armadillo"){
+#     body_masses <- c(body_masses, 3949.01)
+#   }
+#   if (p$species=="opossum"){
+#     body_masses <- c(body_masses, 1134.75)
+#   }
+# }
+# 
+# p_angles["Body_mass_g"] <- body_masses
+# 
+# # remove rows containing NAs:
+# p_angles <- na.omit(p_angles)
+# 
+# # make negative angles positive (bc the sign just indicates direction) and put angles in radians
+# new_angles <- c()
+# for (i in 1:nrow(p_angles)){
+#   p <- p_angles[i,]
+#   angle <- p$angle
+#   if (angle < 0){ # make any negatives positive
+#     angle <- -angle
+#   }
+#   angle <- angle*(pi/180) # to convert to radians, multiply by pi/180
+#   new_angles <- c(new_angles, angle)
+# }
+# p_angles["angles_rad"] <- new_angles
+# 
+# # discard any rows where angle is greater than 45 degrees - anomalous
+# p_angles <- p_angles[p_angles$angle < 45,]
+# p_angles <- p_angles[p_angles$angle > -45,]
+# 
+# write.csv(p_angles, "../data/panama/panama_with_angles.csv")
+
 
 
 # fitting hazard rate (+ log mix for small spp) functions for large vs small categories --------

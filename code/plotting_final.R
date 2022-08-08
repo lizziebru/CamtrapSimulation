@@ -91,7 +91,7 @@ for (i in 1:11){ # loop through each body mass
 # combine into dataframe
 fig1_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
                       MRS = c(rep(MRS, times=10)),
-                      type = factor(c(rep("Missed speeds absent", times=1100), rep("Missed speeds included", times=1100)), levels = c("Missed speeds absent", "Missed speeds included")),
+                      type = factor(c(rep("Missing bias not corrected", times=1100), rep("Missing bias corrected", times=1100)), levels = c("Missing bias not corrected", "Missing bias corrected")),
                       Method = factor(c(rep(c(rep("Arithmetic mean", times=220), rep("Harmonic mean", times=220), rep("Log-normal", times=220), rep("Gamma", times=220), rep("Weibull", times=220)), times=2)), levels = c("Arithmetic mean", "Harmonic mean", "Log-normal", "Gamma", "Weibull")))
 fig1_df <- na.omit(fig1_df) # remove rows where bias and MRS are NA
 
@@ -100,7 +100,7 @@ write.csv(fig1_df, file = "../results/final_results/plots/fig1_df.csv")
 
 # make plot
 fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
-  # geom_point(aes(colour=Method))+
+  geom_point(aes(colour=Method), size=0.6)+
   facet_grid(~ type)+
   geom_smooth(aes(colour=Method), alpha = 0.2)+
   theme_bw()+
@@ -109,33 +109,42 @@ fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
   # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
   labs(x = "True travel speed (m/s)",
        y = "Bias [(estimated travel speed/true travel speed) - 1]")+
-  theme(axis.title = element_text(size=17),
-        axis.text = element_text(size = 15),
-        legend.title = element_text(size = 16, face = "bold"),
-        legend.text = element_text(size = 16),
+  ylim(c(-0.5, 1))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
         title = element_text(size = 13),
-        strip.text = element_text(size = 15),
+        strip.text = element_text(size = 13),
         # legend.position = "bottom",
         strip.background = element_rect(fill = "white", color = "black", size = 1),
         panel.border = element_rect(color = "black", size = 0.7),
         panel.grid = element_blank(),
-        panel.background = element_rect(colour="black", size = 1.3))
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Estimation method"))
 fig1
 cvdPlot(fig1) # to simulate colour-blindness - use this + wheel("red", 8) from colortools package to trial different sets of contrasting colours
 
 # save:
-png(file=paste0("../results/final_results/plots/fig1.png"),
-    width=900, height=500)
+png(file=paste0("../results/final_results/plots/fig1.png"), width = 7, height = 4.2, units = 'in', res = 280)
 print(fig1)
 dev.off()
 
+jpeg(filename=paste0("../results/final_results/plots/fig1.jpeg"), width = 7, height = 4.2, units = 'in', res = 280, quality=100)
+print(fig1)
+dev.off()
+
+# maybe add the points back in, and make some of the lines dashed (make the darkest lines dashed)
+# probs change font too
+# get rid of legend title
+# make panel titles clearer maybe
 
 
 # SUPP FIG 1: check that hmean is indeed consistently pretty good for different movement behaviours -------------------
 
 # repeat what you did for figure 1 for the different movement behaviours: mov0.1, mov0.25, mov0.4, mov0.6, mov0.75, mov0.9
 
-load("../results/final_results/bi_hz_scaling/plotting_variables/mov0.75/wedge0/Mb_all_iters1-20.RData")
+load("../results/final_results/uni_hz_scaling/plotting_variables/wedge2/Mb_all_iters1-20.RData")
 
 # variables to extract:
 MRS <- c() # order in which to fill: 20 MRSes for Mb1, 20MRSes for Mb5, etc for each body mass (length==220)
@@ -191,7 +200,7 @@ for (i in 1:11){ # loop through each body mass
 # combine into dataframe
 fig1_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
                       MRS = c(rep(MRS, times=10)),
-                      type = factor(c(rep("Bias II present", times=1100), rep("Bias II corrected", times=1100)), levels = c("Bias II present", "Bias II corrected")),
+                      type = factor(c(rep("Missed speeds absent", times=1100), rep("Missed speeds included", times=1100)), levels = c("Missed speeds absent", "Missed speeds included")),
                       Method = factor(c(rep(c(rep("Arithmetic mean", times=220), rep("Harmonic mean", times=220), rep("Log-normal", times=220), rep("Gamma", times=220), rep("Weibull", times=220)), times=2)), levels = c("Arithmetic mean", "Harmonic mean", "Log-normal", "Gamma", "Weibull")))
 fig1_df <- na.omit(fig1_df) # remove rows where bias and MRS are NA
 
@@ -204,8 +213,8 @@ fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
   geom_hline(yintercept = 0, linetype = "dashed")+
   scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
   # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
-  labs(x = "Mean realised speed (m/s)",
-       y = "Bias [(estimated speed - true speed)/true speed]")+
+  labs(x = "True travel speed (m/s)",
+       y = "Bias [(estimated travel speed/true travel speed) - 1]")+
   theme(axis.title = element_text(size=17),
         axis.text = element_text(size = 15),
         legend.title = element_text(size = 16, face = "bold"),
@@ -220,7 +229,7 @@ fig1 <- ggplot(fig1_df, aes(x=MRS, y=bias))+
 fig1
 
 # save this one too:
-png(file=paste0("../results/final_results/plots/mov0.75_scal.png"),
+png(file=paste0("../results/final_results/plots/uni_wedge2_scal.png"),
     width=900, height=500)
 print(fig1)
 dev.off()
@@ -233,13 +242,22 @@ dev.off()
 
 # extract the variables you need:
 MRS <- c() # 20 reps for each 11 body masses in each of the 7 different types of movement behaviours (= 1540 total)
-hmean <- c() # ditto
+ar <- c() # ditto
+hmean <- c()
+lnorm <- c()
+gamma <- c()
+weibull <- c()
+ar_sz <- c()
 hmean_sz <- c()
+lnorm_sz <- c()
+gamma_sz <- c()
+weibull_sz <- c()
+mov_type <- c()
 
 folderpaths <- c("uni_hz_scaling/plotting_variables/", "bi_hz_scaling/plotting_variables/mov0.1/", "bi_hz_scaling/plotting_variables/mov0.25/", "bi_hz_scaling/plotting_variables/mov0.4/", "bi_hz_scaling/plotting_variables/mov0.6/", "bi_hz_scaling/plotting_variables/mov0.75/", "bi_hz_scaling/plotting_variables/mov0.9/")
 
-for (i in folderpaths){
-  load(paste0("../results/final_results/", i, "wedge0/Mb_all_iters1-20.RData"))
+for (f in folderpaths){
+  load(paste0("../results/final_results/", f, "wedge0/Mb_all_iters1-20.RData"))
   for (i in 1:11){ # loop through each body mass
     mb_list <- outputs_mb[[i]] # list of 20 iterations for a given body mass
     for (j in 1:20){ # loop through each iteration
@@ -251,18 +269,125 @@ for (i in folderpaths){
       try(test <- i_list$aMRS, silent=TRUE) # try to extract something from the list and ignore any error messages and keep going
       if (test==0){ # if the iteration list contains just errors, test will still be zero because there was nothing to replace it with - in this case just assign everything as NA
         MRS <- c(MRS, NA)
+        ar <- c(ar, NA)
         hmean <- c(hmean, NA)
+        lnorm <- c(lnorm, NA)
+        gamma <- c(gamma, NA)
+        weibull <- c(weibull, NA)
+        ar_sz <- c(ar_sz, NA)
         hmean_sz <- c(hmean_sz, NA)
+        lnorm_sz <- c(lnorm_sz, NA)
+        gamma_sz <- c(gamma_sz, NA)
+        weibull_sz <- c(weibull_sz, NA)
+        mov_type <- c(mov_type, NA)
       }
       else { # if the iteration list is ok, a value was assigned to test so it won't be zero anymore (aMRS can't physically be zero) - if this is the case then extract all the variables as normal
         MRS <- c(MRS, i_list[["aMRS"]])
+        ar <- c(ar, i_list[["amMOS"]])
         hmean <- c(hmean, i_list[["hmean_m"]])
+        lnorm <- c(lnorm, i_list[["lnorm_m"]])
+        gamma <- c(gamma, i_list[["gamma_m"]])
+        weibull <- c(weibull, i_list[["weibull_m"]])
+        ar_sz <- c(ar_sz, i_list[["amMOS_sz"]])
         hmean_sz <- c(hmean_sz, i_list[["hmean_m_sz"]])
+        lnorm_sz <- c(lnorm_sz, i_list[["lnorm_m_sz"]])
+        gamma_sz <- c(gamma_sz, i_list[["gamma_m_sz"]])
+        weibull_sz <- c(weibull_sz, i_list[["weibull_m_sz"]])
+        
+        if (f == "uni_hz_scaling/plotting_variables/"){
+          mov_type <- c(mov_type, "Unimodal")
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.1/"){
+          mov_type <- c(mov_type, "Bimodal: 10% moving")
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.25/"){
+          mov_type <- c(mov_type, "Bimodal: 25% moving")
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.4/"){
+          mov_type <- c(mov_type, "Bimodal: 40% moving")
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.6/"){
+          mov_type <- c(mov_type, "Bimodal: 60% moving")
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.75/"){
+          mov_type <- c(mov_type, "Bimodal: 75% moving")
+        }
+         if (f == "bi_hz_scaling/plotting_variables/mov0.9/"){
+           mov_type <- c(mov_type, "Bimodal: 90% moving")
+         }
       }
     }
   }
 }
 
+# work out one mean bias per estimation method for each of the 7 movement behaviours:
+ar_meanbias <- c()
+h_meanbias <- c()
+l_meanbias <- c()
+g_meanbias <- c()
+w_meanbias <- c()
+ar_sz_meanbias <- c()
+h_sz_meanbias <- c()
+l_sz_meanbias <- c()
+g_sz_meanbias <- c()
+w_sz_meanbias <- c()
+
+for (i in 1:7){
+  selection <- (220*(i-1)+1):(220*i)
+  # select the relevant chunk, work out all the biases, and average them out
+
+}
+
+fig2_df <- data.frame()
+
+
+
+
+
+
+# prev version: just showing hmean and ar biases from diff movement behaviours (colour of lines) across diff MRSes (x axis) for panels with and without singles & zeros 
+# # combine into dataframe
+# fig2_df <- data.frame(bias = c((hmean-MRS)/MRS, (ar-MRS)/ar, (hmean_sz-MRS)/MRS, (ar_sz-MRS)/MRS),
+#                       MRS = c(rep(MRS, times=4)),
+#                       type = factor(c(rep("Missed speeds absent", times=3080), rep("Missed speeds included", times=3080)), levels = c("Missed speeds absent", "Missed speeds included")),
+#                       Method = factor(c(rep("Harmonic mean", times=1540), rep("Arithmetic mean", times=1540), rep("Harmonic mean", times=1540), rep("Arithmetic mean", times=1540)), levels = c("Harmonic mean", "Arithmetic mean")),
+#                       Behaviour = factor(c(rep(mov_type, times=4)), levels = c("Unimodal", "Bimodal: 10% moving", "Bimodal: 25% moving", "Bimodal: 40% moving", "Bimodal: 60% moving", "Bimodal: 75% moving")))
+# fig2_df <- na.omit(fig2_df) # remove rows where bias and MRS are NA
+# 
+# # save df:
+# write.csv(fig2_df, file = "../results/final_results/plots/fig2_df.csv")
+# 
+# # make plot
+# fig2 <- ggplot(fig2_df, aes(x=MRS, y=bias))+
+#   # geom_point(aes(colour=Method))+
+#   facet_grid(~ type)+
+#   geom_smooth(aes(colour=Behaviour, linetype=Method), alpha = 0.2)+
+#   theme_bw()+
+#   geom_hline(yintercept = 0, linetype = "dashed")+
+#   scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000", "green"))+
+#   # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+#   labs(x = "True travel speed (m/s)",
+#        y = "Bias [(estimated travel speed/true travel speed) - 1]")+
+#   ylim(c(-0.5, 1.3))+
+#   theme(axis.title = element_text(size=17),
+#         axis.text = element_text(size = 15),
+#         legend.title = element_text(size = 16, face = "bold"),
+#         legend.text = element_text(size = 16),
+#         title = element_text(size = 13),
+#         strip.text = element_text(size = 15),
+#         # legend.position = "bottom",
+#         strip.background = element_rect(fill = "white", color = "black", size = 1),
+#         panel.border = element_rect(color = "black", size = 0.7),
+#         panel.grid = element_blank(),
+#         panel.background = element_rect(colour="black", size = 1.3))
+# fig2
+# cvdPlot(fig2) # to simulate colour-blindness - use this + wheel("red", 8) from colortools package to trial different sets of contrasting colours
+# 
+# # save:
+# png(file=paste0("../results/final_results/plots/fig1.png"),
+#     width=900, height=500)
+# print(fig1)
+# dev.off()
 
 
 

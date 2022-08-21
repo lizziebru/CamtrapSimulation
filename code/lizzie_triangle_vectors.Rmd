@@ -1,0 +1,111 @@
+---
+title: "Triangle_Sim"
+author: "Francis Windram"
+date: "06/08/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+A <- c(0,10)
+B <- c(10,10)
+C <- c(5,0)
+
+trix <- c(A[1], B[1], C[1])
+triy <- c(A[2], B[2], C[2])
+
+l = c(1/3, 1/3, 1/3)
+
+x = sum(trix * l)
+y = sum(triy * l)
+print(x)
+print(y)
+```
+
+```{r}
+plot(trix, triy)
+polygon(trix, triy, border = "green")
+points(x, y)
+```
+
+Generate triangle with given view angle and effective distance
+
+```{r}
+theta = pi/8
+dist = 20
+origin = c(0,0)
+C = origin
+
+xshift = tan(theta) * dist
+
+A = c(origin[1] - xshift, dist)
+B = c(origin[1] + xshift, dist)
+C = origin
+
+trix <- c(A[1], B[1], C[1])
+triy <- c(A[2], B[2], C[2])
+
+# tan = opp / adj
+# opp = tan * adj
+```
+
+
+Draw a bunch of lines between two edges of the triangle.
+
+(We do this by defining points in the triangle in a barycentric coordinate system and then converting them to cartesian space)
+```{r}
+
+shifter <- function(x, n = 1) {
+  if (n == 0) x else c(tail(x, -n), head(x, n))
+}
+
+plot(trix, triy)
+polygon(trix, triy, border = "green")
+
+n = 100000
+
+lengthvec = rep(0, n)
+
+for (i in 1:n){
+  bc1_1 <- runif(1, min = 0, max = 1)
+  bc1_2 <- 1-bc1_1
+  bc1 = c(bc1_1, bc1_2, 0)
+  
+  bc2_1 <- runif(1, min = 0, max = 1)
+  bc2_2 <- 1-bc2_1
+  bc2 = c(bc2_1, bc2_2, 0)
+
+  shift = zero_idxs <- sample(0:2, 2, replace = FALSE)
+
+  bc1 <- shifter(bc1, zero_idxs[1])
+  bc2 <- shifter(bc2, zero_idxs[2])
+
+  xs = c(sum(trix * bc1), sum(trix * bc2))
+  ys = c(sum(triy * bc1), sum(triy * bc2))
+
+  lines(xs, ys, col = "red")
+  lengthvec[i] <- sqrt((xs[2] - xs[1])**2 + (ys[2] - ys[1])**2)
+}
+df <- data.frame(lengthvals = lengthvec)
+```
+
+Plot the CDF
+
+At a given $x$ value, the y value is the probability of the length of a line across the triangle being less than or equal to $x$
+
+```{r}
+library(ggplot2)
+p <- ggplot(df, aes(x=lengthvals)) + stat_ecdf()# + geom_density()
+print(p)
+```
+
+
+Plot the PDF for good measure
+
+```{r}
+p <- ggplot(df, aes(x=lengthvals)) + geom_density()
+print(p)
+```

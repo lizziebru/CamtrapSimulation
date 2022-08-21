@@ -10,8 +10,6 @@
 # gamma = average speed estimated by fitting a size-biased gamma distribution
 # weibull = average speed estimated by fitting a size-biased weibull distribution
 
-
-
 # TO DO: 
 # - go through each function and check its description isn't missing any recent additions
 
@@ -514,7 +512,6 @@ hz_radius <- function(radius, Mb, scaling){
   }
   return(prob)
 }
-
 
 
 ## calc_speed

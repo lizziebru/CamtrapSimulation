@@ -10,20 +10,20 @@ require(ggpubr)
 # set what to analyse:
 parentfolder <- paste0("../results/final_results/")
 pathfolder <- paste0("paths_uni/")
-seq_datsfolder <- paste0("uni_hz_noscaling/seq_dats/")
-outputfolder <- paste0("uni_hz_noscaling/plotting_variables/") # where to store plotting variables
+seq_datsfolder <- paste0("uni_hz_scaling/seq_dats/")
+outputfolder <- paste0("uni_hz_scaling/plotting_variables/") # where to store plotting variables
 
 Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50) # range of body masses to analyse data from
 iter_range <- seq(1,20, by=1) # range of iterations of each body mass simulation to analyse data from
 
 part_of_wedge = 0 # which section of the wedge to use points from (0 = all, 1 = bottom third, 2 = middle third, 3 = top third)
 bimodal=FALSE # bc if it's bimodal need to remove the last set of coords from path_xy too bc otherwise doesn't match up with no. of speeds (bc merge 2 chunks of paths together)
-scaling=FALSE # whether to scale hz function for detection probability with body mass
+scaling=TRUE # whether to scale hz function for detection probability with body mass
 
 r = 9
 th = 0.7
 
-n_cores = 40
+n_cores = 4
 
 # generate and store plotting variables (loops through each body mass in parallel and within those each of all the iterations also in parallel)
 generate_plotting_variables(parentfolder=parentfolder, pathfolder=pathfolder, seq_datsfolder=seq_datsfolder, outputfolder=outputfolder, Mb_range, iter_range, r, th, part_of_wedge, scaling=scaling, bimodal=bimodal, n_cores=n_cores)

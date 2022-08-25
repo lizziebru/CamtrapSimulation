@@ -7,6 +7,235 @@ require(colortools)
 require(colorBlindness)
 
 
+# body mass ---------------------------------------------------------------
+
+# extract the variables you need: first 220 of each is for uni_scaling, second 220 for uni_noscaling
+MRS <- c() # 20 reps for each 11 body masses in each of the 7 different types of movement behaviours (= 1540 total)
+ar <- c() # ditto
+hmean <- c()
+lnorm <- c()
+gamma <- c()
+weibull <- c()
+ar_sz <- c()
+hmean_sz <- c()
+lnorm_sz <- c()
+gamma_sz <- c()
+weibull_sz <- c()
+mov_type <- c()
+sz_spds <- c()
+n_singles <- c()
+n_zeros <- c()
+n_detected <- c()
+
+folderpaths <- c("uni_hz_scaling/plotting_variables/", "uni_hz_noscaling/plotting_variables/")
+
+for (f in folderpaths){ # loop through each type movement type
+  load(paste0("../results/final_results/", f, "wedge0/Mb_all_iters1-20.RData"))
+  for (i in 1:11){ # loop through each body mass
+    mb_list <- outputs_mb[[i]] # list of 20 iterations for a given body mass
+    for (j in 1:20){ # loop through each iteration
+      i_list <- mb_list[[j]] # list of 27 variables for a given iteration
+      
+      # for some iterations, the models couldn't be fitted: these lists don't contain any variables and just contain the error message
+      # check if this is the case:
+      test <- 0
+      try(test <- i_list$aMRS, silent=TRUE) # try to extract something from the list and ignore any error messages and keep going
+      if (test==0){ # if the iteration list contains just errors, test will still be zero because there was nothing to replace it with - in this case just assign everything as NA
+        MRS <- c(MRS, NA)
+        ar <- c(ar, NA)
+        hmean <- c(hmean, NA)
+        lnorm <- c(lnorm, NA)
+        gamma <- c(gamma, NA)
+        weibull <- c(weibull, NA)
+        ar_sz <- c(ar_sz, NA)
+        hmean_sz <- c(hmean_sz, NA)
+        lnorm_sz <- c(lnorm_sz, NA)
+        gamma_sz <- c(gamma_sz, NA)
+        weibull_sz <- c(weibull_sz, NA)
+        mov_type <- c(mov_type, NA)
+        sz_spds <- c(sz_spds, NA)
+        n_singles <- c(n_singles, NA)
+        n_zeros <- c(n_zeros, NA)
+        n_detected <- c(n_detected, NA)
+      }
+      else { # if the iteration list is ok, a value was assigned to test so it won't be zero anymore (aMRS can't physically be zero) - if this is the case then extract all the variables as normal
+        MRS <- c(MRS, i_list[["aMRS"]])
+        ar <- c(ar, i_list[["amMOS"]])
+        hmean <- c(hmean, i_list[["hmean_m"]])
+        lnorm <- c(lnorm, i_list[["lnorm_m"]])
+        gamma <- c(gamma, i_list[["gamma_m"]])
+        weibull <- c(weibull, i_list[["weibull_m"]])
+        ar_sz <- c(ar_sz, i_list[["amMOS_sz"]])
+        hmean_sz <- c(hmean_sz, i_list[["hmean_m_sz"]])
+        lnorm_sz <- c(lnorm_sz, i_list[["lnorm_m_sz"]])
+        gamma_sz <- c(gamma_sz, i_list[["gamma_m_sz"]])
+        weibull_sz <- c(weibull_sz, i_list[["weibull_m_sz"]])
+        sz_spds <- c(sz_spds, (i_list$singles_v_mean+i_list$zeros_v_mean)/2)
+        n_singles <- c(n_singles, i_list$n_singles)
+        n_zeros <- c(n_zeros, i_list$n_zeros)
+        n_detected <- c(n_detected, i_list$n_detected)
+        
+        # if (f == "uni_hz_scaling/plotting_variables/"){
+        #   mov_type <- c(mov_type, "Unimodal")
+        # }
+        # if (f == "bi_hz_scaling/plotting_variables/mov0.1/"){
+        #   mov_type <- c(mov_type, "Bimodal: 10% moving")
+        # }
+        # if (f == "bi_hz_scaling/plotting_variables/mov0.25/"){
+        #   mov_type <- c(mov_type, "Bimodal: 25% moving")
+        # }
+        # if (f == "bi_hz_scaling/plotting_variables/mov0.4/"){
+        #   mov_type <- c(mov_type, "Bimodal: 40% moving")
+        # }
+        # if (f == "bi_hz_scaling/plotting_variables/mov0.6/"){
+        #   mov_type <- c(mov_type, "Bimodal: 60% moving")
+        # }
+        # if (f == "bi_hz_scaling/plotting_variables/mov0.75/"){
+        #   mov_type <- c(mov_type, "Bimodal: 75% moving")
+        # }
+        # if (f == "bi_hz_scaling/plotting_variables/mov0.9/"){
+        #   mov_type <- c(mov_type, "Bimodal: 90% moving")
+        # }
+        
+        
+        if (f == "uni_hz_scaling/plotting_variables/"){
+          mov_type <- c(mov_type, 0)
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.1/"){
+          mov_type <- c(mov_type, 0.1)
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.25/"){
+          mov_type <- c(mov_type, 0.25)
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.4/"){
+          mov_type <- c(mov_type, 0.4)
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.6/"){
+          mov_type <- c(mov_type, 0.6)
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.75/"){
+          mov_type <- c(mov_type, 0.7)
+        }
+        if (f == "bi_hz_scaling/plotting_variables/mov0.9/"){
+          mov_type <- c(mov_type, 0.9)
+        }
+      }
+    }
+  }
+}
+
+
+radial_dists <- c()
+mb <- c()
+sampled_no <- c()
+
+folderpaths <- c("uni_hz_scaling/seq_dats/", "uni_hz_noscaling/seq_dats/")
+mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
+
+for (f in folderpaths){ # loop through each type movement type
+  for (i in mb_range){ # loop through each body mass
+    for (j in 1:20){ # loop through each iteration
+      load(paste0("../results/final_results/", f, "Mb", i, "iter", j, ".RData"))
+      posdat <- seq_dats$posdat
+      x <- posdat$x
+      y <- posdat$y
+      spds <- na.omit(seq_dats$v$speed)
+      sampled_no <- c(sampled_no, length(spds))
+      mb <- c(mb, i)
+      radial_dists <- c(radial_dists, mean(sqrt((x-20)^2+(y-10)^2)))
+    }
+  }
+}
+
+
+
+## new plot: to show how prop of singles & zeros stays constant across body masses bc just depends on dz dimensions
+missed_df <- data.frame(mb=mb,
+                        scaling=c(rep("Yes", times=220), rep("No", times=220)),
+                        # mb = c(rep(c(rep(1,times=20), rep(5, times=20), rep(10,times=20), rep(15,times=20), rep(20,times=20), rep(25,times=20), rep(30,times=20), rep(35,times=20), rep(40,times=20), rep(45,times=20), rep(50,times=20)), times=7)),
+                        dz = radial_dists,
+                        mrs=MRS,
+                        missed_prop = c(sampled_no/(n_singles+n_zeros+sampled_no)))
+missed_df <- na.omit(missed_df)
+
+df <- data.frame(mb=mb,
+                 scaling=c(rep("Yes", times=220), rep("No", times=220)),
+                 singles=n_singles,
+                 zeros=n_zeros,
+                 sampled_no=sampled_no)
+df <- na.omit(df)
+ggplot(df, aes(x=mb, y=zeros, colour=scaling))+geom_point()
+
+mb_missed <- ggplot(missed_df, aes(x=mb, y=missed_prop))+
+  geom_point(size=0.1, aes(colour=scaling))+
+  geom_smooth(alpha = 0.2, se=F, aes(colour=scaling))+
+  theme_bw()+
+  # scale_colour_manual(values=c("#FF0099"))+
+  labs(x = "Body mass (kg)",
+       y = "Proportion sampled speeds")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        # legend.key = element_blank(),
+        # legend.title = element_blank(),
+        # legend.text = element_blank(),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        # legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+guides(col=guide_legend("Estimation method"))
+mb_missed
+
+mb_speed <- ggplot(missed_df, aes(x=mb, y=mrs))+
+  geom_point(size=0.1, aes(colour=scaling))+
+  geom_smooth(alpha = 0.2, se=F, aes(colour=scaling))+
+  theme_bw()+
+  # scale_colour_manual(values=c("#FF0099"))+
+  labs(x = "Body mass (kg)",
+       y = "True mean travel speed (m/s)")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        # legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Scaled with body mass?"))
+mb_speed
+
+mb_dz <- ggplot(missed_df, aes(x=mb, y=dz))+
+  geom_point(size=0.1, aes(colour=scaling))+
+  geom_smooth(alpha = 0.2, se=F, aes(colour=scaling))+
+  theme_bw()+
+  # scale_colour_manual(values=c("#FF0099"))+
+  labs(x = "Body mass (kg)",
+       y = "Mean detection distance (m)")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        # legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Scaled with body mass?"))
+mb_dz
+
+fig_mb_missed <- ggarrange(mb_speed + rremove("xlab"), mb_dz + rremove("xlab"), mb_missed, nrow=3)
+
+png(file=paste0("../results/final_results/plots/fig_mb_missed.png"), width = 7, height = 8, units = 'in', res = 300)
+print(fig_mb_missed)
+dev.off()
+
 # extract radial distances and number of sampled speeds for each path ----------------------------------
 
 radial_dists <- c()
@@ -154,19 +383,183 @@ for (f in folderpaths){ # loop through each type movement type
   }
 }
 
+# before: -5
+# after: -3
+# improvement: after-before = -3--5=-3+5=+2
+
+# another new plot: improvement of bias of lnorm & hmean when correct sampling bias: + also t-test!
+
+improv_df <- data.frame(improv = c(((hmean_sz-MRS)/MRS-(hmean-MRS)/MRS), ((lnorm_sz-MRS)/MRS-(lnorm-MRS)/MRS), ((gamma_sz-MRS)/MRS-(gamma-MRS)/MRS), ((weibull_sz-MRS)/MRS-(weibull-MRS)/MRS)),
+                        MRS=rep(MRS, times=4),
+                        Method = factor(c(rep("Harmonic", times=1540), rep("Log-normal", times=1540), rep("Gamma", times=1540), rep("Weibull", times=1540)), levels=c("Harmonic", "Log-normal", "Gamma", "Weibull")))
+improv_df <- na.omit(improv_df)
+
+improv <- ggplot(improv_df, aes(x=MRS, y=improv))+
+  geom_point(aes(colour=Method), size=0.1)+
+  geom_smooth(aes(colour=Method), alpha = 0.2, se=F)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
+  labs(x = "True travel speed (m/s)",
+       y = "Improvement [bias after - bias before correction]")+
+  # ylim(c(-0.5, 1))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        # legend.position = "bottom",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Type of mean"))
+improv
+
+# combine into dataframe
+improv2_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
+                        MRS = c(rep(MRS, times=10)),
+                        mov_type = c(rep(mov_type, times=10)),
+                        type = factor(c(rep("Sampling bias not corrected", times=7700), rep("Sampling bias corrected", times=7700)), levels = c("Sampling bias not corrected", "Sampling bias corrected")),
+                        Method = factor(c(rep(c(rep("Uncorrected", times=1540), rep("Harmonic", times=1540), rep("Log-normal", times=1540), rep("Gamma", times=1540), rep("Weibull", times=1540)), times=2)), levels = c("Uncorrected", "Harmonic", "Log-normal", "Gamma", "Weibull")))
+improv2_df <- na.omit(improv2_df) # remove rows where bias and MRS are NA
+
+improv2 <- ggplot(improv2_df, aes(x=MRS, y=bias))+
+  geom_point(aes(colour=Method), size=0.1)+
+  facet_grid(~ type)+
+  geom_smooth(aes(colour=Method), alpha = 0.2, se=F)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
+  # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+  labs(x = "True mean travel speed (m/s)",
+       y = "Bias [(estimated mean/true mean) - 1]")+
+  ylim(c(-0.5, 1))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        # legend.position = "bottom",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Encountering bias\ncorrection"))
+improv2
+
+# do the same as improv2 but with labels A and B so need to do separately:
+improv_nocorrection <- ggplot(improv2_df[improv2_df$type=="Sampling bias not corrected",], aes(x=MRS, y=bias))+
+  geom_point(aes(colour=Method), size=0.1)+
+  facet_grid(~ type)+
+  geom_smooth(aes(colour=Method), alpha = 0.2, se=F)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
+  # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+  labs(x = "True travel speed (m/s)",
+       y = "Bias [(estimated mean/true mean) - 1]")+
+  ylim(c(-0.5, 1))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=10),
+        legend.text = element_text(size = 10),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 12),
+        # legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Encountering\nbias correction"))
+improv_nocorrection
+
+improv_correction <- ggplot(improv2_df[improv2_df$type=="Sampling bias corrected",], aes(x=MRS, y=bias))+
+  geom_point(aes(colour=Method), size=0.1)+
+  facet_grid(~ type)+
+  geom_smooth(aes(colour=Method), alpha = 0.2, se=F)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_shape_manual(values = c(17, 16, 16, 16, 16))+ 
+  scale_colour_manual(values = c("black", "#FF0099", "#0000FF", "#FFBF00", "#FF0000"))+
+  # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+  labs(x = "True travel speed (m/s)",
+       y = "Bias [(estimated mean/true mean) - 1]")+
+  ylim(c(-0.5, 1))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size=10),
+        legend.text = element_text(size = 10),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 12),
+        # legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Encountering\nbias correction"))
+improv_correction
+
+
+require(grid)   # for the textGrob() function
+
+improv_arranged <- ggarrange(improv_nocorrection + rremove("ylab") + rremove("xlab"), improv_correction + rremove("ylab") + rremove("xlab"), # remove axis labels from plots
+                    labels = c("A", "B"),
+                    ncol = 2,
+                    common.legend = TRUE, legend = "right")
+                    # align = "hv", 
+                    # font.label = list(size = 10, color = "black", face = "bold", family = NULL, position = "top"))
+
+improv_annotated <- annotate_figure(improv_arranged, left = textGrob("Bias [(estimated mean/true travel speed) - 1]", rot = 90, vjust = 1, gp = gpar(cex = 1.2)),
+                bottom = textGrob("True travel speed (m/s)", hjust=0.7, gp = gpar(cex = 1.2)))
+improv_annotated
+
+png(file=paste0("../results/final_results/plots/both_biases_correction.png"), width = 7, height = 4.8, units = 'in', res = 300)
+print(improv_annotated)
+dev.off()
+
+png(file=paste0("../results/final_results/plots/improv.png"), width = 7, height = 5, units = 'in', res = 300)
+print(improv)
+dev.off()
+
+png(file=paste0("../results/final_results/plots/improv2.png"), width = 7, height = 5, units = 'in', res = 300)
+print(improv2)
+dev.off()
+
+
+# t-test for improvement:
+hmean_improv <- na.omit((hmean_sz-MRS)/MRS-(hmean-MRS)/MRS)
+t.test(hmean_improv, alternative="greater")
+lnorm_improv <- na.omit((lnorm_sz-MRS)/MRS-(lnorm-MRS)/MRS)
+t.test(lnorm_improv, alternative="greater")
+
+gamma_improv <- na.omit((gamma_sz-MRS)/MRS-(gamma-MRS)/MRS)
+t.test(gamma_improv, alternative="greater")
+weibull_improv <- na.omit((weibull_sz-MRS)/MRS-(weibull-MRS)/MRS)
+t.test(weibull_improv)
+
+
+
+hmean_bias <- na.omit(hmean-MRS)
+t.test(hmean_bias)
+
+gamma_bias <- na.omit(gamma-MRS)
+t.test(gamma_bias)
 
 ## new plot: to show how prop of singles & zeros stays constant across body masses bc just depends on dz dimensions
 missed_df <- data.frame(mb=mb,
                         # mb = c(rep(c(rep(1,times=20), rep(5, times=20), rep(10,times=20), rep(15,times=20), rep(20,times=20), rep(25,times=20), rep(30,times=20), rep(35,times=20), rep(40,times=20), rep(45,times=20), rep(50,times=20)), times=7)),
                         dz = radial_dists,
                         mrs=MRS,
-                        missed_prop = c((n_singles+n_zeros)/sampled_no))
+                        missed_prop = c(sampled_no/(n_singles+n_zeros+sampled_no)))
 
 mb_missed <- ggplot(missed_df, aes(x=mb, y=missed_prop))+
-  geom_point(size=0.1, aes(colour="#FF0099"))+
-  geom_smooth(alpha = 0.2, se=F, aes(colour="#FF0099"))+
+  geom_point(size=0.1)+
+  geom_smooth(alpha = 0.2, se=F, colour="black")+
   theme_bw()+
-  scale_colour_manual(values=c("#FF0099"))+
+  # scale_colour_manual(values=c("#FF0099"))+
   labs(x = "Body mass (kg)",
        y = "Proportion sampled speeds")+
   theme(axis.title = element_text(size=13),
@@ -185,10 +578,10 @@ mb_missed <- ggplot(missed_df, aes(x=mb, y=missed_prop))+
 mb_missed
 
 mb_speed <- ggplot(missed_df, aes(x=mb, y=mrs))+
-  geom_point(size=0.1, aes(colour="#FF0099"))+
-  geom_smooth(alpha = 0.2, se=F, aes(colour="#FF0099"))+
+  geom_point(size=0.1)+
+  geom_smooth(alpha = 0.2, se=F, colour="black")+
   theme_bw()+
-  scale_colour_manual(values=c("#FF0099"))+
+  # scale_colour_manual(values=c("#FF0099"))+
   labs(x = "Body mass (kg)",
        y = "True travel speed (m/s)")+
   theme(axis.title = element_text(size=13),
@@ -206,10 +599,10 @@ mb_speed <- ggplot(missed_df, aes(x=mb, y=mrs))+
 mb_speed
 
 mb_dz <- ggplot(missed_df, aes(x=mb, y=dz))+
-  geom_point(size=0.1, aes(colour="#FF0099"))+
-  geom_smooth(alpha = 0.2, se=F, aes(colour="#FF0099"))+
+  geom_point(size=0.1)+
+  geom_smooth(alpha = 0.2, se=F, colour="black")+
   theme_bw()+
-  scale_colour_manual(values=c("#FF0099"))+
+  # scale_colour_manual(values=c("#FF0099"))+
   labs(x = "Body mass (kg)",
        y = "Mean detection distance (m)")+
   theme(axis.title = element_text(size=13),
@@ -232,6 +625,13 @@ png(file=paste0("../results/final_results/plots/fig_mb_missed.png"), width = 7, 
 print(fig_mb_missed)
 dev.off()
 
+# anova for body mass and prop of sampled frames:
+mb_aov <- aov(missed_prop ~ mb, data = missed_df)
+# Summary of the analysis
+summary(mb_aov)
+
+
+
 
 # top plot: x axis = true travel speed
 
@@ -239,11 +639,15 @@ dev.off()
 fig1_1_df <- data.frame(bias = c((ar-MRS)/MRS, (hmean-MRS)/MRS, (lnorm-MRS)/MRS, (gamma-MRS)/MRS, (weibull-MRS)/MRS, (ar_sz-MRS)/MRS, (hmean_sz-MRS)/MRS, (lnorm_sz-MRS)/MRS, (gamma_sz-MRS)/MRS, (weibull_sz-MRS)/MRS),
                       MRS = c(rep(MRS, times=10)),
                       mov_type = c(rep(mov_type, times=10)),
-                      type = factor(c(rep("Sampling bias not corrected", times=7700), rep("Sampling bias corrected", times=7700)), levels = c("Sampling bias not corrected", "Missing bias corrected")),
+                      type = factor(c(rep("Sampling bias not corrected", times=7700), rep("Sampling bias corrected", times=7700)), levels = c("Sampling bias not corrected", "Sampling bias corrected")),
                       Method = factor(c(rep(c(rep("Uncorrected", times=1540), rep("Harmonic", times=1540), rep("Log-normal", times=1540), rep("Gamma", times=1540), rep("Weibull", times=1540)), times=2)), levels = c("Uncorrected", "Harmonic", "Log-normal", "Gamma", "Weibull")))
 fig1_1_df <- na.omit(fig1_1_df) # remove rows where bias and MRS are NA
 
-fig1_1 <- ggplot(fig1_1_df, aes(x=MRS, y=bias))+
+## glm:
+glm_movtype <- glm(bias ~ mov_type + Method + type, data=fig1_1_df)
+summary(glm_movtype)
+
+fig1_1 <- ggplot(fig1_1_df, aes(x=mov_type, y=bias))+
   geom_point(aes(colour=Method), size=0.1)+
   facet_grid(~ type)+
   geom_smooth(aes(colour=Method), alpha = 0.2, se=F)+
@@ -324,7 +728,12 @@ fig1_1 <- ggplot(fig1_1_df[fig1_1_df$type=="Sampling bias not corrected",], aes(
         panel.grid = element_blank(),
         panel.background = element_rect(colour="black", size = 1.3))+
   guides(col=guide_legend("Type of mean"))
-fig1_1
+fig1_1 #--> currently using for figure 1!!
+
+png(file=paste0("../results/final_results/plots/fig1_new.png"), width = 7, height = 5, units = 'in', res = 300)
+print(fig1_1)
+dev.off()
+
 
 fig1_2 <- ggplot(fig1_1_df[fig1_1_df$type=="Missing bias not corrected",], aes(x=mov_type, y=bias))+
   geom_point(aes(colour=Method), size=0.1)+
@@ -399,6 +808,107 @@ fig1_4
 
 png(file=paste0("../results/final_results/plots/fig2_missed.png"), width = 5, height = 3.8, units = 'in', res = 300)
 print(fig1_4)
+dev.off()
+
+## new plots to show the 2 component biases (new figure 2):
+# sampled vs encountered:
+samp_spds <- ar
+enc_spds <- (ar+sz_spds)/2
+samp_enc_df <- data.frame(bias=c((samp_spds-enc_spds)/enc_spds),
+                          enc=enc_spds)
+samp_enc_df <- na.omit(samp_enc_df) # remove rows where bias and MRS are NA
+
+samp_enc <- ggplot(samp_enc_df, aes(x=enc, y=bias))+
+  geom_point(size=0.1, aes(colour=c("#FF0099")))+
+  geom_smooth(alpha = 0.2, se=F, aes(colour=c("#FF0099")))+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("#FF0099"))+
+  labs(x = "Mean encountered speed (m/s)",
+       y = "Bias [(sampled mean/encountered mean) - 1]")+
+  ylim(c(-0.5, 2.5))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        # legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.title = element_blank(),
+        legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Estimation method"))
+samp_enc
+
+
+enc_mrs_df <- data.frame(bias=c((enc_spds-MRS)/MRS),
+                          mrs=MRS)
+enc_mrs_df <- na.omit(enc_mrs_df) # remove rows where bias and MRS are NA
+
+enc_mrs <- ggplot(enc_mrs_df, aes(x=mrs, y=bias))+
+  geom_point(size=0.1, aes(colour=c("#0000FF")))+
+  geom_smooth(alpha = 0.2, se=F, aes(colour=c("#0000FF")))+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("#0000FF"))+
+  labs(x = "True mean travel speed (m/s)",
+       y = "Bias [(encountered mean/true mean) - 1]")+
+  ylim(c(-0.5, 2.5))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        # legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.title = element_blank(),
+        legend.position = "none",
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Estimation method"))
+enc_mrs
+
+ggarrange(samp_enc, enc_mrs)
+
+
+## plot them together instead:
+enc_samp_mrs_df <- data.frame(bias = c((enc_spds-MRS)/MRS, (samp_spds-MRS)/MRS),
+                        MRS = c(rep(MRS, times=2)),
+                        type = factor(c(rep("Encountered", times=1540), rep("Sampled", times=1540)), levels = c("Encountered", "Sampled")))
+
+enc_samp_mrs_df<- na.omit(enc_samp_mrs_df) # remove rows where bias and MRS are NA
+
+enc_samp_mrs<- ggplot(enc_samp_mrs_df, aes(x=MRS, y=bias))+
+  geom_point(aes(colour=type), size=0.1)+
+  # facet_grid(~ type)+
+  geom_smooth(aes(colour=type), alpha = 0.2, se=F)+
+  theme_bw()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  scale_colour_manual(values = c("#0000FF", "#FF0099"))+
+  # scale_colour_manual(values = c("#FF0000", "#FF00FF", "#56B4E9", "#00FF00", "#0000FF"))+
+  labs(x = "True travel speed (m/s)",
+       y = "Bias [(mean/true travel speed) - 1]")+
+  # ylim(c(-0.5, 1))+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        # legend.title = element_text(size=11),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.title = element_blank(),
+        legend.position = c(0.84, 0.88),
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))+
+  guides(col=guide_legend("Estimation method"))
+enc_samp_mrs
+
+png(file=paste0("../results/final_results/plots/enc_samp_mrs.png"), width = 5, height = 3.8, units = 'in', res = 400)
+print(enc_samp_mrs)
 dev.off()
 
 
@@ -529,9 +1039,14 @@ hmean_sz <- c()
 lnorm_sz <- c()
 gamma_sz <- c()
 weibull_sz <- c()
+n_s <- c()
+n_z <- c()
+s_v_mean <- c()
+z_v_mean <- c()
 s_prop <- c() # no. of singles / no. of detected points
 z_prop <- c() # no. of zeros / no. of detected points
 wedge <- c()
+n_seqs_det <- c()
 
 wedges <- c(1,2,3)
 
@@ -558,9 +1073,12 @@ for (w in wedges){
         lnorm_sz <- c(lnorm_sz, NA)
         gamma_sz <- c(gamma_sz, NA)
         weibull_sz <- c(weibull_sz, NA)
-        s_prop <- c(s_prop, NA)
-        z_prop <- c(z_prop, NA)
+        s_v_mean <- c(s_v_mean, NA)
+        z_v_mean <- c(z_v_mean, NA)
+        n_s <- c(n_s, NA)
+        n_z <- c(n_z, NA)
         wedge <- c(wedge, NA)
+        n_seqs_det <- c(n_seqs_det, NA)
       }
       else { # if the iteration list is ok, a value was assigned to test so it won't be zero anymore (aMRS can't physically be zero) - if this is the case then extract all the variables as normal
         MRS <- c(MRS, i_list[["aMRS"]])
@@ -574,6 +1092,11 @@ for (w in wedges){
         lnorm_sz <- c(lnorm_sz, i_list[["lnorm_m_sz"]])
         gamma_sz <- c(gamma_sz, i_list[["gamma_m_sz"]])
         weibull_sz <- c(weibull_sz, i_list[["weibull_m_sz"]])
+        n_s <- c(n_s, i_list$n_singles)
+        n_z <- c(n_z, i_list$n_zeros)
+        n_seqs_det <- c(n_seqs_det, i_list$n_seqs_det)
+        s_v_mean <- c(s_v_mean, i_list$singles_v_mean)
+        z_v_mean <- c(z_v_mean, i_list$zeros_v_mean)
         
         s_n <- i_list[["n_singles"]] # no. of singles
         z_n <- i_list[["n_zeros"]] # no. of zeros
@@ -587,6 +1110,43 @@ for (w in wedges){
     }
   }
 }
+
+props_spds_wedge_df <- data.frame(wedge=factor(c(rep("Bottom", times=220), rep("Middle", times=220), rep("Top", times=220)), levels=c("Top", "Middle", "Bottom")),
+                                  prop_sampled = c(n_seqs_det/(n_s+n_z+n_seqs_det)),
+                                  mean_missed_spd = c((s_v_mean+z_v_mean)/2))
+props_spds_wedge_df <- na.omit(props_spds_wedge_df)
+
+wedge_spds <- ggplot(props_spds_wedge_df, aes(x=mean_missed_spd))+
+  # geom_density(aes(colour = type))+
+  stat_density(aes(colour=wedge),
+               geom="line",position="identity", size=1.1)+
+  theme_bw()+
+  scale_colour_manual(name = "",
+                      labels = c("Top", "Middle", "Bottom"),
+                      values = c("#FF0099", "#0000FF", "black"))+
+  labs(x = "Sampled speed (m/s)",
+       y = "Density")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.position = c(0.86,0.83),
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+wedge_spds
+
+png(file=paste0("../results/final_results/plots/wedge_spds.png"), width = 5, height = 3.5, units = 'in', res = 300)
+print(wedge_spds)
+dev.off()
+
+mean(props_spds_wedge_df[props_spds_wedge_df$wedge=="Bottom",]$prop_sampled)
+mean(props_spds_wedge_df[props_spds_wedge_df$wedge=="Middle",]$prop_sampled)
+mean(props_spds_wedge_df[props_spds_wedge_df$wedge=="Top",]$prop_sampled)
+
 
 # plotting bias for each wedge:
 
@@ -699,22 +1259,24 @@ load("../results/final_results/uni_hz_scaling/plotting_variables/wedge0/Mb1iter1
 true_spds <- na.omit(path$speed)
 obs_spds <- na.omit(seq_dats$v$speed)
 missed_spds <- na.omit(c(sz_tosave$singles_v, sz_tosave$zeros_v))
+encount_spds <- c(obs_spds, missed_spds)
 mb1 <- outputs_mb[[1]]
 hmean <- mb1[[1]]$hmean_m
 lnorm <- mb1[[1]]$lnorm_m
 hmean_sz <- mb1[[1]]$hmean_m_sz
 lnorm_sz <- mb1[[1]]$lnorm_m_sz
 
-fig4_df <- data.frame(speed = c(obs_spds, missed_spds, true_spds),
-                      type = factor(c(rep("Sampled", times = length(obs_spds)), rep("Missed", times = length(missed_spds)), rep("True", times=length(true_spds))), levels = c("True", "Sampled", "Missed")))
+fig4_df <- data.frame(speed = c(obs_spds, encount_spds, true_spds),
+                      type = factor(c(rep("Sampled", times = length(obs_spds)), rep("Encountered", times = length(encount_spds)), rep("True", times=length(true_spds))), levels = c("True", "Encountered", "Sampled")))
+fig4_df <- na.omit(fig4_df)
 
-fig4 <- ggplot(fig4_df, aes(x=log(speed)))+
+all <- ggplot(fig4_df, aes(x=log(speed)))+
   # geom_density(aes(colour = type))+
   stat_density(aes(colour=type),
                geom="line",position="identity", size=1.1)+
   theme_bw()+
   scale_colour_manual(name = "",
-                      labels = c("True", "Sampled", "Missed"),
+                      labels = c("True", "Encountered", "Sampled"),
                       values = c("black", "#0000FF", "#FF0099"))+
   labs(x = "Ln speed (m/s)",
        y = "Density")+
@@ -724,12 +1286,70 @@ fig4 <- ggplot(fig4_df, aes(x=log(speed)))+
         legend.text = element_text(size = 11),
         title = element_text(size = 13),
         strip.text = element_text(size = 13),
-        legend.position = c(0.84,0.74),
+        legend.position = c(0.83,0.83),
         strip.background = element_rect(fill = "white", color = "black", size = 1),
         panel.border = element_rect(color = "black", size = 0.7),
         panel.grid = element_blank(),
         panel.background = element_rect(colour="black", size = 1.3))
-fig4
+all
+
+true <- ggplot(fig4_df[fig4_df$type=="True",], aes(x=log(speed)))+
+  stat_density(aes(colour=type),
+               geom="line",position="identity", size=1.1)+
+  theme_bw()+
+  scale_colour_manual(name = "",
+                      labels = c("True"),
+                      values = c("black"))+
+  labs(x = "Ln speed (m/s)",
+       y = "Density")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.position = c(0.83,0.86),
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+true
+
+
+true_enc <- ggplot(fig4_df[fig4_df$type%in%c("True", "Encountered"),], aes(x=log(speed)))+
+  stat_density(aes(colour=type),
+               geom="line",position="identity", size=1.1)+
+  theme_bw()+
+  scale_colour_manual(name = "",
+                      labels = c("True", "Encountered"),
+                      values = c("black", "#0000FF"))+
+  labs(x = "Ln speed (m/s)",
+       y = "Density")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.position = c(0.83,0.85),
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+true_enc
+
+png(file=paste0("../results/final_results/plots/dens_all.png"), width = 5, height = 3.5, units = 'in', res = 300)
+print(all)
+dev.off()
+
+png(file=paste0("../results/final_results/plots/dens_true.png"), width = 5, height = 3.5, units = 'in', res = 300)
+print(true)
+dev.off()
+
+png(file=paste0("../results/final_results/plots/dens_true_enc.png"), width = 5, height = 3.5, units = 'in', res = 300)
+print(true_enc)
+dev.off()
+
 
 
 # new: make top & bottom plots:
@@ -782,6 +1402,53 @@ print(fig4)
 dev.off()
 
 ggplot()+geom_density(aes(x=log(obs_spds)), colour="red")+geom_density(aes(x=log(missed_spds)))+geom_density(aes(x=log(true_spds)), colour="blue")
+
+
+
+
+
+
+
+# true vs missed vs sampled:
+true_missed_sampled_df <- data.frame(speed = c(obs_spds, missed_spds, true_spds),
+                        type = factor(c(rep("Sampled", times = length(obs_spds)), rep("Missed", times = length(missed_spds)), rep("True", times=length(true_spds))), levels = c("True", "Sampled", "Missed")))
+true_missed_sampled_df <- na.omit(true_missed_sampled_df)
+
+true_missed_sampled <- ggplot(true_missed_sampled_df, aes(x=log(speed)))+
+  # geom_density(aes(colour = type))+
+  stat_density(aes(colour=type, linetype=type),
+               geom="line",position="identity", size=1.1)+
+  theme_bw()+
+  scale_colour_manual(name = "",
+                      labels = c("True", "Sampled", "Missed"),
+                      values = c("black", "#FF0099", "#FF0099"))+
+  scale_linetype_manual(name="",
+                        labels=c("True", "Sampled", "Missed"),
+                        values=c(1,1,4))+
+  labs(x = "Ln speed (m/s)",
+       y = "Density")+
+  theme(axis.title = element_text(size=13),
+        axis.text = element_text(size = 11),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 11),
+        title = element_text(size = 13),
+        strip.text = element_text(size = 13),
+        legend.position = c(0.86,0.74),
+        strip.background = element_rect(fill = "white", color = "black", size = 1),
+        panel.border = element_rect(color = "black", size = 0.7),
+        panel.grid = element_blank(),
+        panel.background = element_rect(colour="black", size = 1.3))
+true_missed_sampled
+
+png(file=paste0("../results/final_results/plots/true_missed_sampled.png"), width = 5, height = 2.7, units = 'in', res = 300)
+print(true_missed_sampled)
+dev.off()
+
+
+
+
+
+
 
 
 # (prev)FIGURE 1: compare biases for diff estimation methods for uni-modal movement only -------------------------------------

@@ -14,10 +14,10 @@ Mb_range <- c(1,5,10,15,20,25,30,35,40,45,50)
 path_nos <- c(1:20)
 
 # set which parent folder of paths to analyse of paths to analyse (will always be iter repeats of the same speed)
-parentfolder <- paste0("../results/final_results/paths_bi/mov0.25/")
+parentfolder <- paste0("../results/final_results/paths_uni/")
 
 # set output folder - depends on what you're running
-outputfolder <- paste0("../results/final_results/bi_hz_scaling/seq_dats/mov0.25/")
+outputfolder <- paste0("../results/final_results/uni_hz_scaling/seq_dats/")
 
 
 # set additional parameters:
@@ -31,6 +31,3 @@ scaling=TRUE # whether to scale hz function for detection probability with body 
 
 # run the simulation to save as seq_dats:
 generate_seqdats(parentfolder=parentfolder, outputfolder=outputfolder, Mb_range=Mb_range, path_nos=path_nos, r=r, th=th, twoCTs=twoCTs, connectedCTs=connectedCTs, path_cutby=path_cutby, scaling=scaling)
-
-
-

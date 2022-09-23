@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg368"
+   inkscape:version="1.2 (1:1.2.1+202207142221+cd75a1ee6d)"
+   sodipodi:docname="presentation_wedges.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview370"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.75722503"
+     inkscape:cx="397.50403"
+     inkscape:cy="561.92015"
+     inkscape:window-width="1848"
+     inkscape:window-height="1016"
+     inkscape:window-x="72"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs365">
+    <radialGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1393"
+       id="radialGradient1397"
+       cx="48.769733"
+       cy="62.399731"
+       fx="48.769733"
+       fy="62.399731"
+       r="44.844814"
+       gradientTransform="matrix(0,-0.90645251,0.89824936,0,34.438824,137.7841)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient1393">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="0"
+         id="stop1389" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0;"
+         offset="1"
+         id="stop1391" />
+    </linearGradient>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path1343"
+       style="fill:url(#radialGradient1397);fill-opacity:1;stroke:#000000;stroke-width:2.109;stroke-dasharray:none"
+       inkscape:transform-center-x="3.6683424"
+       inkscape:transform-center-y="-0.74230507"
+       d="M 130.61943,67.162373 112.26873,100.57458 93.918018,133.98681 72.137628,102.42551 50.357222,70.864224 C 58.38951,57.491554 73.469978,53.35415 91.031208,53.046905 104.89871,53.424777 120.86274,55.5872 130.61943,67.162373 Z"
+       sodipodi:nodetypes="ccccccc" />
+  </g>
+</svg>

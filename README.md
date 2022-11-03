@@ -1,6 +1,6 @@
 ## **Camera trap simulation work**
 
-This repository contains my developments of Marcus Rowcliffe's simulation of camera trap detection of animal movement. The aim of this work is to investigate and develop methods currently used to estimate average speed of movement from camera trap data, for use in Random Encounter Modelling to estimate animal density from camera trap data without the need for individual recognition. Specifically, I investigate two proposed biases in camera trap capture of animal movement speeds; firstly, that camera traps generally oversample faster movement speeds as faster-moving individuals are more likely to encounter cameras, and secondly that they undersample very fast speeds by "missing" them as they cross the detection zone too fast to be captured on multiple frames. I investigate how these biases affect average movement speed estimation from camera trap data, and possible solutions to mitigate these effects.
+This repository contains my developments of Marcus Rowcliffe's simulation of camera trap detection of animal movement.
 ___
 
 ### **Languages**

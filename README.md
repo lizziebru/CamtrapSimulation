@@ -1,6 +1,6 @@
 ## **Camera trap simulation work**
 
-This repository contains my developments of Marcus Rowcliffe's simulation of camera trap detection of animal movement.
+This repository contains my developments of Marcus Rowcliffe's simulation of the detection of moving animals by camera traps.
 ___
 
 ### **Languages**
@@ -64,7 +64,7 @@ ___
 
 [**india**](data/india)
 
-This folder contains the camera trap data collected in India (ASK MARCUS FOR INFO).
+This folder contains the camera trap data collected in India, supplied by the Institute of Zoology, Zoological Society of London. Not used in the final analysis.
 
 [**panama**](data/panama)
 
@@ -72,7 +72,7 @@ This folder contains the data and metadata for camera trap data collected in Bar
 
 [**regentspark**](data/regentspark)
 
-This folder contains the data and metadata for camera trap data collected in Regent's Park. More information on trapping methods and camera settings in (ASK CHRIS FOR INFO).
+This folder contains the data and metadata for camera trap data collected in Regent's Park during three surveys conducted by the London HogWatch project between 2018 and 2018 (Institute of Zoology, Zoological Society of London).
 
 [**spain**](data/spain)
 

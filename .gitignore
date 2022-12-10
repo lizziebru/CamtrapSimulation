@@ -10,5 +10,6 @@
 *.jpeg
 .idea/
 .Rproj.user
+*.vsdx
 
 *.zip

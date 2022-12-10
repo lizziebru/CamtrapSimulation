@@ -7,7 +7,7 @@ require(colortools)
 require(colorBlindness)
 
 
-# body mass ---------------------------------------------------------------
+# body mass - comparing simulation results with and without body mass scaling of effective detection distance - NOT USED IN MANUSCRIPT---------------------------------------------------------------
 
 # extract the variables you need: first 220 of each is for uni_scaling, second 220 for uni_noscaling
 MRS <- c() # 20 reps for each 11 body masses in each of the 7 different types of movement behaviours (= 1540 total)

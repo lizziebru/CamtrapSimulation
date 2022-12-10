@@ -1,12 +1,14 @@
 ## **CamtrapSimulation work**
 
-This repository contains my developments of Marcus Rowcliffe's simulation of the detection of moving animals by camera traps.
-
 Where everything is:
-- all code: github (https://github.com/lizziebru/CamtrapSimulation)
-- data from Regent's Park and Panama used for model parameterization (+ extra data from other sources used along the way but not for the final manuscript): github (https://github.com/lizziebru/CamtrapSimulation)
-- data generated using the simulation (animal movement paths, sequence data, travel speed estimates etc): OneDrive (https://imperiallondon-my.sharepoint.com/:f:/r/personal/eab21_ic_ac_uk/Documents/Travel%20speed%20manuscript?csf=1&web=1&e=IkxxXa)
-- plots for the manuscript: OneDrive (https://imperiallondon-my.sharepoint.com/:f:/r/personal/eab21_ic_ac_uk/Documents/Travel%20speed%20manuscript?csf=1&web=1&e=IkxxXa)
+
+GitHub (https://github.com/lizziebru/CamtrapSimulation):
+- all code
+- data from Regent's Park and Panama used for model parameterization (+ extra data from other sources used along the way but not for the final manuscript)
+
+OneDrive (https://imperiallondon-my.sharepoint.com/:f:/r/personal/eab21_ic_ac_uk/Documents/Travel%20speed%20manuscript?csf=1&web=1&e=IkxxXa):
+- data generated using the simulation (animal movement paths, sequence data, travel speed estimates etc)
+- plots for the manuscript
 
 ___
 
@@ -68,9 +70,13 @@ This script contains extra functions previously used in the main CamtrapSimulati
 
 Script written by Francis Windram for some initial exploration of working out the distribution of the distances of all possible straight-line paths across a triangle. Not used in analysis for the manuscript but may be useful in future.
 
-[**plotting_final.R**](code/plotting_final.R)
+[**plotting_all.R**](code/plotting_final.R)
 
-Script for making plots for the write-up and manuscript. Uses the simulation data available on OneDrive: https://imperiallondon-my.sharepoint.com/:f:/r/personal/eab21_ic_ac_uk/Documents/Travel%20speed%20manuscript?csf=1&web=1&e=IkxxXa.
+Script for making all plots incl those for the manuscript. Uses the simulation data available on OneDrive: https://imperiallondon-my.sharepoint.com/:f:/r/personal/eab21_ic_ac_uk/Documents/Travel%20speed%20manuscript?csf=1&web=1&e=IkxxXa.
+
+[**manuscript_plotting.R**](code/manuscript_plotting.R)
+
+Script for making only the plots used in the manuscript. Uses the same data from OneDrive. Also includes statistical tests.
 
 ___
 
@@ -136,7 +142,7 @@ Pipeline divided into 3:
 
 ___
 
-### **Paths**
+### **paths**
 
 ___
 
@@ -152,29 +158,27 @@ Paths with explicit simulation of alternative movement behaviours. Generated on 
 
 ___
 
-### **Sequence data and plotting variables**
+### **seq_dats**
 
 ___
 
-Two folders (one for paths with and one for paths without simulation of alternative movement behaviours) containing the results of overlaying the paths above with the camera trap.
+3 folders containing the results of overlaying the paths above with the camera trap
 
-Seq_dats corresponds to the camera trap data - contains position data and speeds of sampled sequences. Separate .RData file provided for each iteration of each body mass.
-
-Plotting variables are generated from seq_dats - they contain all the estimates of travel speeds using different methods (gamma, Weibull etc.) and mean observed speeds, mean realised speeds etc.
+In each folder:
+- seq_dats corresponds to the camera trap data - contains position data and speeds of sampled sequences. Separate .RData file provided for each iteration of each body mass.
+- plotting_variables are generated from seq_dats - they contain all the estimates of travel speeds using different methods (gamma, Weibull etc.) and mean observed speeds, mean realised speeds etc
 
 **unimodal_seqdats**
 
-Without alternative movement behaviours.
+Without alternative movement behaviours. Effective detection zone dimensions are scaled with body mass.
 
 **bimodal_seqdats**
 
-With alternative movement behaviours. Separate folders provided for each different proportion of fast/slow behaviours (mov0.1 corresponds to 10% fast behaviour, 90% slow behaviour).
+With alternative movement behaviours. Separate folders provided for each different proportion of fast/slow behaviours (mov0.1 corresponds to 10% fast behaviour, 90% slow behaviour). Effective detection zone dimensions are scaled with body mass.
 
-___
+**unimodal_seqdats_NOSCALING**
 
-## **Plots**
-
-****
+Without alternative movement behaviours. Effective detection zone dimensions NOT scaled with body mass - to allow comparison with unimodal_seqdats to investigate the effects of body mass scaling of dz dimensions. NOT currently used for the manuscript.
 
 ___
 

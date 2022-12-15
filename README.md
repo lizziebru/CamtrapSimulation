@@ -18,6 +18,12 @@ ___
 
 ___
 
+**What you need to edit any plots**
+
+[**manuscript_plotting**](code/manuscript_plotting.R) - script for making all plots. Uses the data in the seq_dats folder within the simulation_data folder on OneDrive.
+
+___
+
 ## **Code & data on Github**
 ___
 

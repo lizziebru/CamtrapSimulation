@@ -1,11 +1,5 @@
 ## DISTANCE FROM CT PROBABILITY DENSITY OF BEING DETECTED ##
 
-# TO DO:
-# go through all the data csvs and check which ones you actually need vs not
-# go through this script and the path modelling one to tidy up and add things to discussion section if needed, and also any packages that need to go in README
-
-
-
 # all the modelling done on detection probability stuff
 
 require(stats4)

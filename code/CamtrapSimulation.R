@@ -10,15 +10,14 @@
 # gamma = average speed estimated by fitting a size-biased gamma distribution
 # weibull = average speed estimated by fitting a size-biased weibull distribution
 
-# TO DO: 
-# - go through each function and check its description isn't missing any recent additions
-
 require(circular)
 require(parallel)
 require(rlist)
 require(future.apply)
 require(colortools) # for generating contrasting colours - use wheel("blue, 3) etc
 require(ggnewscale)
+require(bbmle)
+require(MASS)
 
 
 
@@ -573,130 +572,9 @@ generate_plotting_variables <- function(parentfolder, pathfolder, seq_datsfolder
   # generate list of lists for each body mass (+ each list for each body mass containing itself 20 lists (20 = 1 for each iteration repeat))
   outputs_mb <- lapply(Mb_range, gen_plot_var_eachmass, parentfolder=parentfolder, pathfolder=pathfolder, seq_datsfolder=seq_datsfolder, iter_range=iter_range, r=r, th=th, part_of_wedge, twoCTs=twoCTs, connectedCTs=connectedCTs, scaling=scaling, bimodal=bimodal, n_cores)
   
-  # just save all together bc doesn't like it otherwise
+  # save all together
   save(outputs_mb, file = paste0(parentfolder, outputfolder, "wedge", part_of_wedge,  "/Mb_all_iters", iter_range[1], "-", iter_range[length(iter_range)], ".RData"))
-  
-  # 
-  # # save one dataframe for each Mb
-  # for (j in 1:length(Mb_range)){
-  #   
-  #   # combine all the reps of the same body mass into one df and save as a .RData (one for each body mass)
-  #   aMRS <- c() # arithmetic MRS
-  # 
-  #   amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
-  #   amMOS_sz <- c() # with singles & zeros
-  #   apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
-  #   apMOS_sz <- c() # with singles & zeros
-  # 
-  #   hmean_m <- c() # calculated using M's way of working out observed speeds
-  #   hmean_m_sz <- c() # including singles & zeros too
-  #   hmean_p <- c() # calculated using point-to-point observed speeds
-  #   hmean_p_sz <- c() # including singles & zeros too
-  # 
-  #   lnorm_m <- c() # same as for hmean
-  #   lnorm_m_sz <- c()
-  #   lnorm_p <- c()
-  #   lnorm_p_sz <- c()
-  # 
-  #   gamma_m <- c() # ditto
-  #   gamma_m_sz <- c()
-  #   gamma_p <- c()
-  #   gamma_p_sz <- c()
-  # 
-  #   weibull_m <- c() # ditto
-  #   weibull_m_sz <- c()
-  #   weibull_p <- c()
-  #   weibull_p_sz <- c()
-  # 
-  #   n_zeros <- c()
-  #   n_singles <- c()
-  #   singles_v_mean <- c()
-  #   zeros_v_mean <- c()
-  # 
-  #   n_points <- c() # number of all points (detected and non-detected)
-  #   n_detected <- c() # number of detected points
-  # 
-  #   iters_outputs <- outputs_mb[[j]]
-  # 
-  #   for (i in iter_range){
-  #     aMRS <- c(aMRS, iters_outputs[[i]]$aMRS)
-  # 
-  #     amMOS <- c(amMOS, iters_outputs[[i]]$amMOS)
-  #     amMOS_sz <- c(amMOS_sz, iters_outputs[[i]]$amMOS_sz)
-  #     apMOS <- c(apMOS, iters_outputs[[i]]$amMOS_sz)
-  #     apMOS_sz <- c(apMOS_sz, iters_outputs[[i]]$apMOS_sz)
-  # 
-  #     hmean_m <- c(hmean_m, iters_outputs[[i]]$hmean_m)
-  #     hmean_m_sz <- c(hmean_m_sz, iters_outputs[[i]]$hmean_m_sz)
-  #     hmean_p <- c(hmean_p, iters_outputs[[i]]$hmean_p)
-  #     hmean_p_sz <- c(hmean_p_sz, iters_outputs[[i]]$hmean_p_sz)
-  # 
-  #     lnorm_m <- c(lnorm_m, iters_outputs[[i]]$lnorm_m)
-  #     lnorm_m_sz <- c(lnorm_m_sz, iters_outputs[[i]]$lnorm_m_sz)
-  #     lnorm_p <- c(lnorm_p, iters_outputs[[i]]$lnorm_p)
-  #     lnorm_p_sz <- c(lnorm_p_sz, iters_outputs[[i]]$lnorm_p_sz)
-  # 
-  #     gamma_m <- c(gamma_m, iters_outputs[[i]]$gamma_m)
-  #     gamma_m_sz <- c(gamma_m_sz, iters_outputs[[i]]$gamma_m_sz)
-  #     gamma_p <- c(gamma_p, iters_outputs[[i]]$gamma_p)
-  #     gamma_p_sz <- c(gamma_p_sz, iters_outputs[[i]]$gamma_p_sz)
-  # 
-  #     weibull_m <- c(weibull_m, iters_outputs[[i]]$weibull_m)
-  #     weibull_m_sz <- c(weibull_m_sz, iters_outputs[[i]]$weibull_m_sz)
-  #     weibull_p <- c(weibull_p, iters_outputs[[i]]$weibull_p)
-  #     weibull_p_sz <- c(weibull_p_sz, iters_outputs[[i]]$weibull_p_sz)
-  # 
-  #     n_zeros <- c(n_zeros, iters_outputs[[i]]$n_zeros)
-  #     n_singles <- c(n_singles, iters_outputs[[i]]$n_singles)
-  #     singles_v_mean <- c(singles_v_mean, iters_outputs[[i]]$singles_v_mean)
-  #     zeros_v_mean <- c(zeros_v_mean, iters_outputs[[i]]$zeros_v_mean)
-  # 
-  #     n_points <- c(n_points, iters_outputs[[i]]$n_points)
-  #     n_detected <- c(n_detected, iters_outputs[[i]]$n_detected)
-  #   }
-  # 
-  #   output <- data.frame(
-  # 
-  #     aMRS = aMRS,
-  # 
-  #     amMOS = amMOS,
-  #     amMOS_sz = amMOS_sz,
-  # 
-  #     apMOS = apMOS,
-  #     apMOS_sz = apMOS_sz,
-  # 
-  #     hmean_m = hmean_m,
-  #     hmean_m_sz = hmean_m_sz,
-  #     hmean_p = hmean_p,
-  #     hmean_p_sz = hmean_p_sz,
-  # 
-  #     lnorm_m = lnorm_m,
-  #     lnorm_m_sz = lnorm_m_sz,
-  #     lnorm_p = lnorm_p,
-  #     lnorm_p_sz = lnorm_p_sz,
-  # 
-  #     gamma_m = gamma_m,
-  #     gamma_m_sz = gamma_m_sz,
-  #     gamma_p = gamma_p,
-  #     gamma_p_sz = gamma_p_sz,
-  # 
-  #     weibull_m = weibull_m,
-  #     weibull_m_sz = weibull_m_sz,
-  #     weibull_p = weibull_p,
-  #     weibull_p_sz = weibull_p_sz,
-  # 
-  #     n_zeros = n_zeros,
-  #     n_singles = n_singles,
-  #     singles_v_mean = singles_v_mean,
-  #     zeros_v_mean = zeros_v_mean,
-  # 
-  #     n_points = n_points,
-  #     n_detected = n_detected
-  #   )
-  #   
-  #   save(output, file = paste0(parentfolder, outputfolder, "wedge", part_of_wedge,  "/Mb", Mb_range[j], "_iters", iter_range[1], "-", iter_range[length(iter_range)], ".RData"))
-  # }
-  
+
 }
 
 
@@ -719,127 +597,11 @@ generate_plotting_variables <- function(parentfolder, pathfolder, seq_datsfolder
 # n_cores: number of cores in your laptop - to parallelise appropriately
 # OUTPUT
 # dataframe containing variables needed for plotting
-gen_plot_var_eachmass <- function(Mb, parentfolder, pathfolder, seq_datsfolder, iter_range, r, th, part_of_wedge, twoCTs=FALSE, connectedCTs=FALSE, scaling, bimodal, n_cores){
+gen_plot_var_eachmass <- function(Mb, parentfolder, pathfolder, seq_datsfolder, iter_range, r, th, part_of_wedge, twoCTs=FALSE, connectedCTs=FALSE, scaling, bimodal, n_cores){ # run time = around 3 hours
   
   # work out variables for each iteration
   iters_outputs <- mclapply(iter_range, gen_plot_var_eachiter, Mb=Mb, parentfolder=parentfolder, pathfolder=pathfolder, seq_datsfolder=seq_datsfolder, scaling=scaling, part_of_wedge=part_of_wedge, r=r, th=th, twoCTs=FALSE, connectedCTs=FALSE, bimodal=bimodal, mc.cores=(n_cores-1))
   # produces list of 20 lists (1 for each iter)
-  # started 15:28
-  # finished 18.20!!! --> so it's feasible!! 
-  
-  # aMRS <- c() # arithmetic MRS
-  # 
-  # amMOS <- c() # arithmetic mean of arithmetic mean speeds of sequences
-  # amMOS_sz <- c() # with singles & zeros
-  # apMOS <- c() # arithmetic mean of point-to-point speeds regardless of sequence
-  # apMOS_sz <- c() # with singles & zeros
-  # 
-  # hmean_m <- c() # calculated using M's way of working out observed speeds
-  # hmean_m_sz <- c() # including singles & zeros too
-  # hmean_p <- c() # calculated using point-to-point observed speeds
-  # hmean_p_sz <- c() # including singles & zeros too
-  # 
-  # lnorm_m <- c() # same as for hmean
-  # lnorm_m_sz <- c()
-  # lnorm_p <- c()
-  # lnorm_p_sz <- c()
-  # 
-  # gamma_m <- c() # ditto
-  # gamma_m_sz <- c()
-  # gamma_p <- c()
-  # gamma_p_sz <- c()
-  # 
-  # weibull_m <- c() # ditto
-  # weibull_m_sz <- c()
-  # weibull_p <- c()
-  # weibull_p_sz <- c()
-  # 
-  # n_zeros <- c()
-  # n_singles <- c()
-  # singles_v_mean <- c()
-  # zeros_v_mean <- c()
-  # 
-  # n_points <- c() # number of all points (detected and non-detected)
-  # n_detected <- c() # number of detected points
-  # 
-  # 
-  # for (i in iter_range){
-  #   aMRS <- c(aMRS, iters_outputs[[i]]$aMRS)
-  #   
-  #   amMOS <- c(amMOS, iters_outputs[[i]]$amMOS) 
-  #   amMOS_sz <- c(amMOS_sz, iters_outputs[[i]]$amMOS_sz) 
-  #   apMOS <- c(apMOS, iters_outputs[[i]]$amMOS_sz) 
-  #   apMOS_sz <- c(apMOS_sz, iters_outputs[[i]]$apMOS_sz) 
-  #   
-  #   hmean_m <- c(hmean_m, iters_outputs[[i]]$hmean_m) 
-  #   hmean_m_sz <- c(hmean_m_sz, iters_outputs[[i]]$hmean_m_sz)
-  #   hmean_p <- c(hmean_p, iters_outputs[[i]]$hmean_p) 
-  #   hmean_p_sz <- c(hmean_p_sz, iters_outputs[[i]]$hmean_p_sz) 
-  #   
-  #   lnorm_m <- c(lnorm_m, iters_outputs[[i]]$lnorm_m) 
-  #   lnorm_m_sz <- c(lnorm_m_sz, iters_outputs[[i]]$lnorm_m_sz)
-  #   lnorm_p <- c(lnorm_p, iters_outputs[[i]]$lnorm_p)
-  #   lnorm_p_sz <- c(lnorm_p_sz, iters_outputs[[i]]$lnorm_p_sz)
-  #   
-  #   gamma_m <- c(gamma_m, iters_outputs[[i]]$gamma_m) 
-  #   gamma_m_sz <- c(gamma_m_sz, iters_outputs[[i]]$gamma_m_sz)
-  #   gamma_p <- c(gamma_p, iters_outputs[[i]]$gamma_p)
-  #   gamma_p_sz <- c(gamma_p_sz, iters_outputs[[i]]$gamma_p_sz)
-  #   
-  #   weibull_m <- c(weibull_m, iters_outputs[[i]]$weibull_m)
-  #   weibull_m_sz <- c(weibull_m_sz, iters_outputs[[i]]$weibull_m_sz)
-  #   weibull_p <- c(weibull_p, iters_outputs[[i]]$weibull_p)
-  #   weibull_p_sz <- c(weibull_p_sz, iters_outputs[[i]]$weibull_p_sz)
-  #   
-  #   n_zeros <- c(n_zeros, iters_outputs[[i]]$n_zeros)
-  #   n_singles <- c(n_singles, iters_outputs[[i]]$n_singles)
-  #   singles_v_mean <- c(singles_v_mean, iters_outputs[[i]]$singles_v_mean)
-  #   zeros_v_mean <- c(zeros_v_mean, iters_outputs[[i]]$zeros_v_mean)
-  #   
-  #   n_points <- c(n_points, iters_outputs[[i]]$n_points)
-  #   n_detected <- c(n_detected, iters_outputs[[i]]$n_detected) 
-  # }
-  # 
-  # output <- data.frame(
-  #   
-  #   aMRS = aMRS,
-  #   
-  #   amMOS = amMOS,
-  #   amMOS_sz = amMOS_sz,
-  #   
-  #   apMOS = apMOS,
-  #   apMOS_sz = apMOS_sz,
-  #   
-  #   hmean_m = hmean_m,
-  #   hmean_m_sz = hmean_m_sz,
-  #   hmean_p = hmean_p,
-  #   hmean_p_sz = hmean_p_sz,
-  #   
-  #   lnorm_m = lnorm_m,
-  #   lnorm_m_sz = lnorm_m_sz,
-  #   lnorm_p = lnorm_p,
-  #   lnorm_p_sz = lnorm_p_sz,
-  #   
-  #   gamma_m = gamma_m,
-  #   gamma_m_sz = gamma_m_sz,
-  #   gamma_p = gamma_p,
-  #   gamma_p_sz = gamma_p_sz,
-  #   
-  #   weibull_m = weibull_m,
-  #   weibull_m_sz = weibull_m_sz,
-  #   weibull_p = weibull_p,
-  #   weibull_p_sz = weibull_p_sz,
-  #   
-  #   n_zeros = n_zeros,
-  #   n_singles = n_singles,
-  #   singles_v_mean = singles_v_mean,
-  #   zeros_v_mean = zeros_v_mean,
-  #   
-  #   n_points = n_points,
-  #   n_detected = n_detected
-  # )
-  # 
-  # return(output)
   
   return(iters_outputs)
   
@@ -857,9 +619,6 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
   
   
   ## mean realised speeds (i.e. true travel speed) ###################################################################################################################################
-  
-  # w_real <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
-  # wMRS <- c(wMRS, mean(w_real)) # my original way of working out MRS 
   
   p_real <- na.omit(path$speed) # point-to-point realised speeds
   p_real <- p_real[is.finite(p_real)]
@@ -1021,23 +780,6 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
   
   if (part_of_wedge==1){ 
     posdat <- posdat[posdat$y>=10 & posdat$y<13,]
-    # select only the points that are part of a sequence where all the points in that sequence fall in the bottom part of the wedge - tried this out but generates too few sequences so don't do it
-    # # select the rows where y is in that part of the dz and so are the y coords of all the other points in that sequence
-    # rows_to_select <- c()
-    # for (i in 1:nrow(posdat)){
-    #   p <- posdat[i,]
-    #   if (p$y>=10 & p$y<13){ # if the y coord is in this part of the wedge, check if the other coords in that sequence are also in that part of the wedge
-    #     seqid_all <- posdat[posdat$sequenceID==p$sequenceID,]
-    #     all_in_wedge <- seqid_all$y >=10 & seqid_all$y <13 # vector of TRUE or FALSE for whether each y-coord is in this part of the wedge
-    #     if (is.na(var(all_in_wedge))){
-    #       break
-    #     }
-    #     if (var(all_in_wedge)==0){ # at least one value in the vector must be TRUE, so to test if they're all true just test whether they're all the same
-    #       rows_to_select <- c(rows_to_select, i) # if this is the case, then you can go ahead and select that row
-    #     }
-    #   }
-    # }
-    # posdat <- posdat[rows_to_select,]
   }
   if (part_of_wedge==2){ # ditto for middle part of the wedge
     posdat <- posdat[posdat$y>=13 & posdat$y<16,]
@@ -1045,7 +787,6 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
   if (part_of_wedge==3){ # ditto for top part of the wedge
     posdat <- posdat[posdat$y>=16 & posdat$y<=19,]
   }
-  
   
   # work out observed speeds using mean of means  
   v <- calc_speed(posdat) # calculate speeds of each observed sequence of movement
@@ -1107,7 +848,6 @@ gen_plot_var_eachiter <- function(iter, Mb, scaling, parentfolder, pathfolder, s
     gamma_m_sz <- predict.sbm(mods_m_sz[[1]]$gamma)[1,1]
     weibull_m_sz <- predict.sbm(mods_m_sz[[1]]$weibull)[1,1]
   }
-  
   
   try(mods_p <- sbm3(speed~1, obs_df_p), silent=TRUE)
   
@@ -1435,33 +1175,7 @@ predict.sbm <- function(mod, newdata=NULL, reps=1000){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Calculating average speeds ##
-
-require(bbmle)
-require(MASS)
 
 setClass("sbm", representation("list"))
 
@@ -1701,364 +1415,3 @@ gamma_error_real_calc <- function(speed_no){
 weibull_error_real_calc <- function(speed_no){
   as.numeric(mods_predict_weibull[speed_no]) - mean(seq_dats[,speed_no]$realised)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ## COMPARING DIFF MEANS & MEDIANS PLOTTING ## -- not finished though bc decided not useful for now
-# 
-# # one plot per simulation speed parameter (just one run for each - so just iter1)
-# 
-# # initialise dataframes to store realised and observed speeds
-# real_og <- data.frame(matrix(ncol=11, nrow=5e5)) # my original way of working out realised speeds (select chunks of the path of length same as mean observed sequence length - select the same number as number of observed sequences in that run)
-# real_p_to_p <- data.frame(matrix(ncol=11, nrow=5e5)) # individual speeds between each step (much more than above)
-# obs_m <- data.frame(matrix(ncol=11, nrow=5e5)) # M's way of working out observed speeds (arithmetic mean of speeds within each sequence)
-# obs_p_to_p <- data.frame(matrix(ncol=11, nrow=5e5)) # observed speeds are just the speeds between consecutive steps irrespective of path (much more than above too)
-# 
-# # initialise vectors to store means & medians of realised and observed speeds
-# wMRS <- c() # mean of my original way of working out realised speeds
-# aMRS <- c() # arithmetic mean of point-to-point realised speeds
-# gMRS <- c() # geometric mean of point-to-point realised speeds
-# med_wMRS <- c() # median realised speed using my original way of working out realised speeds
-# med_pMRS <- c() # median realised speed using point-to-point realised speeds
-# 
-# mMOS <- c() # arithmetic mean of M's way of working out observed speeds
-# gmMOS <- c() # geometric mean of M's way of working out observed speeds
-# aMOS <- c() # arithmetic mean of point-to-point observed speeds
-# gMOS <- c() # geometric mean of point-to-point observed speeds
-# med_mMOS <- c() # median of M's way of working out observed speeds
-# med_pMOS <- c() # median of point-to-point observed speeds
-# 
-# hmean_m <- c() # calculated using M's way of working out observed speeds
-# hmean_p <- c() # calculated using point-to-point observed speeds
-# lnorm_m <- c() # same as for hmean
-# lnorm_p <- c()
-# gamma_m <- c() # ditto
-# gamma_p <- c()
-# weibull_m <- c() # ditto
-# weibull_p <- c()
-# 
-# # (haven't included singles & zeros here bc would make it all too complicated - first make a decision on what's best)
-# 
-# # loop through each speed parameter and fill these dataframes and vectors
-# 
-# speed_parameters <- c(0.02, 0.06, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90) # sp1.00 is being problematic with sigma... - ask Francis/Marcus about this
-# speed_parameters <- round(speed_parameters, digits = 3) # to avoid floating point issues
-# 
-# for (i in 1:length(speed_parameters)){
-#   j <- speed_parameters[i]
-#   
-#   load(paste0("../results/seq_dats/sp", j, "iter1.RData"))
-#   load(paste0("../results/paths_copy_for_analysis/sp", j, "/iter1.RData"))
-#   
-#   ## realised speeds ###################################################################################################################################
-#   
-#   r_og <- seq_dats$realised # my initial wrong way of working out realised speeds (using selected chunks of the path of length equal to average obs sequence length)
-#   r_p_to_p <- path$speed # point-to-point realised speeds
-#   
-#   # cap both at 10m/s (36km/h) to get rid of unrealistically high ones
-#   r_og <- r_og[r_og<10]
-#   r_p_to_p <- r_p_to_p[r_p_to_p<10]
-#   
-#   # fill dataframes with those speeds
-#   real_og[,i] <- c(r_og, rep(NA, times = (5e5-length(r_og))))
-#   real_p_to_p[,i] <- c(r_p_to_p, rep(NA, times = (5e5-length(r_p_to_p))))
-#   
-#   wMRS <- c(wMRS, mean(r_og)) # my original way of working out MRS 
-#   aMRS <- c(aMRS, mean(r_p_to_p)) # arithmetic MRS
-#   gMRS <- c(gMRS, exp(mean(log(r_p_to_p)))) # geometric MRS
-#   med_wMRS <- c(med_wMRS, median(r_og))
-#   med_pMRS <- c(med_pMRS, median(r_p_to_p))
-#   
-#   ## mean observed speeds #################################################################################################################################
-#   
-#   m_obs <- seq_dats$observed # M's way of working out observed speeds
-#   m_obs <- m_obs[is.finite(m_obs)]
-#   
-#   p_obs <- seq_dats$posdat$distance # point-to-point observed speeds irrespective of sequence
-#   p_obs <- p_obs[is.finite(p_obs)]
-#   
-#   obs_m[,i] <- c(m_obs, rep(NA, times = (5e5-length(m_obs)))) # M's way of working out observed speeds
-#   obs_p_to_p[,i] <- c(p_obs, rep(NA, times = (5e5-length(p_obs)))) # point-to-point observed speeds
-#   
-#   mMOS <- c(mMOS, mean(m_obs)) 
-#   gmMOS <- c(gmMOS, exp(mean(log(m_obs))))
-#   aMOS <- c(aMOS, mean(p_obs))
-#   gMOS <- c(gMOS, exp(mean(log(p_obs))))
-#   
-#   med_mMOS <- c(med_mMOS, median(m_obs))
-#   med_pMOS <- c(med_pMOS, median(p_obs))
-#   
-#   # estimated speeds ##
-#   
-#   hmean_m <- c(hmean_m, (hmean_calc(m_obs))[1]) # harmonic mean estimate using M's observed speeds
-#   
-#   hmean_p <- c(hmean_p, (hmean_calc(p_obs))[1]) # using raw point-to-point speeds
-#   
-#   obs_df_m <- data.frame(speed = m_obs)
-#   obs_df_p <- data.frame(speed = p_obs)
-#   
-#   mods_m <- sbm3(speed~1, obs_df_m) # fit all the models
-#   mods_p <- sbm3(speed~1, obs_df_p)
-#   
-#   lnorm_m <- c(lnorm_m, predict.sbm(mods_m[[1]]$lnorm)[1,1])
-#   lnorm_p <- c(lnorm_p, predict.sbm(mods_p[[1]]$lnorm)[1,1])
-#   
-#   gamma_m <- c(gamma_m, predict.sbm(mods_m[[1]]$gamma)[1,1])
-#   gamma_p <- c(gamma_p, predict.sbm(mods_p[[1]]$gamma)[1,1]) # this is the problematic one for sp = 1.00 for some reason!! -- check this with Francis tomorrow
-#   
-#   weibull_m <- c(weibull_m, predict.sbm(mods_m[[1]]$weibull)[1,1])
-#   weibull_p <- c(weibull_p, predict.sbm(mods_p[[1]]$weibull)[1,1])
-#   
-#   rm(list = c("seq_dats", "metadata_sim", "path"))
-#   
-# }
-# 
-# 
-# ## plot - which you'll then loop through each speed parameter
-# 
-# ## realised speeds plot - with mean and median realised speeds and estimated speeds
-# # top one = my original way of working out realised speeds
-# # bottom one = point-to-point
-# 
-# # problems with super high realised speeds - see notebook for info but best solution rn is just to truncate at 10m/s
-# 
-# real_plots <- c()
-# 
-# for (i in 1:ncol(real_og)){
-#   r_og <- real_og[,i]
-#   r_p2p <- real_p_to_p[,i]
-#   if (i < 7){ # for the lower speeds - truncate at 3m/s for the purposes of visualisation
-#     r_og <- r_og[r_og<3]
-#     r_p2p <- r_p2p[r_p2p<3]
-#   }
-#   real_plot_df <- data.frame(real = c(real_og[,i], real_p_to_p[,i]),
-#                              type = c(rep("path sections", times = length(real_og[,i])), rep("all steps", times = length(real_p_to_p[,i]))))
-#   real_plot <- ggplot(real_plot_df, aes(x = real))+
-#     geom_density()+
-#     facet_grid(vars(type))+
-#     geom_vline(xintercept = aMRS[i], colour = "blue", linetype = "dashed")
-#   # facet_wrap(type ~.)
-#   real_plots <- c(real_plots, real_plot)
-# }
-# 
-# ## to finish if decide it would be useful -- for now just use multi-speed plots though
-
-
-
-
-
-
-
-
-
-
-# # Example of how to run the simulation -- provided by M at the start -----------------------------------------------------------------
-# 
-# # Create a correlated random walk movement path
-# path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
-#                 logspeed=-2, speedSD=1, speedCor=0, 
-#                 xlim=c(0,10), wrap=TRUE)
-# 
-# # Create a camera detection zone
-# dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-# 
-# # Visualise
-# plot_wrap(path, lineargs = list(col="grey"))
-# plot_dzone(dz, border=2)
-# 
-# # Create position data for sequences falling within the detection zone
-# posdat <- sequence_data(path, dz)
-# points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
-# 
-# # Create speed data summarised for each sequence
-# seqdat <- calc_speed(posdat)
-
-
-
-
-# # initial exploration of how use the simulation to investigate bias 2 -------------------------------------------
-# 
-# # simulate animal movements with varying speeds
-# 
-# # high speeds: 
-# # hedgehogs: max ~ 1.7m/s
-# # foxes: max ~ 13.9m/s
-# 
-# # Create a correlated random walk movement path
-# path2 <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
-#                  logspeed=-1, speedSD=1, speedCor=0, 
-#                  xlim=c(0,10), wrap=TRUE)
-# 
-# # Create a camera detection zone
-# dz2 <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-# 
-# # Visualise
-# plot_wrap(path2, lineargs = list(col="grey"))
-# plot_dzone(dz2, border=2)
-# 
-# # Create position data for sequences falling within the detection zone
-# posdat2 <- sequence_data(path2, dz2)
-# points(posdat2$x, posdat2$y, col=2, pch=16, cex=0.5)
-# 
-# # Create speed data summarised for each sequence
-# seqdat2 <- calc_speed(posdat2)
-# 
-# # visualise how the measured speeds relate to what it's meant to be
-# 
-# ggplot()+
-#   geom_density(aes(x = seqdat2$speed))+
-#   geom_vline(xintercept = exp(-1), colour = 'blue', size = 1)+
-#   theme_minimal()+
-#   geom_text(aes(x=exp(-1), label="true speed", y=0.5), colour="blue", angle=90, vjust = 1.2, text=element_text(size=11))
-# 
-# 
-# # plot how this relationship changes as you up the speed
-# 
-# # make function to do everything with varying speed as an input:
-# 
-# speeds_plot <- function(speed) {
-#   path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
-#                   logspeed=speed, speedSD=1, speedCor=0, 
-#                   xlim=c(0,10), wrap=TRUE)
-#   
-#   dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-#   
-#   plot_wrap(path, lineargs = list(col="grey"))
-#   plot_dzone(dz, border=2)
-#   
-#   posdat <- sequence_data(path, dz)
-#   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
-#   
-#   seqdat <- calc_speed(posdat)
-#   
-#   # p <- ggplot()+
-#   #   geom_density(aes(x = seqdat$speed))+
-#   #   geom_vline(xintercept = exp(speed), colour = 'blue', size = 1)+
-#   #   theme_minimal()
-#   
-#   colours <- c("real" = "blue", "measured" = "red")
-#   p <- ggplot()+
-#     geom_density(aes(x = seqdat$speed, colour = 'measured'))+
-#     geom_density(aes(x = path$speed, colour = 'real'))+
-#     theme_minimal()+
-#     scale_color_manual(values = colours)+
-#     labs(x = "speed",
-#          colour = "speed")
-#   
-#   return(plot(p))
-#   
-# }
-# 
-# 
-# # plot how the relationship changes as you get higher speeds:
-# 
-# # make vector of some speeds to compare:
-# speeds <- seq(from = -3, to = 2, by = 0.25) # upper limit here is a bit under the max for foxes
-# 
-# # run the simulation on each speed
-# plots <- lapply(speeds, speeds_plot)
-# 
-# # arrange all the plots in one panel
-# m <- marrangeGrob(plots, nrow = 7, ncol = 3)
-# 
-# ggsave(filename = "high_speeds3.png", plot = m, path = "plots", width = 10, height = 18)
-# 
-# 
-# # would be good to look at the proportion of frame numbers equal to 1 - how those change with increasing speeds (expect them to just increase)
-# 
-# ## plot how the number of frame numbers equal to 1 increases as speeds increase
-# # then could investigate factors that affect this 
-# # e.g. camera settings, tortuosity
-# 
-# single_frames <- function(speed) {
-#   path <- pathgen(5e3, kTurn=2, kCor=TRUE, pTurn=1, 
-#                   logspeed=speed, speedSD=1, speedCor=0, 
-#                   xlim=c(0,10), wrap=TRUE)
-#   
-#   dz <- data.frame(x=5, y=2, r=6, th=1, dir=0)
-#   
-#   plot_wrap(path, lineargs = list(col="grey"))
-#   plot_dzone(dz, border=2)
-#   
-#   posdat <- sequence_data(path, dz)
-#   points(posdat$x, posdat$y, col=2, pch=16, cex=0.5)
-#   
-#   seqdat <- calc_speed(posdat)
-#   
-#   seqdat2 <- cbind(seqdat, rep(speed, length(nrow(seqdat))))
-#   
-#   single_frames <- nrow(seqdat2[seqdat2$points==1,])
-#   
-#   return(c(speed, single_frames))
-# }
-# 
-# speeds2 <- seq(-3, 2, by = 0.01)
-# 
-# lapply(speeds2, single_frames) # takes absolutely ages!
-# 
-# # plot speed against single frame number
-
-
-
-
-
-
-# M's example of how to use the sbd functions -----------------------------
-
-# ## sbd example ##
-# 
-# source("sbd_functions.R")
-# 
-# n <- 1000
-# x <- rnorm(n) # sample n values from a normal distribution (default mean = 0, sd = 1)
-# dat <- data.frame(s=rlnorm(n, x), # sample n values from a log normal distribution - but is x the meanlog? - surely that can't have multiple values
-#                   x=x)
-# # s = probably speed?
-# 
-# mods <- sbm3(s~1, dat) # replaced fit.sbd with sbm3 - does all 3 models in one
-# 
-# 
-# # plot models:
-# 
-# plot(mods$models[1], lpar=list(col=2)) # this doesn't work though - need to figure out what Marcus wanted to plot and how to do it
-# plot(gmod, lpar=list(col=3), add=T)
-# plot(wmod, lpar=list(col=4), add=T)
-# plot(lmod, log=FALSE)
-# plot(gmod, log=FALSE, lpar=list(col=3), add=T)
-# plot(wmod, log=FALSE, lpar=list(col=4), add=T)
-# 
-# # AICs:
-# mods$AICtab
-# 
-# 
-# predict(lmod)
-# hmean(dat$s)
-# 
-# lmod2 <- fit.spd(s~x, dat, "l")
-# AIC(lmod)
-# AIC(lmod2)
-# prdn <- predict(lmod2, data.frame(x=seq(-3,3,len=256)))
-# plot(prdn$x, log(prdn$est), type="l")
-# lines(prdn$x, log(prdn$lcl), lty=2)
-# lines(prdn$x, log(prdn$ucl), lty=2)
-
-
-
-
-
-
-
-

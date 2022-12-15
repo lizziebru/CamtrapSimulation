@@ -12,6 +12,12 @@ OneDrive (https://imperiallondon-my.sharepoint.com/:f:/r/personal/eab21_ic_ac_uk
 
 ___
 
+**What you need for data & code availability for publication:**
+
+[**manuscript_CamtrapSimulation.R**](code/manuscript_CamtrapSimulation.R) - all code needed to build the simulation exactly as described in the methods section
+
+___
+
 ## **Code & data on Github**
 ___
 
@@ -77,6 +83,10 @@ Script for making all plots incl those for the manuscript. Uses the simulation d
 [**manuscript_plotting.R**](code/manuscript_plotting.R)
 
 Script for making only the plots used in the manuscript. Uses the same data from OneDrive. Also includes statistical tests.
+
+[**manuscript_CamtrapSimulation.R**](code/manuscript_CamtrapSimulation.R) 
+
+This script contains a summary of all code needed to build the simulation exactly as described in the methods section of the manuscript
 
 ___
 
@@ -186,4 +196,3 @@ ___
 
 Lizzie Bru
 lizzie.bru44@gmail.com
-
